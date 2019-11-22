@@ -25,12 +25,12 @@ Choctaw Hog: Scan for secrets in a Git repository
 * [What does the name mean?](#what-does-the-name-mean)
 
 ## How to run
-Download and unzip the [latest ZIP](https://source.datanerd.us/security/rusty_hogs/releases/download/0.4.1/release.zip)
+Download and unzip the [latest ZIP](https://github.com/newrelic/rusty-hog/releases/download/v0.4.4/rustyhogs-0.4.4.zip)
 on the releases tab, then you can run each binary with `-h` to see the usage.
 
 ```shell script
-wget https://source.datanerd.us/security/rusty_hogs/releases/download/0.4.1/release.zip
-unzip release.zip
+wget https://github.com/newrelic/rusty-hog/releases/download/v0.4.4/rustyhogs-0.4.4.zip
+unzip rustyhogs-0.4.4.zip
 cd darwin_releases
 ./choctaw_hog -h
 ```
@@ -175,7 +175,7 @@ Keep in mind that when you submit your pull request, you'll need to sign the CLA
     - [ ] Finish New Relic Open Source checklist
     - [ ] Unit tests
     - [ ] Prep for crates.io release
-    - [ ] Flatten original Git repo
+    - [x] Flatten original Git repo
 
 - 1.1: Enterprise features
     - [ ] Support config files (instead of command line args)
