@@ -16,7 +16,7 @@ use git2::DiffFormat;
 use git2::{DiffOptions, Repository, Time};
 use log::{self, info};
 use regex::bytes::Matches;
-use secret_scanning::SecretScanner;
+use rusty_hogs::SecretScanner;
 use serde::{Deserialize, Serialize};
 use simple_error::SimpleError;
 use simple_logger;

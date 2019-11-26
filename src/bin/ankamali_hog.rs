@@ -10,7 +10,7 @@ use simple_error::SimpleError;
 use oauth2::{Authenticator, DefaultAuthenticatorDelegate, ApplicationSecret, FlowType, DiskTokenStorage};
 use drive3::{DriveHub, Scope};
 use std::{fs, str};
-use secret_scanning::{SecretScanner};
+use rusty_hogs::SecretScanner;
 use std::collections::HashSet;
 use serde_derive::{Deserialize, Serialize};
 use log::{self, info};

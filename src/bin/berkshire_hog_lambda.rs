@@ -6,7 +6,7 @@ use log::{self, warn};
 use s3::bucket::Bucket;
 use s3::credentials::Credentials;
 use s3::region::Region;
-use secret_scanning::{S3Finding, SecretScanner};
+use rusty_hogs::{S3Finding, SecretScanner};
 use serde_derive::{Deserialize, Serialize};
 use simple_error::SimpleError;
 use simple_logger;

@@ -1,3 +1,30 @@
+//! # Rusty Hogs
+//!
+//! Rusty Hogs is a Rust crate to perform secret scanning across various data sources. It is split
+//! into two parts:
+//! 1. A library - Secret Scanner - that runs a set of regular expressions against a byte array
+//! and returns a set of matches
+//! 2. A set of binaries - * Hog - that uses the secret scanner library against some data source
+//! and outputs a JSON array of findings.
+//!
+//! ## Using the Secret Scanner Library
+//!
+//! By initializing the secret scanner with only one argument (case_insensitive), it will
+//! use the default regex rules built into the library.
+//!
+//! ```
+//! use rusty_hogs::SecretScanner;
+//! let ss = SecretScanner::new(false).unwrap();
+//! let mut matches_map = ss.get_matches(b"my email is arst@example.com");
+//! assert!(matches_map.contains_key(&String::from("Email address")));
+//!
+//! let matches = matches_map.remove(&String::from("Email address")).unwrap();
+//! let match_obj = matches.into_iter().nth(0).unwrap();
+//! assert_eq!(match_obj.start(), 12);
+//! assert_eq!(match_obj.end(), 28);
+//! ```
+
+
 use encoding::all::ASCII;
 use encoding::{DecoderTrap, Encoding};
 use hex;
