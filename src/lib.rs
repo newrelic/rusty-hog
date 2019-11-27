@@ -23,6 +23,47 @@
 //! assert_eq!(match_obj.start(), 12);
 //! assert_eq!(match_obj.end(), 28);
 //! ```
+//!
+//! You can also supply your own regular expressions, as a JSON string in the format
+//! { "Name of regular expression" : "Regular expression" , ... }
+//!
+//! ```
+//! use rusty_hogs::SecretScanner;
+//! let regex_string = r##"{ "Phone number" : "\\d{3}-?\\d{3}-\\d{4}" }"##;
+//! let ss = SecretScanner::new_fromstr(regex_string, false).unwrap();
+//! let mut matches_map = ss.get_matches(b"my phone is 555-555-5555");
+//! assert!(matches_map.contains_key(&String::from("Phone number")));
+//!
+//! let matches = matches_map.remove(&String::from("Phone number")).unwrap();
+//! let match_obj = matches.into_iter().nth(0).unwrap();
+//! assert_eq!(match_obj.start(), 12);
+//! assert_eq!(match_obj.end(), 24);
+//! ```
+//!
+//! When using the library you should make sure to properly iterate through each result. A single
+//! string may contain more than one finding, and a large data source may have hundreds or thousands
+//! of results. Below is the typical iterator usage in each binary:
+//! ```
+//! use rusty_hogs::SecretScanner;
+//! let regex_string = r##"{
+//! "Short phone number" : "\\d{3}-?\\d{3}-\\d{4}",
+//! "Long phone number" : "\\d{3}-\\d{4}",
+//! "Email address" : "\\w+@\\w+\\.\\w+" }"##;
+//! let ss = SecretScanner::new_fromstr(regex_string, false).unwrap();
+//! let input = b"my phone is 555-555-5555\nmy email is arst@example.com";
+//! let input_split = input.split(|x| (*x as char) == '\n');
+//! let mut secrets: Vec<String> = Vec::new();
+//! for new_line in input_split {
+//!     let matches_map = ss.get_matches(&new_line);
+//!     for (reason, match_iterator) in matches_map {
+//!         for matchobj in match_iterator {
+//!             secrets.push(reason.clone());
+//!         }
+//!     }
+//! }
+//! assert_eq!(secrets.len(), 3);
+//! assert_eq!(secrets.pop().unwrap(), "Email address");
+//! ```
 
 
 use encoding::all::ASCII;
