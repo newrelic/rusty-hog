@@ -6,7 +6,7 @@ use log::{self, debug, error, info};
 use s3::bucket::Bucket;
 use s3::credentials::Credentials;
 use s3::region::Region;
-use rusty_hogs::{S3Finding, SecretScanner};
+use rusty_hogs::{S3Finding, S3Scanner, SecretScannerBuilder};
 use serde::{Deserialize, Serialize};
 use simple_error::SimpleError;
 use simple_error::{require_with, try_with};
@@ -60,10 +60,8 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     }
 
     // Get regex objects
-    let ss: SecretScanner = match arg_matches.value_of("REGEX") {
-        Some(f) => SecretScanner::new_fromfile(f, arg_matches.is_present("CASE"))?,
-        None => SecretScanner::new(arg_matches.is_present("CASE"))?,
-    };
+    let ss = SecretScannerBuilder::new().conf_argm(arg_matches).build();
+    let s3scanner = S3Scanner::new(ss);
 
     // Parse the S3URI
     let url: Url = try_with!(
@@ -136,7 +134,7 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     let mut findings: Vec<S3Finding> = Vec::new();
     for key in keys {
         let f_result: Result<Vec<S3Finding>, SimpleError> =
-            ss.scan_s3_file(bucket.clone(), key.as_ref());
+            s3scanner.scan_s3_file(bucket.clone(), key.as_ref());
         match f_result {
             Ok(mut f) => findings.append(&mut f),
             Err(_) => error!("Failed to download key {:?}", key),

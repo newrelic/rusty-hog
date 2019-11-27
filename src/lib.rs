@@ -9,12 +9,12 @@
 //!
 //! ## Using the Secret Scanner Library
 //!
-//! By initializing the secret scanner with only one argument (case_insensitive), it will
-//! use the default regex rules built into the library.
+//! In order to get a Secret Scanner object you can use the SecretScannerBuilder. It uses the
+//! Rust builder pattern, and will use the default regex rules without any configuration.
 //!
 //! ```
-//! use rusty_hogs::SecretScanner;
-//! let ss = SecretScanner::new(false).unwrap();
+//! use rusty_hogs::SecretScannerBuilder;
+//! let ss = SecretScannerBuilder::new().build();
 //! let mut matches_map = ss.get_matches(b"my email is arst@example.com");
 //! assert!(matches_map.contains_key(&String::from("Email address")));
 //!
@@ -28,9 +28,9 @@
 //! { "Name of regular expression" : "Regular expression" , ... }
 //!
 //! ```
-//! use rusty_hogs::SecretScanner;
+//! use rusty_hogs::SecretScannerBuilder;
 //! let regex_string = r##"{ "Phone number" : "\\d{3}-?\\d{3}-\\d{4}" }"##;
-//! let ss = SecretScanner::new_fromstr(regex_string, false).unwrap();
+//! let ss = SecretScannerBuilder::new().set_json_str(regex_string).build();
 //! let mut matches_map = ss.get_matches(b"my phone is 555-555-5555");
 //! assert!(matches_map.contains_key(&String::from("Phone number")));
 //!
@@ -44,12 +44,12 @@
 //! string may contain more than one finding, and a large data source may have hundreds or thousands
 //! of results. Below is the typical iterator usage in each binary:
 //! ```
-//! use rusty_hogs::SecretScanner;
+//! use rusty_hogs::SecretScannerBuilder;
 //! let regex_string = r##"{
 //! "Short phone number" : "\\d{3}-?\\d{3}-\\d{4}",
 //! "Long phone number" : "\\d{3}-\\d{4}",
 //! "Email address" : "\\w+@\\w+\\.\\w+" }"##;
-//! let ss = SecretScanner::new_fromstr(regex_string, false).unwrap();
+//! let ss = SecretScannerBuilder::new().set_json_str(regex_string).build();
 //! let input = b"my phone is 555-555-5555\nmy email is arst@example.com";
 //! let input_split = input.split(|x| (*x as char) == '\n');
 //! let mut secrets: Vec<String> = Vec::new();
@@ -80,6 +80,7 @@ use std::fs::File;
 use std::io::BufReader;
 use std::iter::FromIterator;
 use std::str;
+use clap::ArgMatches;
 
 const DEFAULT_REGEX_JSON: &str = r##"
 {
@@ -208,37 +209,67 @@ pub struct SecretScanner {
     pub regex_map: BTreeMap<String, Regex>,
 }
 
-#[derive(Serialize, Clone)]
-pub struct S3Finding {
-    diff: String,
-    #[serde(rename = "stringsFound")]
-    strings_found: Vec<String>,
-    bucket: String,
-    key: String,
-    region: String,
-    reason: String,
+pub struct S3Scanner {
+    pub secret_scanner: SecretScanner
 }
 
-impl SecretScanner {
-    pub fn new(case_insensitive: bool) -> Result<SecretScanner, SimpleError> {
-        let json_obj: Map<String, Value> = SecretScanner::get_json_from_str(DEFAULT_REGEX_JSON)?;
-        let regex_map = SecretScanner::get_regex_objects(json_obj, case_insensitive);
-        Ok(SecretScanner { regex_map })
+// Trying to use borrowed values here seemed unnecessary
+pub struct SecretScannerBuilder {
+    pub case_insensitive: Option<bool>,
+    pub regex_json_str: Option<String>,
+    pub regex_json_path: Option<String>
+}
+
+impl SecretScannerBuilder {
+    pub fn new() -> SecretScannerBuilder {
+        SecretScannerBuilder {
+            case_insensitive: None,
+            regex_json_str: None,
+            regex_json_path: None
+        }
     }
 
-    pub fn new_fromfile(
-        filename: &str,
-        case_insensitive: bool,
-    ) -> Result<SecretScanner, SimpleError> {
-        let json_obj: Map<String, Value> = SecretScanner::get_json_from_file(filename)?;
-        let regex_map = SecretScanner::get_regex_objects(json_obj, case_insensitive);
-        Ok(SecretScanner { regex_map })
+    pub fn conf_argm(mut self, arg_matches: &ArgMatches) -> SecretScannerBuilder {
+        self.case_insensitive = Some(arg_matches.is_present("CASE"));
+        if arg_matches.is_present("REGEX") {
+            self.regex_json_path = Some(String::from(arg_matches.value_of("REGEX").unwrap()));
+        }
+        self
     }
 
-    pub fn new_fromstr(input: &str, case_insensitive: bool) -> Result<SecretScanner, SimpleError> {
-        let json_obj: Map<String, Value> = SecretScanner::get_json_from_str(input)?;
-        let regex_map = SecretScanner::get_regex_objects(json_obj, case_insensitive);
-        Ok(SecretScanner { regex_map })
+    pub fn set_json_path(mut self, json_path: &str) -> SecretScannerBuilder {
+        self.regex_json_path = Some(String::from(json_path));
+        self
+    }
+
+    pub fn set_json_str(mut self, json_str: &str) -> SecretScannerBuilder {
+        self.regex_json_str = Some(String::from(json_str));
+        self
+    }
+
+    pub fn global_case_insensitive(mut self, case_insensitive: bool) -> SecretScannerBuilder {
+        self.case_insensitive = Some(case_insensitive);
+        self
+    }
+
+    pub fn build(&self) -> SecretScanner {
+        let json_obj: Result<Map<String, Value>, SimpleError> = match &self.regex_json_path {
+            Some(p) => SecretScannerBuilder::get_json_from_file(&p),
+            _ => match &self.regex_json_str {
+                Some(s) => SecretScannerBuilder::get_json_from_str(&s),
+                _ => SecretScannerBuilder::get_json_from_str(DEFAULT_REGEX_JSON)
+            }
+        };
+        let json_obj: Map<String, Value> = match json_obj {
+            Ok(x) => x,
+            Err(e) => {
+                error!("Error parsing Regex JSON object, falling back to default regex rules: {:?}", e);
+                SecretScannerBuilder::get_json_from_str(DEFAULT_REGEX_JSON).unwrap()
+            }
+        };
+        let case_insensitive = self.case_insensitive.unwrap_or(false);
+        let regex_map = SecretScannerBuilder::get_regex_objects(json_obj, case_insensitive);
+        SecretScanner { regex_map }
     }
 
     fn get_json_from_file(filename: &str) -> Result<Map<String, Value>, SimpleError> {
@@ -293,6 +324,21 @@ impl SecretScanner {
             .map(|(k, v)| (k, v.unwrap()))
             .collect()
     }
+
+}
+
+#[derive(Serialize, Clone)]
+pub struct S3Finding {
+    diff: String,
+    #[serde(rename = "stringsFound")]
+    strings_found: Vec<String>,
+    bucket: String,
+    key: String,
+    region: String,
+    reason: String,
+}
+
+impl SecretScanner {
 
     // I don't fully understand the lifetimes involved here, so you may have issues
     pub fn get_matches<'a, 'b: 'a>(&'a self, line: &'b [u8]) -> BTreeMap<&'a String, Matches> {
@@ -363,9 +409,13 @@ impl SecretScanner {
         output.append(&mut hex_words);
         output
     }
+}
 
-    // this should be moved to a separate trait to separate base scanning from AWS-related activities
-    // and reduce code duplication
+impl S3Scanner {
+    pub fn new(secret_scanner: SecretScanner) -> S3Scanner {
+        S3Scanner { secret_scanner }
+    }
+
     pub fn scan_s3_file(
         &self,
         bucket: Bucket,
@@ -385,7 +435,7 @@ impl SecretScanner {
         // then make a list of findings in output
         let lines = data.split(|&x| (x as char) == '\n');
         for new_line in lines {
-            let results = self.get_matches(new_line);
+            let results = self.secret_scanner.get_matches(new_line);
             for (r, matches) in results {
                 let mut strings_found: Vec<String> = Vec::new();
                 for m in matches {

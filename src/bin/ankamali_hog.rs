@@ -10,7 +10,7 @@ use simple_error::SimpleError;
 use oauth2::{Authenticator, DefaultAuthenticatorDelegate, ApplicationSecret, FlowType, DiskTokenStorage};
 use drive3::{DriveHub, Scope};
 use std::{fs, str};
-use rusty_hogs::SecretScanner;
+use rusty_hogs::{SecretScanner, SecretScannerBuilder};
 use std::collections::HashSet;
 use serde_derive::{Deserialize, Serialize};
 use log::{self, info};
@@ -105,10 +105,7 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
 
 
     // Get regex objects
-    let secret_scanner: SecretScanner = match arg_matches.value_of("REGEX") {
-        Some(f) => SecretScanner::new_fromfile(f, arg_matches.is_present("CASE"))?,
-        None => SecretScanner::new(arg_matches.is_present("CASE"))?,
-    };
+    let secret_scanner = SecretScannerBuilder::new().conf_argm(arg_matches).build();
 
     // main loop - search each line for secrets, output a list of GDriveFinding objects
     let mut findings: HashSet<GDriveFinding> = HashSet::new();

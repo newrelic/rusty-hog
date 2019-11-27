@@ -16,7 +16,7 @@ use git2::DiffFormat;
 use git2::{DiffOptions, Repository, Time};
 use log::{self, info};
 use regex::bytes::Matches;
-use rusty_hogs::SecretScanner;
+use rusty_hogs::{SecretScanner, SecretScannerBuilder};
 use serde::{Deserialize, Serialize};
 use simple_error::SimpleError;
 use simple_logger;
@@ -221,19 +221,8 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     let revwalk = revwalk.map(|id| repo.find_commit(id.unwrap()));
 
     // Get regex objects
-    let secret_scanner: SecretScanner = match arg_matches.value_of("REGEX") {
-        Some(f) => SecretScanner::new_fromfile(f, arg_matches.is_present("CASE"))?,
-        None => SecretScanner::new(arg_matches.is_present("CASE"))?,
-    };
+    let secret_scanner = SecretScannerBuilder::new().conf_argm(arg_matches).build();
     let mut findings: HashSet<Finding> = HashSet::new();
-
-    // setup a list of branches so we can annotate our findings with the branch name
-    // (skipping for performance reasons... for now)
-    //    let branch_iter = repo.branches(Ok(BranchType::Remote)).unwrap();
-    //    let branch_collection: Vec<Branch> = branch_iter.collect();
-    //    let branch_collection: Vec<(String, Reference)> = branch_collection.into_iter().map(|x| {
-    //        (x.name().unwrap().unwrap().to_string(), x.into_reference())
-    //    }).collect();
 
     // take our "--since_commit" input (hash id) and convert it to a date and time
     let since_time_obj: Time = if arg_matches.is_present("SINCECOMMIT") {

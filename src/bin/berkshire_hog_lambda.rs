@@ -6,7 +6,7 @@ use log::{self, warn};
 use s3::bucket::Bucket;
 use s3::credentials::Credentials;
 use s3::region::Region;
-use rusty_hogs::{S3Finding, SecretScanner};
+use rusty_hogs::{S3Finding, S3Scanner, SecretScannerBuilder};
 use serde_derive::{Deserialize, Serialize};
 use simple_error::SimpleError;
 use simple_logger;
@@ -111,11 +111,8 @@ fn my_handler(e: CustomEvent, _c: Context) -> Result<CustomOutput, HandlerError>
 
     // Main loop - create a list of findings based on each S3 file contained in the json
     let mut findings: Vec<S3Finding> = Vec::new();
-    let ss = SecretScanner::new(false);
-    let ss = match ss {
-        Ok(x) => x,
-        Err(e) => return Err(HandlerError::from(e.as_str())),
-    };
+    let ss = SecretScannerBuilder::new().build();
+    let s3scanner = S3Scanner::new(ss);
     for top_record in e.records {
         let body_obj: Body = serde_json::from_str(top_record.body.as_str()).unwrap(); //yo dawg
         for record in body_obj.records {
@@ -126,7 +123,7 @@ fn my_handler(e: CustomEvent, _c: Context) -> Result<CustomOutput, HandlerError>
             let key = record.s3.object.key;
 //            let filesize = record.s3.object.size;
             let f_result: Result<Vec<S3Finding>, SimpleError> =
-                ss.scan_s3_file(bucket, key.as_ref());
+                s3scanner.scan_s3_file(bucket, key.as_ref());
             match f_result {
                 Ok(mut f) => findings.append(&mut f),
                 Err(e) => return Err(HandlerError::from(e.as_str())),
