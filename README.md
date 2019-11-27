@@ -48,6 +48,10 @@ cp target/x86_64-unknown-linux-musl/release/berkshire_hog bootstrap
 zip -j berkshire_lambda.zip bootstrap
 ```
 
+To build and view HTML documents run ```cargo doc --no-deps --open```
+
+To run unit-tests run ```cargo test```
+
 ## Anakamali Hog Usage
 ```
 USAGE:

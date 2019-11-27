@@ -205,22 +205,52 @@ const STANDARD_ENCODE: &[u8; 64] = &[
     47,  // input 63 (0x3F) => '/' (0x2F)
 ];
 
+/// Contains helper functions and the map of regular expressions that are used to find secrets
 pub struct SecretScanner {
     pub regex_map: BTreeMap<String, Regex>,
 }
 
+/// Contains helper functions for performing scans of S3 objects
 pub struct S3Scanner {
     pub secret_scanner: SecretScanner
 }
 
-// Trying to use borrowed values here seemed unnecessary
+/// Used to instantiate the SecretScanner object with user-supplied options
 pub struct SecretScannerBuilder {
     pub case_insensitive: Option<bool>,
     pub regex_json_str: Option<String>,
     pub regex_json_path: Option<String>
 }
 
+/// Use the `new()` function to create a builder object, perform configurations as needed, then
+/// create the SecretScanner object with `.build()`. Each configuration method consumes and returns
+/// self so that you can chain them.
+///
+/// # Examples
+///
+/// With no configuration you will inherit the default rules that are case sensitive...
+/// ```
+/// use rusty_hogs::{SecretScannerBuilder, SecretScanner};
+/// let ssb: SecretScannerBuilder = SecretScannerBuilder::new();
+/// let ss: SecretScanner = ssb.build();
+/// assert_eq!(ss.regex_map.len(), 50);
+/// ```
+///
+/// Alternatively, you can supply your own regular expression JSON, and set a global
+/// case-insensitive flag...
+/// ```
+/// use rusty_hogs::{SecretScannerBuilder, SecretScanner};
+/// let regex_string = r##"{ "Phone number" : "\\d{3}-?\\d{3}-\\d{4}" }"##;
+/// let ssb: SecretScannerBuilder = SecretScannerBuilder::new()
+///     .set_json_str(regex_string)
+///     .global_case_insensitive(true);
+/// assert!(ssb.case_insensitive.unwrap());
+/// let ss: SecretScanner = ssb.build();
+/// assert_eq!(ss.regex_map.len(), 1);
+/// ```
+///
 impl SecretScannerBuilder {
+    /// Create a new SecretScannerBuilder object with the default config (50 rules, case sensitive)
     pub fn new() -> SecretScannerBuilder {
         SecretScannerBuilder {
             case_insensitive: None,
@@ -229,6 +259,8 @@ impl SecretScannerBuilder {
         }
     }
 
+    /// Configure multiple values using the clap library's "ArgMatches" object.
+    /// This function looks for a "CASE" flag and "REGEX" value.
     pub fn conf_argm(mut self, arg_matches: &ArgMatches) -> SecretScannerBuilder {
         self.case_insensitive = Some(arg_matches.is_present("CASE"));
         if arg_matches.is_present("REGEX") {
@@ -237,21 +269,25 @@ impl SecretScannerBuilder {
         self
     }
 
+    /// Supply a path to a JSON file on the system that contains regular expressions
     pub fn set_json_path(mut self, json_path: &str) -> SecretScannerBuilder {
         self.regex_json_path = Some(String::from(json_path));
         self
     }
 
+    /// Supply a string containing a JSON object that contains regular expressions
     pub fn set_json_str(mut self, json_str: &str) -> SecretScannerBuilder {
         self.regex_json_str = Some(String::from(json_str));
         self
     }
 
+    /// Force all regular expressions to be case-insensitive, overriding any flags in the regex
     pub fn global_case_insensitive(mut self, case_insensitive: bool) -> SecretScannerBuilder {
         self.case_insensitive = Some(case_insensitive);
         self
     }
 
+    /// Returns the configured SecretScanner object used to perform regex scanning
     pub fn build(&self) -> SecretScanner {
         let json_obj: Result<Map<String, Value>, SimpleError> = match &self.regex_json_path {
             Some(p) => SecretScannerBuilder::get_json_from_file(&p),
@@ -328,19 +364,29 @@ impl SecretScannerBuilder {
 }
 
 #[derive(Serialize, Clone)]
+/// serde_json object that represents a single found secret - finding
 pub struct S3Finding {
-    diff: String,
+    pub diff: String,
     #[serde(rename = "stringsFound")]
-    strings_found: Vec<String>,
-    bucket: String,
-    key: String,
-    region: String,
-    reason: String,
+    pub strings_found: Vec<String>,
+    pub bucket: String,
+    pub key: String,
+    pub region: String,
+    pub reason: String,
 }
 
+/// The main object that provides the "secret scanning" functionality. The regex_map field
+/// provides all the regular expressions that the secret scanner will look for.
+/// Use `get_matches(line: [u8])` to perform a `regex.find_iter()` for each regular expression in
+/// regex_map. ```get_matches``` will return another
+/// [BTreeMap](https://doc.rust-lang.org/std/collections/struct.BTreeMap.html) where the key is
+/// the name of the regular expression and the value is a
+/// [Matches](https://docs.rs/regex/1.3.1/regex/struct.Matches.html) object.
+///
 impl SecretScanner {
 
-    // I don't fully understand the lifetimes involved here, so you may have issues
+    /// Scan a byte array for regular expression matches, returns a BTreeMap of Matches for each
+    /// regular expression.
     pub fn get_matches<'a, 'b: 'a>(&'a self, line: &'b [u8]) -> BTreeMap<&'a String, Matches> {
         self.regex_map
             .iter()
@@ -373,6 +419,9 @@ impl SecretScanner {
         entropy
     }
 
+    /// Scan a byte array for arbitrary hex sequences and base64 sequences. Will return a list of
+    /// matches for those sequences with a high amount of entropy, potentially indicating a
+    /// private key.
     pub fn get_entropy_findings(line: &[u8]) -> Vec<String> {
         let words: Vec<&[u8]> = line.split(|x| (*x as char) == ' ').collect();
         let words: Vec<&[u8]> = words
@@ -411,11 +460,20 @@ impl SecretScanner {
     }
 }
 
+/// Acts as a wrapper around a SecretScanner object to provide helper functions for performing
+/// scanning against AWS S3 objects. Relies on the [rust-s3](https://github.com/durch/rust-s3)
+/// which provides S3 access without the AWS Rusoto library.
 impl S3Scanner {
+
+    /// Initialize the SecretScanner object first using the SecretScannerBuilder, then provide
+    /// it to this constructor method.
     pub fn new(secret_scanner: SecretScanner) -> S3Scanner {
         S3Scanner { secret_scanner }
     }
 
+    /// Takes an initialized [Bucket](https://durch.github.io/rust-s3/s3/bucket/struct.Bucket.html)
+    /// object and an S3 object path in the format `s3://<path>` and returns a list of S3Finding
+    /// objects.
     pub fn scan_s3_file(
         &self,
         bucket: Bucket,
