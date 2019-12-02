@@ -10,7 +10,6 @@ use simple_error::SimpleError;
 use oauth2::{Authenticator, DefaultAuthenticatorDelegate, ApplicationSecret, FlowType, DiskTokenStorage};
 use drive3::{DriveHub, Scope};
 use std::{fs, str};
-use rusty_hogs::{SecretScanner, SecretScannerBuilder};
 use std::collections::HashSet;
 use serde_derive::{Deserialize, Serialize};
 use log::{self, info};
@@ -20,18 +19,9 @@ use std::io::Read;
 use std::path::Path;
 use simple_logger::init_with_level;
 
-
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash)]
-struct GDriveFinding {
-    date: String,
-    diff: String,
-    path: String,
-    #[serde(rename = "stringsFound")]
-    strings_found: Vec<String>,
-    g_drive_id: String,
-    reason: String,
-    web_link: String
-}
+use rusty_hogs::google_scanning::gdrive as gdrive_scanner;
+use rusty_hogs::{SecretScanner, SecretScannerBuilder};
+use gdrive_scanner::{GDriveScanner, GDriveFinding};
 
 fn main() {
     let matches = clap_app!(ankamali_hog =>

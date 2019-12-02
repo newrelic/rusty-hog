@@ -6,12 +6,14 @@ use log::{self, warn};
 use s3::bucket::Bucket;
 use s3::credentials::Credentials;
 use s3::region::Region;
-use rusty_hogs::{S3Finding, S3Scanner, SecretScannerBuilder};
 use serde_derive::{Deserialize, Serialize};
 use simple_error::SimpleError;
 use simple_logger;
 use std::env;
 use std::time::SystemTime;
+use rusty_hogs::aws_scanning::s3 as s3_scanner;
+use rusty_hogs::SecretScannerBuilder;
+use s3_scanner::{S3Finding, S3Scanner};
 
 // Each of these structs correspond to parsed JSON objects coming from S3 -> SQS -> Lambda
 #[derive(Deserialize, Clone, Debug)]

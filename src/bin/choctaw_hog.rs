@@ -16,7 +16,6 @@ use git2::DiffFormat;
 use git2::{DiffOptions, Repository, Time};
 use log::{self, info};
 use regex::bytes::Matches;
-use rusty_hogs::{SecretScanner, SecretScannerBuilder};
 use serde::{Deserialize, Serialize};
 use simple_error::SimpleError;
 use simple_logger;
@@ -28,27 +27,9 @@ use std::str;
 use tempdir::TempDir;
 use url::{ParseError, Url};
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash)]
-struct Finding {
-    //    branch: String, // this requires a walk of the commits for each finding, so lets leave it out for the moment
-    commit: String,
-    #[serde(rename = "commitHash")]
-    commit_hash: String,
-    date: String,
-    diff: String,
-    #[serde(rename = "stringsFound")]
-    strings_found: Vec<String>,
-    path: String,
-    reason: String,
-}
-
-enum GitScheme {
-    Localpath,
-    Http,
-    Ssh,
-    Relativepath,
-    Git
-}
+use rusty_hogs::git_scanning::gitrepo as gitrepo_scanner;
+use rusty_hogs::{SecretScanner, SecretScannerBuilder};
+use gitrepo_scanner::{GitScanner, GitFinding, GitScheme};
 
 fn main() {
     let matches = clap_app!(choctaw_hog =>
@@ -222,7 +203,7 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
 
     // Get regex objects
     let secret_scanner = SecretScannerBuilder::new().conf_argm(arg_matches).build();
-    let mut findings: HashSet<Finding> = HashSet::new();
+    let mut findings: HashSet<GitFinding> = HashSet::new();
 
     // take our "--since_commit" input (hash id) and convert it to a date and time
     let since_time_obj: Time = if arg_matches.is_present("SINCECOMMIT") {
@@ -279,7 +260,7 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
                     );
                 }
                 if !secrets.is_empty() {
-                    findings.insert(Finding {
+                    findings.insert(GitFinding {
                         commit_hash: commit.id().to_string(),
                         commit: commit.message().unwrap().to_string(),
                         diff: ASCII
@@ -302,7 +283,7 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
             if arg_matches.is_present("ENTROPY") {
                 let ef = SecretScanner::get_entropy_findings(new_line);
                 if !ef.is_empty() {
-                    findings.insert(Finding {
+                    findings.insert(GitFinding {
                         commit: commit.message().unwrap().to_string(),
                         commit_hash: commit.id().to_string(),
                         diff: ASCII

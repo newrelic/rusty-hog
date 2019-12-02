@@ -6,7 +6,6 @@ use log::{self, debug, error, info};
 use s3::bucket::Bucket;
 use s3::credentials::Credentials;
 use s3::region::Region;
-use rusty_hogs::{S3Finding, S3Scanner, SecretScannerBuilder};
 use serde::{Deserialize, Serialize};
 use simple_error::SimpleError;
 use simple_error::{require_with, try_with};
@@ -14,6 +13,10 @@ use simple_logger::init_with_level;
 use std::fs;
 use std::str;
 use url::{Url};
+
+use rusty_hogs::aws_scanning::s3 as s3_scanner;
+use rusty_hogs::SecretScannerBuilder;
+use s3_scanner::{S3Finding, S3Scanner};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash)]
 struct Finding {
