@@ -85,7 +85,11 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     };
 
     // download an export of the file, split on new lines, store in lines
-    let mut resp_obj = hub.files().export(fileid, mime_type).doit().unwrap();
+    let mut resp_obj = hub.files().export(fileid, mime_type).doit();
+    let mut resp_obj = match resp_obj {
+        Ok(r) => r,
+        Err(e) => return Err(SimpleError::new(e.to_string()))
+    };
     let mut buffer: Vec<u8> = Vec::new();
     match resp_obj.read_to_end(&mut buffer) {
         Err(e) => return Err(SimpleError::new(e.to_string())),
