@@ -33,7 +33,7 @@ use gitrepo_scanner::{GitScanner, GitFinding, GitScheme};
 
 fn main() {
     let matches = clap_app!(choctaw_hog =>
-        (version: "0.4.4")
+        (version: "0.4.5")
         (author: "Scott Cutler <scutler@newrelic.com>")
         (about: "Git secret hunter in Rust")
         (@arg REGEX: --regex +takes_value "Sets a custom regex JSON file, defaults to ./trufflehog_rules.json")

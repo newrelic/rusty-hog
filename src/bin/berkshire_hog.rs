@@ -30,7 +30,7 @@ struct Finding {
 
 fn main() {
     let matches = clap_app!(berkshire_hog =>
-        (version: "0.4.4")
+        (version: "0.4.5")
         (author: "Scott Cutler <scutler@newrelic.com>")
         (about: "S3 secret hunter in Rust. Avoid bandwidth costs, run this within a VPC!")
         (@arg REGEX: --regex +takes_value "Sets a custom regex JSON file")
