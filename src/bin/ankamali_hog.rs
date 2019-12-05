@@ -35,7 +35,7 @@ struct GDriveFinding {
 
 fn main() {
     let matches = clap_app!(ankamali_hog =>
-        (version: "0.4.4")
+        (version: "0.4.5")
         (author: "Scott Cutler <scutler@newrelic.com>")
         (about: "Google Drive secret hunter in Rust.")
         (@arg REGEX: --regex +takes_value "Sets a custom regex JSON file")
@@ -85,7 +85,7 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     // initialize some variables from the response
     let modified_time = file_object.modified_time.unwrap().clone();
     let web_link = file_object.web_view_link.unwrap();
-    let parents = file_object.parents.unwrap(); //TODO: add code to map from id -> name
+    let parents = file_object.parents.unwrap_or_else(|| Vec::new()); //TODO: add code to map from id -> name
     let name = file_object.name.unwrap();
     let path = format!("{}/{}", parents.join("/"), name);
     let mime_type = match file_object.mime_type.unwrap().as_ref() {
@@ -95,7 +95,11 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     };
 
     // download an export of the file, split on new lines, store in lines
-    let mut resp_obj = hub.files().export(fileid, mime_type).doit().unwrap();
+    let resp_obj = hub.files().export(fileid, mime_type).doit();
+    let mut resp_obj= match resp_obj {
+        Ok(r) => r,
+        Err(e) => return Err(SimpleError::new(e.to_string()))
+    };
     let mut buffer: Vec<u8> = Vec::new();
     match resp_obj.read_to_end(&mut buffer) {
         Err(e) => return Err(SimpleError::new(e.to_string())),
