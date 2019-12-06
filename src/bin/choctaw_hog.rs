@@ -66,9 +66,10 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
 
     // Initialize some more variables
     let secret_scanner = SecretScannerBuilder::new().conf_argm(arg_matches).build();
-    let mut findings: HashSet<GitFinding> = HashSet::new();
-    let mut git_scanner: GitScanner = GitScanner::new(secret_scanner);
-
+    let sshkeypath = arg_matches.value_of("SSHKEYPATH");
+    let sshkeyphrase = arg_matches.value_of("SSHKEYPHRASE");
+    let since_commit = arg_matches.value_of("SINCECOMMIT");
+    let scan_entropy = arg_matches.is_present("ENTROPY");
 
     // Get Git objects
     let dest_dir = TempDir::new("rusty_hogs").unwrap();
@@ -76,8 +77,8 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     let source_path: &str = arg_matches.value_of("GITPATH").unwrap();
 
     // Do the scan
-    git_scanner.init_git_repo(source_path, &dest_dir_path, arg_matches.value_of("SSHKEYPATH"), arg_matches.value_of("SSHKEYPHRASE"));
-    git_scanner.perform_scan(None, arg_matches.value_of("SINCECOMMIT"), arg_matches.is_present("ENTROPY"));
+    let mut git_scanner = GitScanner::new(secret_scanner).init_git_repo(source_path, &dest_dir_path, sshkeypath, sshkeyphrase);
+    let findings = git_scanner.perform_scan(None, since_commit, scan_entropy);
 
 
     info!("Found {} secrets", findings.len());

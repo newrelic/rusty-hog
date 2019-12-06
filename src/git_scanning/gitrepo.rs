@@ -1,9 +1,21 @@
 use crate::SecretScanner;
-use serde_derive::{Deserialize, Serialize};
+use encoding::all::ASCII;
+use encoding::{DecoderTrap, Encoding};
+use git2::{DiffFormat, Revwalk, Commit};
+use git2::{DiffOptions, Repository, Time};
+use log::{self, info};
+use regex::bytes::Matches;
+use serde::{Deserialize, Serialize};
+use simple_error::SimpleError;
+use simple_logger;
+use simple_logger::init_with_level;
+use std::collections::{BTreeMap, HashSet};
+use std::fs;
 use std::path::Path;
-use clap::ArgMatches;
-use git2::{Repository, Revwalk, Time};
-use url::{Url, ParseError};
+use std::str;
+use tempdir::TempDir;
+use url::{ParseError, Url};
+use chrono::NaiveDateTime;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash)]
 pub struct GitFinding {
@@ -44,11 +56,31 @@ impl GitScanner {
                      repo: None }
     }
 
-    pub fn perform_scan(&self, ) -> HashSet<GitFinding> {
+    pub fn perform_scan(&mut self, glob: Option<&str>, since_commit: Option<&str>, scan_entropy: bool) -> HashSet<GitFinding> {
+        let repo = self.repo.as_ref().unwrap();
+        let mut revwalk = repo.revwalk().unwrap();
+        revwalk.push_glob("*").unwrap(); //easy mode: iterate over all the commits
+
+        // take our "--since_commit" input (hash id) and convert it to a date and time
+        let since_time_obj: Time = if since_commit.is_some() {
+            let revspec = match repo.revparse(since_commit.unwrap()) {
+                Ok(r) => r,
+                Err(e) => panic!("SINCECOMMIT value returned an error: {:?}", e),
+            };
+            let o = revspec.from().unwrap();
+            o.as_commit().unwrap().time()
+        } else {
+            Time::new(0, 0)
+        };
+
+        // convert our iterator of OIDs to commit objects
+        let revwalk = revwalk.map(|id| repo.find_commit(id.unwrap())).filter(|c| c.as_ref().unwrap().time() >= since_time_obj);
+
+        let mut findings: HashSet<GitFinding> = HashSet::new();
         // The main loop - scan each line of each diff of each commit for regex matches
         for commit in revwalk {
             // based on https://github.com/alexcrichton/git2-rs/blob/master/examples/log.rs
-            let commit = commit.unwrap();
+            let commit: Commit = commit.unwrap();
             info!("Scanning commit {}", commit.id());
             if commit.parents().len() > 1 {
                 continue;
@@ -70,7 +102,7 @@ impl GitScanner {
             // secondary loop that occurs for each *line* in the diff
             diff.print(DiffFormat::Patch, |delta, _hunk, line| {
                 let new_line = line.content();
-                let matches_map: BTreeMap<&String, Matches> = secret_scanner.get_matches(new_line);
+                let matches_map: BTreeMap<&String, Matches> = self.secret_scanner.get_matches(new_line);
 
                 for (reason, match_iterator) in matches_map {
                     let mut secrets: Vec<String> = Vec::new();
@@ -105,7 +137,7 @@ impl GitScanner {
                     }
                 }
 
-                if arg_matches.is_present("ENTROPY") {
+                if scan_entropy {
                     let ef = SecretScanner::get_entropy_findings(new_line);
                     if !ef.is_empty() {
                         findings.insert(GitFinding {
@@ -131,28 +163,7 @@ impl GitScanner {
             })
                 .unwrap();
         }
-    }
-
-    fn get_revwalk(&self, glob: Option<&str>, since_commit: Option<&str>) -> Revwalk {
-        let mut revwalk = &self.repo.unwrap().revwalk().unwrap();
-        revwalk.push_glob(glob.unwrap_or("*")).unwrap(); //easy mode: iterate over all the commits
-        // convert our iterator of OIDs to commit objects
-        let revwalk = revwalk.map(|id| repo.find_commit(id.unwrap()));
-
-        // take our "--since_commit" input (hash id) and convert it to a date and time
-        let since_time_obj: Time = if since_commit.is_some() {
-            let revspec = match repo.revparse(since_commit.unwrap()) {
-                Ok(r) => r,
-                Err(e) => panic!("SINCECOMMIT value returned an error: {:?}", e),
-            };
-            let o = revspec.from().unwrap();
-            o.as_commit().unwrap().time()
-        } else {
-            Time::new(0, 0)
-        };
-
-        // filter our commits: only commits that occured after the --since_commit filter using epoch math
-        revwalk.filter(|c| c.as_ref().unwrap().time() >= since_time_obj);
+        findings
     }
 
     fn get_ssh_git_repo(
@@ -200,7 +211,7 @@ impl GitScanner {
 
     /// Initialize a [Repository](https://docs.rs/git2/0.10.2/git2/struct.Repository.html) object
     pub fn init_git_repo(mut self, path: &str, dest_dir: &Path, sshkeypath: Option<&str>,
-                    sshkeyphrase: Option<&str>) {
+                    sshkeyphrase: Option<&str>) -> GitScanner {
         let url = Url::parse(path);
         // try to figure out the format of the path
         let scheme: GitScheme = match &url {
@@ -263,12 +274,12 @@ impl GitScanner {
                     "" => "git",
                     s => s
                 };
-                Some(get_ssh_git_repo(path, dest_dir, sshkeypath, sshkeyphrase, username))
+                Some(GitScanner::get_ssh_git_repo(path, dest_dir, sshkeypath, sshkeyphrase, username))
             }
             GitScheme::Ssh => {
                 let url = url.unwrap(); // we already have assurance this passed successfully
                 let username = url.username();
-                Some(get_ssh_git_repo(path, dest_dir, sshkeypath, sshkeyphrase, username))
+                Some(GitScanner::get_ssh_git_repo(path, dest_dir, sshkeypath, sshkeyphrase, username))
             }
             // since @ and : are valid characters in linux paths, we need to try both opening locally
             // and over SSH. This SSH syntax is normal for Github.
@@ -280,10 +291,11 @@ impl GitScanner {
                         Some(i) => path.split_at(i).0,
                         None => "git",
                     };
-                    Some(get_ssh_git_repo(path, dest_dir, sshkeypath, sshkeyphrase, username))
+                    Some(GitScanner::get_ssh_git_repo(path, dest_dir, sshkeypath, sshkeyphrase, username))
                 }
             },
-        }
+        };
+        self
     }
 }
 
