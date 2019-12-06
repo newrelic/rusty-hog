@@ -80,15 +80,16 @@ use hex;
 use log::{self, error, info, trace};
 use regex::bytes::{Matches, Regex, RegexBuilder};
 use s3::bucket::Bucket;
-use serde_derive::{Serialize};
 use serde_json::{Map, Value};
 use simple_error::SimpleError;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fs::File;
 use std::io::BufReader;
 use std::iter::FromIterator;
-use std::str;
+use std::{str, fs};
 use clap::ArgMatches;
+use std::hash::Hash;
+use serde::{Deserialize, Serialize};
 
 const DEFAULT_REGEX_JSON: &str = r##"
 {
@@ -450,5 +451,19 @@ impl SecretScanner {
         output.append(&mut b64_words);
         output.append(&mut hex_words);
         output
+    }
+
+    pub fn output_findings<T: Serialize + Eq + Hash>(findings: &HashSet<T>, prettyprint: bool, output_path: Option<&str>) {
+        let mut json_text: Vec<u8> = Vec::new();
+        if prettyprint {
+            json_text.append(serde_json::ser::to_vec_pretty(findings).unwrap().as_mut());
+        } else {
+            json_text.append(serde_json::ser::to_vec(findings).unwrap().as_mut());
+        }
+        if output_path.is_some() {
+            fs::write(output_path.unwrap(), json_text).unwrap();
+        } else {
+            println!("{}", str::from_utf8(json_text.as_ref()).unwrap());
+        }
     }
 }

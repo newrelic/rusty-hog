@@ -5,7 +5,7 @@ use hex;
 use log::{self, error, info, trace};
 use regex::bytes::{Matches, Regex, RegexBuilder};
 use s3::bucket::Bucket;
-use serde_derive::{Serialize};
+use serde_derive::{Serialize, Deserialize};
 use serde_json::{Map, Value};
 use simple_error::SimpleError;
 use std::collections::{BTreeMap, HashMap, HashSet};
@@ -15,7 +15,7 @@ use std::iter::FromIterator;
 use std::str;
 use clap::ArgMatches;
 
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, Clone)]
 /// serde_json object that represents a single found secret - finding
 pub struct S3Finding {
     pub diff: String,

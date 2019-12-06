@@ -15,18 +15,10 @@ use std::str;
 use url::{Url};
 
 use rusty_hogs::aws_scanning::s3 as s3_scanner;
-use rusty_hogs::SecretScannerBuilder;
+use rusty_hogs::{SecretScannerBuilder, SecretScanner};
 use s3_scanner::{S3Finding, S3Scanner};
-
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash)]
-struct Finding {
-    date: String,
-    diff: String,
-    #[serde(rename = "stringsFound")]
-    strings_found: Vec<String>,
-    path: String,
-    reason: String,
-}
+use std::collections::HashSet;
+use std::iter::FromIterator;
 
 fn main() {
     let matches = clap_app!(berkshire_hog =>
@@ -61,6 +53,10 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
         2 => init_with_level(log::Level::Debug).unwrap(),
         3 | _ => init_with_level(log::Level::Trace).unwrap(),
     }
+
+    // Initialize some other variables
+    let prettyprint = arg_matches.is_present("PRETTYPRINT");
+    let output_path = arg_matches.value_of("OUTPUT");
 
     // Get regex objects
     let ss = SecretScannerBuilder::new().conf_argm(arg_matches).build();
@@ -144,19 +140,10 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
         };
     }
 
+    // Output the results
+    let findings: HashSet<S3Finding> = HashSet::from_iter(findings.into_iter());
     info!("Found {} secrets", findings.len());
-
-    let mut json_text: Vec<u8> = Vec::new();
-    if arg_matches.is_present("PRETTYPRINT") {
-        json_text.append(serde_json::ser::to_vec_pretty(&findings).unwrap().as_mut());
-    } else {
-        json_text.append(serde_json::ser::to_vec(&findings).unwrap().as_mut());
-    }
-    if arg_matches.is_present("OUTPUT") {
-        fs::write(arg_matches.value_of("OUTPUT").unwrap(), json_text).unwrap();
-    } else {
-        println!("{}", str::from_utf8(json_text.as_ref()).unwrap());
-    }
+    SecretScanner::output_findings(&findings, prettyprint, output_path);
 
     Ok(())
 }

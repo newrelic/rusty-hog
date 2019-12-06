@@ -70,6 +70,8 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     let sshkeyphrase = arg_matches.value_of("SSHKEYPHRASE");
     let since_commit = arg_matches.value_of("SINCECOMMIT");
     let scan_entropy = arg_matches.is_present("ENTROPY");
+    let prettyprint = arg_matches.is_present("PRETTYPRINT");
+    let output_path = arg_matches.value_of("OUTPUT");
 
     // Get Git objects
     let dest_dir = TempDir::new("rusty_hogs").unwrap();
@@ -80,20 +82,9 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     let mut git_scanner = GitScanner::new(secret_scanner).init_git_repo(source_path, &dest_dir_path, sshkeypath, sshkeyphrase);
     let findings = git_scanner.perform_scan(None, since_commit, scan_entropy);
 
-
+    // Output the results
     info!("Found {} secrets", findings.len());
-
-    let mut json_text: Vec<u8> = Vec::new();
-    if arg_matches.is_present("PRETTYPRINT") {
-        json_text.append(serde_json::ser::to_vec_pretty(&findings).unwrap().as_mut());
-    } else {
-        json_text.append(serde_json::ser::to_vec(&findings).unwrap().as_mut());
-    }
-    if arg_matches.is_present("OUTPUT") {
-        fs::write(arg_matches.value_of("OUTPUT").unwrap(), json_text).unwrap();
-    } else {
-        println!("{}", str::from_utf8(json_text.as_ref()).unwrap());
-    }
+    SecretScanner::output_findings(&findings, prettyprint, output_path);
 
     Ok(())
 }
