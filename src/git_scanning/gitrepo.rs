@@ -18,6 +18,7 @@ use url::{ParseError, Url};
 use chrono::NaiveDateTime;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash)]
+/// serde_json object that represents a single found secret - finding
 pub struct GitFinding {
     //    branch: String, // this requires a walk of the commits for each finding, so lets leave it out for the moment
     pub commit: String,
@@ -31,6 +32,7 @@ pub struct GitFinding {
     pub reason: String
 }
 
+/// enum used by init_git_repo to communicate the type of git repo specified by the supplied URL
 pub enum GitScheme {
     Localpath,
     Http,
@@ -48,6 +50,35 @@ pub struct GitScanner {
 /// Acts as a wrapper around a SecretScanner object to provide helper functions for performing
 /// scanning against Git repositories. Relies on the [git2-rs](https://github.com/rust-lang/git2-rs)
 /// library which provides lower level access to the Git data structures.
+///
+/// # Examples
+///
+/// Basic usage requires you to first create a secret scanner object and supply it to the
+/// constructor:
+///
+/// ```
+/// use rusty_hogs::SecretScannerBuilder;
+/// use rusty_hogs::git_scanning::gitrepo::GitScanner;
+/// let ss = SecretScannerBuilder::new().build();
+/// let gs = GitScanner::new(ss);
+/// ```
+///
+/// After that, you must first run init_git_repo(), then perform_scan(), which returns a HashSet
+/// of findings...
+///
+/// ```
+/// use rusty_hogs::SecretScannerBuilder;
+/// use rusty_hogs::git_scanning::gitrepo::{GitScanner, GitFinding};
+/// use std::collections::HashSet;
+/// use std::path::Path;
+///
+/// let ss = SecretScannerBuilder::new().build();
+/// let gs = GitScanner::new(ss);
+///
+/// let mut gs = gs.init_git_repo(".", Path::new("."), None, None);
+/// let findings: HashSet<GitFinding> = gs.perform_scan(None, None, false);
+/// assert_eq!(findings.len(), 27);
+/// ```
 impl GitScanner {
     /// Initialize the SecretScanner object first using the SecretScannerBuilder, then provide
     /// it to this constructor method.
@@ -56,6 +87,7 @@ impl GitScanner {
                      repo: None }
     }
 
+    /// Consumes the GitScanner object and returns a HashSet of findings from that repository
     pub fn perform_scan(&mut self, glob: Option<&str>, since_commit: Option<&str>, scan_entropy: bool) -> HashSet<GitFinding> {
         let repo = self.repo.as_ref().unwrap();
         let mut revwalk = repo.revwalk().unwrap();
