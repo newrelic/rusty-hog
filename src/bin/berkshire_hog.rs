@@ -1,3 +1,29 @@
+//! S3 secret hunter in Rust. Avoid bandwidth costs, run this within a VPC!
+//!
+//! # Usage
+//! ```text
+//! berkshire_hog [FLAGS] [OPTIONS] <S3URI> <S3REGION>
+//!
+//!FLAGS:
+//!        --caseinsensitive    Sets the case insensitive flag for all regexes
+//!        --entropy            Enables entropy scanning
+//!        --prettyprint        Output the JSON in human readable format
+//!    -r, --recursive          Will recursively scan files under the prefix.
+//!    -v, --verbose            Sets the level of debugging information
+//!    -h, --help               Prints help information
+//!    -V, --version            Prints version information
+//!
+//!OPTIONS:
+//!    -o, --outputfile <OUTPUT>    Sets the path to write the scanner results to (stdout by default)
+//!        --profile <PROFILE>      When using a configuration file, use a non-default profile
+//!        --regex <REGEX>          Sets a custom regex JSON file
+//!
+//!ARGS:
+//!    <S3URI>       The location of a S3 bucket and optional prefix or file to scan. This must be written in the form
+//!                  s3://!mybucket[/prefix_or_file]
+//!    <S3REGION>    Sets the region of the S3 bucket to scan.
+//! ```
+
 #[macro_use]
 extern crate clap;
 
@@ -6,17 +32,13 @@ use log::{self, debug, error, info};
 use s3::bucket::Bucket;
 use s3::credentials::Credentials;
 use s3::region::Region;
-use serde::{Deserialize, Serialize};
 use simple_error::SimpleError;
 use simple_error::{require_with, try_with};
-use simple_logger::init_with_level;
-use std::fs;
 use std::str;
 use url::{Url};
 
-use rusty_hogs::aws_scanning::s3 as s3_scanner;
+use rusty_hogs::aws_scanning::{S3Finding, S3Scanner};
 use rusty_hogs::{SecretScannerBuilder, SecretScanner};
-use s3_scanner::{S3Finding, S3Scanner};
 use std::collections::HashSet;
 use std::iter::FromIterator;
 
@@ -47,12 +69,7 @@ fn main() {
 
 fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     // Set logging
-    match arg_matches.occurrences_of("VERBOSE") {
-        0 => init_with_level(log::Level::Warn).unwrap(),
-        1 => init_with_level(log::Level::Info).unwrap(),
-        2 => init_with_level(log::Level::Debug).unwrap(),
-        3 | _ => init_with_level(log::Level::Trace).unwrap(),
-    }
+    SecretScanner::set_logging(arg_matches.occurrences_of("VERBOSE"));
 
     // Initialize some other variables
     let prettyprint = arg_matches.is_present("PRETTYPRINT");

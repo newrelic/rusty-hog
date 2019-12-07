@@ -65,21 +65,14 @@
 //! assert_eq!(secrets.pop().unwrap(), "Email address");
 //! ```
 
-/// Collection of tools for scanning AWS for secrets. Currently only supports S3.
+
 pub mod aws_scanning;
-
-/// Collection of tools for scanning Google Suite for secrets. Currently only supports Google Drive.
 pub mod google_scanning;
-
-/// Collection of tools for scanning Git repos for secrets.
 pub mod git_scanning;
 
-use encoding::all::ASCII;
-use encoding::{DecoderTrap, Encoding};
 use hex;
-use log::{self, error, info, trace};
+use log::{self, error, info};
 use regex::bytes::{Matches, Regex, RegexBuilder};
-use s3::bucket::Bucket;
 use serde_json::{Map, Value};
 use simple_error::SimpleError;
 use std::collections::{BTreeMap, HashMap, HashSet};
@@ -89,7 +82,8 @@ use std::iter::FromIterator;
 use std::{str, fs};
 use clap::ArgMatches;
 use std::hash::Hash;
-use serde::{Deserialize, Serialize};
+use serde::{Serialize};
+use simple_logger::init_with_level;
 
 const DEFAULT_REGEX_JSON: &str = r##"
 {
@@ -215,17 +209,21 @@ const STANDARD_ENCODE: &[u8; 64] = &[
 ];
 
 /// Contains helper functions and the map of regular expressions that are used to find secrets
+///
+/// The main object that provides the "secret scanning" functionality. The regex_map field
+/// provides all the regular expressions that the secret scanner will look for.
+/// Use `get_matches(line: [u8])` to perform a `regex.find_iter()` for each regular expression in
+/// regex_map. ```get_matches``` will return another
+/// [BTreeMap](https://doc.rust-lang.org/std/collections/struct.BTreeMap.html) where the key is
+/// the name of the regular expression and the value is a
+/// [Matches](https://docs.rs/regex/1.3.1/regex/struct.Matches.html) object.
+///
 pub struct SecretScanner {
     pub regex_map: BTreeMap<String, Regex>,
 }
 
 /// Used to instantiate the SecretScanner object with user-supplied options
-pub struct SecretScannerBuilder {
-    pub case_insensitive: Option<bool>,
-    pub regex_json_str: Option<String>,
-    pub regex_json_path: Option<String>
-}
-
+///
 /// Use the `new()` function to create a builder object, perform configurations as needed, then
 /// create the SecretScanner object with `.build()`. Each configuration method consumes and returns
 /// self so that you can chain them.
@@ -253,6 +251,13 @@ pub struct SecretScannerBuilder {
 /// assert_eq!(ss.regex_map.len(), 1);
 /// ```
 ///
+pub struct SecretScannerBuilder {
+    pub case_insensitive: Option<bool>,
+    pub regex_json_str: Option<String>,
+    pub regex_json_path: Option<String>
+}
+
+
 impl SecretScannerBuilder {
     /// Create a new SecretScannerBuilder object with the default config (50 rules, case sensitive)
     pub fn new() -> SecretScannerBuilder {
@@ -367,17 +372,17 @@ impl SecretScannerBuilder {
 
 }
 
-
-
-/// The main object that provides the "secret scanning" functionality. The regex_map field
-/// provides all the regular expressions that the secret scanner will look for.
-/// Use `get_matches(line: [u8])` to perform a `regex.find_iter()` for each regular expression in
-/// regex_map. ```get_matches``` will return another
-/// [BTreeMap](https://doc.rust-lang.org/std/collections/struct.BTreeMap.html) where the key is
-/// the name of the regular expression and the value is a
-/// [Matches](https://docs.rs/regex/1.3.1/regex/struct.Matches.html) object.
-///
 impl SecretScanner {
+
+    /// Helper function to set global logging level
+    pub fn set_logging(verbose_level: u64) {
+        match verbose_level {
+            0 => init_with_level(log::Level::Warn).unwrap(),
+            1 => init_with_level(log::Level::Info).unwrap(),
+            2 => init_with_level(log::Level::Debug).unwrap(),
+            3 | _ => init_with_level(log::Level::Trace).unwrap(),
+        }
+    }
 
     /// Scan a byte array for regular expression matches, returns a BTreeMap of Matches for each
     /// regular expression.

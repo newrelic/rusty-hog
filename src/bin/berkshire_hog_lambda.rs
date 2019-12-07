@@ -1,3 +1,20 @@
+//! An S3 secret scanner designed to be run as a Lambda function
+//!  
+//! Berkshire Hog is currently designed to be used as a Lambda function. It was written with this overall data-flow
+//!in mind:
+//!```text
+//!    ┌───────────┐              ┌───────┐     ┌────────────────┐     ┌────────────┐
+//!    │ S3 Bucket │ ┌────────┐   │       │     │ Berkshire Hog  │     │ S3 Bucket  │
+//!    │  (input) ─┼─┤S3 Event├──▶│  SQS  │────▶│    (Lambda)    │────▶│  (output)  │
+//!    │           │ └────────┘   │       │     │                │     │            │
+//!    └───────────┘              └───────┘     └────────────────┘     └────────────┘
+//!```
+//!
+//!In order to run this you will need to setup the following things:
+//!1) The input bucket must be configured to send an "event" to SQS for each PUSH/PUT event
+//!2) The SQS topic must be setup to accept events from S3, including IAM permissions.
+//!3) Berkshire hog must be running with IAM access to SQS and S3.
+
 extern crate s3;
 
 use std::error::Error;
@@ -11,9 +28,8 @@ use simple_error::SimpleError;
 use simple_logger;
 use std::env;
 use std::time::SystemTime;
-use rusty_hogs::aws_scanning::s3 as s3_scanner;
+use rusty_hogs::aws_scanning::{S3Finding, S3Scanner};
 use rusty_hogs::SecretScannerBuilder;
-use s3_scanner::{S3Finding, S3Scanner};
 
 // Each of these structs correspond to parsed JSON objects coming from S3 -> SQS -> Lambda
 #[derive(Deserialize, Clone, Debug)]

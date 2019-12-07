@@ -1,3 +1,30 @@
+//! Git secret scanner in Rust (the original TruffleHog replacement)
+//!
+//! # Usage
+//! ```
+//!     choctaw_hog [FLAGS] [OPTIONS] <GITPATH>
+//!
+//!FLAGS:
+//!        --caseinsensitive    Sets the case insensitive flag for all regexes
+//!        --entropy            Enables entropy scanning
+//!        --prettyprint        Output the JSON in human readable format
+//!    -v, --verbose            Sets the level of debugging information
+//!    -h, --help               Prints help information
+//!    -V, --version            Prints version information
+//!
+//!OPTIONS:
+//!    -o, --outputfile <OUTPUT>            Sets the path to write the scanner results to (stdout by default)
+//!        --regex <REGEX>                  Sets a custom regex JSON file, defaults to ./trufflehog_rules.json
+//!        --since_commit <SINCECOMMIT>     Filters commits based on date committed (branch agnostic)
+//!        --sshkeypath <SSHKEYPATH>        Takes a path to a private SSH key for git authentication, defaults to ssh-agent
+//!        --sshkeyphrase <SSHKEYPHRASE>    Takes a passphrase to a private SSH key for git authentication, defaults to
+//!                                         none
+//!
+//!ARGS:
+//!    <GITPATH>    Sets the path (or URL) of the Git repo to scan. SSH links must include username (git@)
+//! ```
+
+
 #[macro_use]
 extern crate clap;
 
@@ -7,35 +34,20 @@ extern crate chrono;
 
 extern crate encoding;
 
-use chrono::NaiveDateTime;
-
 use clap::ArgMatches;
-use encoding::all::ASCII;
-use encoding::{DecoderTrap, Encoding};
-use git2::DiffFormat;
-use git2::{DiffOptions, Repository, Time};
 use log::{self, info};
-use regex::bytes::Matches;
-use serde::{Deserialize, Serialize};
 use simple_error::SimpleError;
-use simple_logger;
-use simple_logger::init_with_level;
-use std::collections::{BTreeMap, HashSet};
-use std::fs;
-use std::path::Path;
 use std::str;
 use tempdir::TempDir;
-use url::{ParseError, Url};
 
-use rusty_hogs::git_scanning::gitrepo as gitrepo_scanner;
+use rusty_hogs::git_scanning::{GitScanner};
 use rusty_hogs::{SecretScanner, SecretScannerBuilder};
-use gitrepo_scanner::{GitScanner, GitFinding, GitScheme};
 
 fn main() {
     let matches = clap_app!(choctaw_hog =>
         (version: "0.4.5")
         (author: "Scott Cutler <scutler@newrelic.com>")
-        (about: "Git secret hunter in Rust")
+        (about: "Git secret scanner in Rust")
         (@arg REGEX: --regex +takes_value "Sets a custom regex JSON file, defaults to ./trufflehog_rules.json")
         (@arg GITPATH: +required "Sets the path (or URL) of the Git repo to scan. SSH links must include username (git@)")
         (@arg VERBOSE: -v --verbose ... "Sets the level of debugging information")
@@ -57,12 +69,7 @@ fn main() {
 
 fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     // Set logging
-    match arg_matches.occurrences_of("VERBOSE") {
-        0 => init_with_level(log::Level::Warn).unwrap(),
-        1 => init_with_level(log::Level::Info).unwrap(),
-        2 => init_with_level(log::Level::Debug).unwrap(),
-        3 | _ => init_with_level(log::Level::Trace).unwrap(),
-    }
+    SecretScanner::set_logging(arg_matches.occurrences_of("VERBOSE"));
 
     // Initialize some more variables
     let secret_scanner = SecretScannerBuilder::new().conf_argm(arg_matches).build();

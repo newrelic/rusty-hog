@@ -1,3 +1,25 @@
+//! Google Drive secret scanner in Rust
+//!
+//! # Usage
+//! ```text
+//! ankamali_hog [FLAGS] [OPTIONS] <GDRIVEID>
+//!
+//!FLAGS:
+//!        --caseinsensitive    Sets the case insensitive flag for all regexes
+//!        --entropy            Enables entropy scanning
+//!        --prettyprint        Output the JSON in human readable format
+//!    -v, --verbose            Sets the level of debugging information
+//!    -h, --help               Prints help information
+//!    -V, --version            Prints version information
+//!
+//!OPTIONS:
+//!    -o, --outputfile <OUTPUT>    Sets the path to write the scanner results to (stdout by default)
+//!        --regex <REGEX>          Sets a custom regex JSON file
+//!
+//!ARGS:
+//!    <GDRIVEID>    The ID of the google drive file you want to scan
+//! ```
+
 #[macro_use]
 extern crate clap;
 extern crate hyper;
@@ -9,25 +31,22 @@ use clap::ArgMatches;
 use simple_error::SimpleError;
 use oauth2::{Authenticator, DefaultAuthenticatorDelegate, ApplicationSecret, FlowType, DiskTokenStorage};
 use drive3::{DriveHub, Scope};
-use std::{fs, str};
 use std::collections::HashSet;
-use serde_derive::{Deserialize, Serialize};
 use log::{self, info};
 use encoding::all::ASCII;
 use encoding::{DecoderTrap, Encoding};
 use std::io::Read;
 use std::path::Path;
-use simple_logger::init_with_level;
 
-use rusty_hogs::google_scanning::gdrive as gdrive_scanner;
+use rusty_hogs::google_scanning::{GDriveFinding};
 use rusty_hogs::{SecretScanner, SecretScannerBuilder};
-use gdrive_scanner::{GDriveScanner, GDriveFinding};
+use std::iter::FromIterator;
 
 fn main() {
     let matches = clap_app!(ankamali_hog =>
         (version: "0.4.5")
         (author: "Scott Cutler <scutler@newrelic.com>")
-        (about: "Google Drive secret hunter in Rust.")
+        (about: "Google Drive secret scanner in Rust.")
         (@arg REGEX: --regex +takes_value "Sets a custom regex JSON file")
         (@arg GDRIVEID: +required "The ID of the google drive file you want to scan")
         (@arg VERBOSE: -v --verbose ... "Sets the level of debugging information")
@@ -35,6 +54,8 @@ fn main() {
         (@arg CASE: --caseinsensitive "Sets the case insensitive flag for all regexes")
         (@arg OUTPUT: -o --outputfile +takes_value "Sets the path to write the scanner results to (stdout by default)")
         (@arg PRETTYPRINT: --prettyprint "Output the JSON in human readable format")
+        (@arg OAUTHSECRETFILE: --oauthsecret "Path to an OAuth secret file (JSON) ./clientsecret.json by default")
+        (@arg OAUTHTOKENFILE: --oauthtoken "Path to an OAuth token storage file ./temp_token by default")
     )
         .get_matches();
     match run(&matches) {
@@ -45,27 +66,27 @@ fn main() {
 
 fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     // Set logging
-    match arg_matches.occurrences_of("VERBOSE") {
-        0 => init_with_level(log::Level::Warn).unwrap(),
-        1 => init_with_level(log::Level::Info).unwrap(),
-        2 => init_with_level(log::Level::Debug).unwrap(),
-        3 | _ => init_with_level(log::Level::Trace).unwrap(),
-    }
+    SecretScanner::set_logging(arg_matches.occurrences_of("VERBOSE"));
+
+    // Initialize some variables
+    let oauthsecretfile = arg_matches.value_of("OAUTHSECRETFILE").unwrap_or_else(|| "clientsecret.json");
+    let oauthtokenfile =  arg_matches.value_of("OAUTHTOKENFILE").unwrap_or_else(|| "temp_token");
+    let fileid = arg_matches.value_of("GDRIVEID").unwrap();
+    let scan_entropy = arg_matches.is_present("ENTROPY");
+    let prettyprint = arg_matches.is_present("PRETTYPRINT");
+    let output_path = arg_matches.value_of("OUTPUT");
 
     // Start with GDrive auth - based on example code from drive3 API and yup-oauth2
-    let secret: ApplicationSecret =  yup_oauth2::read_application_secret(Path::new("clientsecret.json"))
-        .expect("clientsecret.json");
-    let token_storage = DiskTokenStorage::new(&String::from("temp_token")).unwrap();
+    let secret: ApplicationSecret =  yup_oauth2::read_application_secret(Path::new(oauthsecretfile))
+        .expect(oauthsecretfile);
+    let token_storage = DiskTokenStorage::new(&String::from(oauthtokenfile)).unwrap();
     let auth = Authenticator::new(&secret, DefaultAuthenticatorDelegate,
                                       hyper::Client::with_connector(hyper::net::HttpsConnector::new(hyper_rustls::TlsClient::new())),
                                       token_storage, Some(FlowType::InstalledInteractive));
-//    let token = auth.token(&["https://www.googleapis.com/auth/drive.readonly"]).unwrap();
-
     let hub = DriveHub::new(hyper::Client::with_connector(hyper::net::HttpsConnector::new(hyper_rustls::TlsClient::new())), auth);
 
     // get some initial info about the file
     let fields = "kind, id, name, mimeType, webViewLink, modifiedTime, parents";
-    let fileid = arg_matches.value_of("GDRIVEID").unwrap();
     let hub_result = hub.files().get(fileid).add_scope(Scope::Readonly).param("fields",fields).doit();
     let (_,file_object) = match hub_result {
         Ok(x) => x,
@@ -75,7 +96,7 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     // initialize some variables from the response
     let modified_time = file_object.modified_time.unwrap().clone();
     let web_link = file_object.web_view_link.unwrap();
-    let parents = file_object.parents.unwrap_or_else(|| Vec::new()); //TODO: add code to map from id -> name
+    let parents = file_object.parents.unwrap_or_else(Vec::new); //TODO: add code to map from id -> name
     let name = file_object.name.unwrap();
     let path = format!("{}/{}", parents.join("/"), name);
     let mime_type = match file_object.mime_type.unwrap().as_ref() {
@@ -96,7 +117,6 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
         Ok(s) => s
     };
     let lines = buffer.split(|x| (*x as char) == '\n');
-
 
     // Get regex objects
     let secret_scanner = SecretScannerBuilder::new().conf_argm(arg_matches).build();
@@ -132,7 +152,7 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
             }
         }
 
-        if arg_matches.is_present("ENTROPY") {
+        if scan_entropy {
             let ef = SecretScanner::get_entropy_findings(new_line);
             if !ef.is_empty() {
                 findings.insert(GDriveFinding {
@@ -151,19 +171,9 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     }
 
 
+    let findings: HashSet<GDriveFinding> = HashSet::from_iter(findings.into_iter());
     info!("Found {} secrets", findings.len());
-
-    let mut json_text: Vec<u8> = Vec::new();
-    if arg_matches.is_present("PRETTYPRINT") {
-        json_text.append(serde_json::ser::to_vec_pretty(&findings).unwrap().as_mut());
-    } else {
-        json_text.append(serde_json::ser::to_vec(&findings).unwrap().as_mut());
-    }
-    if arg_matches.is_present("OUTPUT") {
-        fs::write(arg_matches.value_of("OUTPUT").unwrap(), json_text).unwrap();
-    } else {
-        println!("{}", str::from_utf8(json_text.as_ref()).unwrap());
-    }
+    SecretScanner::output_findings(&findings, prettyprint, output_path);
 
     Ok(())
 }
