@@ -77,8 +77,6 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     let sshkeyphrase = arg_matches.value_of("SSHKEYPHRASE");
     let since_commit = arg_matches.value_of("SINCECOMMIT");
     let scan_entropy = arg_matches.is_present("ENTROPY");
-    let prettyprint = arg_matches.is_present("PRETTYPRINT");
-    let output_path = arg_matches.value_of("OUTPUT");
 
     // Get Git objects
     let dest_dir = TempDir::new("rusty_hogs").unwrap();
@@ -86,12 +84,12 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     let source_path: &str = arg_matches.value_of("GITPATH").unwrap();
 
     // Do the scan
-    let mut git_scanner = GitScanner::new(secret_scanner).init_git_repo(source_path, &dest_dir_path, sshkeypath, sshkeyphrase);
+    let git_scanner = GitScanner::new(secret_scanner).init_git_repo(source_path, &dest_dir_path, sshkeypath, sshkeyphrase);
     let findings = git_scanner.perform_scan(None, since_commit, scan_entropy);
 
     // Output the results
     info!("Found {} secrets", findings.len());
-    SecretScanner::output_findings(&findings, prettyprint, output_path);
+    git_scanner.secret_scanner.output_findings(&findings);
 
     Ok(())
 }

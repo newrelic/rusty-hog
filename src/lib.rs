@@ -221,6 +221,8 @@ const STANDARD_ENCODE: &[u8; 64] = &[
 ///
 pub struct SecretScanner {
     pub regex_map: BTreeMap<String, Regex>,
+    pub pretty_print: bool,
+    pub output_path: Option<String>
 }
 
 /// Used to instantiate the SecretScanner object with user-supplied options
@@ -254,9 +256,11 @@ pub struct SecretScanner {
 ///
 #[derive(Default)]
 pub struct SecretScannerBuilder {
-    pub case_insensitive: Option<bool>,
+    pub case_insensitive: bool,
     pub regex_json_str: Option<String>,
-    pub regex_json_path: Option<String>
+    pub regex_json_path: Option<String>,
+    pub pretty_print: bool,
+    pub output_path: Option<String>
 }
 
 
@@ -264,19 +268,27 @@ impl SecretScannerBuilder {
     /// Create a new SecretScannerBuilder object with the default config (50 rules, case sensitive)
     pub fn new() -> SecretScannerBuilder {
         SecretScannerBuilder {
-            case_insensitive: None,
+            case_insensitive: false,
             regex_json_str: None,
-            regex_json_path: None
+            regex_json_path: None,
+            pretty_print: false,
+            output_path: None
         }
     }
 
     /// Configure multiple values using the clap library's "ArgMatches" object.
     /// This function looks for a "CASE" flag and "REGEX" value.
     pub fn conf_argm(mut self, arg_matches: &ArgMatches) -> SecretScannerBuilder {
-        self.case_insensitive = Some(arg_matches.is_present("CASE"));
-        if arg_matches.is_present("REGEX") {
-            self.regex_json_path = Some(String::from(arg_matches.value_of("REGEX").unwrap()));
-        }
+        self.case_insensitive = arg_matches.is_present("CASE");
+        self.output_path = match arg_matches.value_of("REGEX") {
+            Some(s) => Some(String::from(s)),
+            None => None
+        };
+        self.pretty_print = arg_matches.is_present("PRETTYPRINT");
+        self.output_path = match arg_matches.value_of("OUTPUT") {
+            Some(s) => Some(String::from(s)),
+            None => None
+        };
         self
     }
 
@@ -294,7 +306,19 @@ impl SecretScannerBuilder {
 
     /// Force all regular expressions to be case-insensitive, overriding any flags in the regex
     pub fn global_case_insensitive(mut self, case_insensitive: bool) -> SecretScannerBuilder {
-        self.case_insensitive = Some(case_insensitive);
+        self.case_insensitive = case_insensitive;
+        self
+    }
+
+    /// Set output format to pretty printed JSON
+    pub fn set_pretty_print(mut self, pretty_print: bool) -> SecretScannerBuilder {
+        self.pretty_print = pretty_print;
+        self
+    }
+
+    /// Set output path (stdout if set to None)
+    pub fn set_output_path(mut self, output_path: &str) -> SecretScannerBuilder {
+        self.output_path = Some(String::from(output_path));
         self
     }
 
@@ -314,9 +338,12 @@ impl SecretScannerBuilder {
                 SecretScannerBuilder::get_json_from_str(DEFAULT_REGEX_JSON).unwrap()
             }
         };
-        let case_insensitive = self.case_insensitive.unwrap_or(false);
-        let regex_map = SecretScannerBuilder::get_regex_objects(json_obj, case_insensitive);
-        SecretScanner { regex_map }
+        let regex_map = SecretScannerBuilder::get_regex_objects(json_obj, self.case_insensitive);
+        let output_path = match &self.output_path {
+            Some(s) => Some(s.clone()),
+            None => None
+        };
+        SecretScanner { regex_map, pretty_print: self.pretty_print, output_path }
     }
 
     fn get_json_from_file(filename: &str) -> Result<Map<String, Value>, SimpleError> {
@@ -460,14 +487,14 @@ impl SecretScanner {
         output
     }
 
-    pub fn output_findings<T: Serialize + Eq + Hash>(findings: &HashSet<T>, prettyprint: bool, output_path: Option<&str>) {
+    pub fn output_findings<T: Serialize + Eq + Hash>(&self, findings: &HashSet<T>) {
         let mut json_text: Vec<u8> = Vec::new();
-        if prettyprint {
+        if self.pretty_print {
             json_text.append(serde_json::ser::to_vec_pretty(findings).unwrap().as_mut());
         } else {
             json_text.append(serde_json::ser::to_vec(findings).unwrap().as_mut());
         }
-        match output_path {
+        match &self.output_path {
             Some(op) => fs::write(op, json_text).unwrap(),
             None => println!("{}", str::from_utf8(json_text.as_ref()).unwrap())
         };

@@ -87,9 +87,10 @@ impl GitScanner {
             repo: None }
     }
 
-    /// Consumes the GitScanner object and returns a HashSet of findings from that repository
-    pub fn perform_scan(&mut self, glob: Option<&str>, since_commit: Option<&str>, scan_entropy: bool) -> HashSet<GitFinding> {
-        let repo = self.repo.as_ref().unwrap();
+    /// Uses the GitScanner object to return a HashSet of findings from that repository
+    pub fn perform_scan(&self, glob: Option<&str>, since_commit: Option<&str>, scan_entropy: bool) -> HashSet<GitFinding> {
+        let repo_option = self.repo.as_ref(); //borrowing magic here!
+        let repo = repo_option.unwrap();
         let mut revwalk = repo.revwalk().unwrap();
         revwalk.push_glob(glob.unwrap_or_else(|| "*")).unwrap(); //easy mode: iterate over all the commits
 

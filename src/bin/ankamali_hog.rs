@@ -30,18 +30,12 @@ extern crate google_drive3 as drive3;
 use clap::ArgMatches;
 use simple_error::SimpleError;
 use oauth2::{Authenticator, DefaultAuthenticatorDelegate, ApplicationSecret, FlowType, DiskTokenStorage};
-use drive3::{DriveHub, Scope};
-use std::collections::HashSet;
+use drive3::DriveHub;
 use log::{self, info};
-use encoding::all::ASCII;
-use encoding::{DecoderTrap, Encoding};
-use std::io::Read;
 use std::path::Path;
 
-use rusty_hogs::google_scanning::{GDriveFinding, GDriveScanner, GDriveFileInfo};
+use rusty_hogs::google_scanning::{GDriveScanner, GDriveFileInfo};
 use rusty_hogs::{SecretScanner, SecretScannerBuilder};
-use std::iter::FromIterator;
-use hyper::Client;
 
 fn main() {
     let matches = clap_app!(ankamali_hog =>
@@ -74,8 +68,6 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     let oauthtokenfile =  arg_matches.value_of("OAUTHTOKENFILE").unwrap_or_else(|| "temp_token");
     let file_id = arg_matches.value_of("GDRIVEID").unwrap();
     let scan_entropy = arg_matches.is_present("ENTROPY");
-    let prettyprint = arg_matches.is_present("PRETTYPRINT");
-    let output_path = arg_matches.value_of("OUTPUT");
     let secret_scanner = SecretScannerBuilder::new().conf_argm(arg_matches).build();
     let gdrive_scanner = GDriveScanner::new(secret_scanner);
 
@@ -94,7 +86,7 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     // Do the scan
     let findings = gdrive_scanner.perform_scan(&gdriveinfo, &hub, scan_entropy);
     info!("Found {} secrets", findings.len());
-    SecretScanner::output_findings(&findings, prettyprint, output_path);
+    gdrive_scanner.secret_scanner.output_findings(&findings);
 
     Ok(())
 }

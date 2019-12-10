@@ -71,10 +71,6 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     // Set logging
     SecretScanner::set_logging(arg_matches.occurrences_of("VERBOSE"));
 
-    // Initialize some other variables
-    let prettyprint = arg_matches.is_present("PRETTYPRINT");
-    let output_path = arg_matches.value_of("OUTPUT");
-
     // Get regex objects
     let ss = SecretScannerBuilder::new().conf_argm(arg_matches).build();
     let s3scanner = S3Scanner::new(ss);
@@ -160,7 +156,7 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     // Output the results
     let findings: HashSet<S3Finding> = HashSet::from_iter(findings.into_iter());
     info!("Found {} secrets", findings.len());
-    SecretScanner::output_findings(&findings, prettyprint, output_path);
+    s3scanner.secret_scanner.output_findings(&findings);
 
     Ok(())
 }
