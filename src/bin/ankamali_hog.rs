@@ -38,9 +38,10 @@ use encoding::{DecoderTrap, Encoding};
 use std::io::Read;
 use std::path::Path;
 
-use rusty_hogs::google_scanning::{GDriveFinding};
+use rusty_hogs::google_scanning::{GDriveFinding, GDriveScanner, GDriveFileInfo};
 use rusty_hogs::{SecretScanner, SecretScannerBuilder};
 use std::iter::FromIterator;
+use hyper::Client;
 
 fn main() {
     let matches = clap_app!(ankamali_hog =>
@@ -71,10 +72,12 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     // Initialize some variables
     let oauthsecretfile = arg_matches.value_of("OAUTHSECRETFILE").unwrap_or_else(|| "clientsecret.json");
     let oauthtokenfile =  arg_matches.value_of("OAUTHTOKENFILE").unwrap_or_else(|| "temp_token");
-    let fileid = arg_matches.value_of("GDRIVEID").unwrap();
+    let file_id = arg_matches.value_of("GDRIVEID").unwrap();
     let scan_entropy = arg_matches.is_present("ENTROPY");
     let prettyprint = arg_matches.is_present("PRETTYPRINT");
     let output_path = arg_matches.value_of("OUTPUT");
+    let secret_scanner = SecretScannerBuilder::new().conf_argm(arg_matches).build();
+    let gdrive_scanner = GDriveScanner::new(secret_scanner);
 
     // Start with GDrive auth - based on example code from drive3 API and yup-oauth2
     let secret: ApplicationSecret =  yup_oauth2::read_application_secret(Path::new(oauthsecretfile))
@@ -86,92 +89,10 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     let hub = DriveHub::new(hyper::Client::with_connector(hyper::net::HttpsConnector::new(hyper_rustls::TlsClient::new())), auth);
 
     // get some initial info about the file
-    let fields = "kind, id, name, mimeType, webViewLink, modifiedTime, parents";
-    let hub_result = hub.files().get(fileid).add_scope(Scope::Readonly).param("fields",fields).doit();
-    let (_,file_object) = match hub_result {
-        Ok(x) => x,
-        Err(e) => return Err(SimpleError::new(format!("failed accessing Google Metadata API {:?}", e)))
-    };
+    let gdriveinfo = GDriveFileInfo::new(file_id, &hub).unwrap();
 
-    // initialize some variables from the response
-    let modified_time = file_object.modified_time.unwrap().clone();
-    let web_link = file_object.web_view_link.unwrap();
-    let parents = file_object.parents.unwrap_or_else(Vec::new); //TODO: add code to map from id -> name
-    let name = file_object.name.unwrap();
-    let path = format!("{}/{}", parents.join("/"), name);
-    let mime_type = match file_object.mime_type.unwrap().as_ref() {
-        "application/vnd.google-apps.spreadsheet" => "text/csv", //TODO: Support application/x-vnd.oasis.opendocument.spreadsheet https://github.com/tafia/calamine
-        "application/vnd.google-apps.document" => "text/plain",
-        u => return Err(SimpleError::new(format!("unknown doc type {}", u)))
-    };
-
-    // download an export of the file, split on new lines, store in lines
-    let resp_obj = hub.files().export(fileid, mime_type).doit();
-    let mut resp_obj= match resp_obj {
-        Ok(r) => r,
-        Err(e) => return Err(SimpleError::new(e.to_string()))
-    };
-    let mut buffer: Vec<u8> = Vec::new();
-    match resp_obj.read_to_end(&mut buffer) {
-        Err(e) => return Err(SimpleError::new(e.to_string())),
-        Ok(s) => s
-    };
-    let lines = buffer.split(|x| (*x as char) == '\n');
-
-    // Get regex objects
-    let secret_scanner = SecretScannerBuilder::new().conf_argm(arg_matches).build();
-
-    // main loop - search each line for secrets, output a list of GDriveFinding objects
-    let mut findings: HashSet<GDriveFinding> = HashSet::new();
-    for new_line in lines {
-        let matches_map = secret_scanner.get_matches(&new_line);
-        for (reason, match_iterator) in matches_map {
-            let mut secrets: Vec<String> = Vec::new();
-            for matchobj in match_iterator {
-                secrets.push(
-                    ASCII
-                        .decode(
-                            &new_line[matchobj.start()..matchobj.end()],
-                            DecoderTrap::Ignore,
-                        )
-                        .unwrap_or_else(|_| "<STRING DECODE ERROR>".parse().unwrap()),
-                );
-            }
-            if !secrets.is_empty() {
-                findings.insert(GDriveFinding {
-                    diff: ASCII
-                        .decode(&new_line, DecoderTrap::Ignore)
-                        .unwrap_or_else(|_| "<STRING DECODE ERROR>".parse().unwrap()),
-                    date: modified_time.clone(),
-                    strings_found: secrets.clone(),
-                    reason: reason.clone(),
-                    g_drive_id: fileid.to_string(),
-                    path: path.clone(),
-                    web_link: web_link.clone()
-                });
-            }
-        }
-
-        if scan_entropy {
-            let ef = SecretScanner::get_entropy_findings(new_line);
-            if !ef.is_empty() {
-                findings.insert(GDriveFinding {
-                    diff: ASCII
-                        .decode(&new_line, DecoderTrap::Ignore)
-                        .unwrap_or_else(|_| "<STRING DECODE ERROR>".parse().unwrap()),
-                    date: modified_time.clone(),
-                    strings_found: ef,
-                    reason: "Entropy".parse().unwrap(),
-                    g_drive_id: fileid.to_string(),
-                    path: path.clone(),
-                    web_link: web_link.clone()
-                });
-            }
-        }
-    }
-
-
-    let findings: HashSet<GDriveFinding> = HashSet::from_iter(findings.into_iter());
+    // Do the scan
+    let findings = gdrive_scanner.perform_scan(&gdriveinfo, &hub, scan_entropy);
     info!("Found {} secrets", findings.len());
     SecretScanner::output_findings(&findings, prettyprint, output_path);
 

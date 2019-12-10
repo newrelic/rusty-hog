@@ -31,7 +31,7 @@
 //!
 //! let mut gs = gs.init_git_repo(".", Path::new("."), None, None);
 //! let findings: HashSet<GitFinding> = gs.perform_scan(None, None, false);
-//! assert_eq!(findings.len(), 27);
+//! assert_eq!(findings.len(), 35);
 //! ```
 
 use crate::SecretScanner;
@@ -42,7 +42,6 @@ use git2::{DiffOptions, Repository, Time};
 use log::{self, info};
 use regex::bytes::Matches;
 use serde::{Deserialize, Serialize};
-use simple_logger;
 use std::collections::{BTreeMap, HashSet};
 use std::path::Path;
 use std::str;
@@ -92,21 +91,25 @@ impl GitScanner {
     pub fn perform_scan(&mut self, glob: Option<&str>, since_commit: Option<&str>, scan_entropy: bool) -> HashSet<GitFinding> {
         let repo = self.repo.as_ref().unwrap();
         let mut revwalk = repo.revwalk().unwrap();
-        revwalk.push_glob("*").unwrap(); //easy mode: iterate over all the commits
+        revwalk.push_glob(glob.unwrap_or_else(|| "*")).unwrap(); //easy mode: iterate over all the commits
 
         // take our "--since_commit" input (hash id) and convert it to a date and time
-        let since_time_obj: Time = if since_commit.is_some() {
-            let revspec = match repo.revparse(since_commit.unwrap()) {
-                Ok(r) => r,
-                Err(e) => panic!("SINCECOMMIT value returned an error: {:?}", e),
-            };
-            let o = revspec.from().unwrap();
-            o.as_commit().unwrap().time()
-        } else {
-            Time::new(0, 0)
+        // and build our revwalk with a filter for commits >= that time. This isn't a perfect
+        // method since it might get confused about merges, but it has the added benefit of
+        // including orphaned branches and commits in unrelated branches.
+        let since_time_obj: Time = match since_commit {
+            Some(sc) => {
+                let revspec = match repo.revparse(sc) {
+                    Ok(r) => r,
+                    Err(e) => panic!("SINCECOMMIT value returned an error: {:?}", e),
+                };
+                let o = revspec.from().unwrap();
+                o.as_commit().unwrap().time()
+            }
+            None => Time::new(0, 0)
         };
 
-        // convert our iterator of OIDs to commit objects
+        // convert our iterator of OIDs to an iterator of commit objects filtered by commit date
         let revwalk = revwalk.map(|id| repo.find_commit(id.unwrap())).filter(|c| c.as_ref().unwrap().time() >= since_time_obj);
 
         let mut findings: HashSet<GitFinding> = HashSet::new();

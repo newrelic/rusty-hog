@@ -95,12 +95,13 @@ const DEFAULT_REGEX_JSON: &str = r##"
   "Amazon AWS Access Key ID": "AKIA[0-9A-Z]{16}",
   "Amazon MWS Auth Token": "amzn\\.mws\\.[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
   "AWS API Key": "AKIA[0-9A-Z]{16}",
+  "Basic Auth": "basic(_auth)?([\\s[[:punct:]]]{1,4}[[[:word:]][[:punct:]]]{8,64}[\\s[[:punct:]]]?){1,2}",
   "Facebook Access Token": "EAACEdEose0cBA[0-9A-Za-z]+",
-  "Facebook OAuth": "(?i)facebook.{0,4}['|\"]?[0-9a-f]{32}['|\"]?",
-  "GitHub": "(?i)github.{0,4}[0-9a-zA-Z]{35,40}",
-  "Generic API Key": "(?i)(api|access)[_-]?key.{0,4}['|\"]?[0-9a-zA-Z\\-_]{32,64}['|\"]?",
-  "Generic Account API Key": "(?i)account[_-]?api.{0,4}['|\"]?[0-9a-zA-Z\\-_]{32,64}['|\"]?",
-  "Generic Secret": "(?i)secret.{0,4}['|\"]?[0-9a-zA-Z-_]{32,64}['|\"]?",
+  "Facebook OAuth": "(?i)facebook[\\s[[:punct:]]]{1,4}[0-9a-f]{32}[\\s[[:punct:]]]?",
+  "GitHub": "(?i)github[\\s[[:punct:]]]{1,4}[0-9a-zA-Z]{35,40}",
+  "Generic API Key": "(?i)(api|access)[\\s[[:punct:]]]?key[\\s[[:punct:]]]{1,4}[0-9a-zA-Z\\-_]{16,64}[\\s[[:punct:]]]?",
+  "Generic Account API Key": "(?i)account[\\s[[:punct:]]]?api[\\s[[:punct:]]]{1,4}[0-9a-zA-Z\\-_]{16,64}[\\s[[:punct:]]]?",
+  "Generic Secret": "(?i)secret[\\s[[:punct:]]]{1,4}[0-9a-zA-Z-_]{16,64}[\\s[[:punct:]]]?",
   "Google API Key": "AIza[0-9A-Za-z\\-_]{35}",
   "Google Cloud Platform API Key": "AIza[0-9A-Za-z\\-_]{35}",
   "Google Cloud Platform OAuth": "(?i)[0-9]+-[0-9A-Za-z_]{32}\\.apps\\.googleusercontent\\.com",
@@ -112,31 +113,31 @@ const DEFAULT_REGEX_JSON: &str = r##"
   "Google OAuth Access Token": "ya29\\.[0-9A-Za-z\\-_]+",
   "Google YouTube API Key": "AIza[0-9A-Za-z\\-_]{35}",
   "Google YouTube OAuth": "(?i)[0-9]+-[0-9A-Za-z_]{32}\\.apps\\.googleusercontent\\.com",
-  "Heroku API Key": "[h|H][e|E][r|R][o|O][k|K][u|U].*[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}",
+  "Heroku API Key": "[h|H][e|E][r|R][o|O][k|K][u|U][\\s[[:punct:]]]{1,4}[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}",
   "MailChimp API Key": "[0-9a-f]{32}-us[0-9]{1,2}",
-  "Mailgun API Key": "key-[0-9a-zA-Z]{32}",
+  "Mailgun API Key": "(?i)key-[0-9a-zA-Z]{32}",
   "Credentials in absolute URL": "(?i)((https?|ftp)://)(([a-z0-9$_\\.\\+!\\*'\\(\\),;\\?&=-]|%[0-9a-f]{2})+(:([a-z0-9$_\\.\\+!\\*'\\(\\),;\\?&=-]|%[0-9a-f]{2})+)?@)((([a-z0-9]\\.|[a-z0-9][a-z0-9-]*[a-z0-9]\\.)*[a-z][a-z0-9-]*[a-z0-9]|((\\d|[1-9]\\d|1\\d{2}|2[0-4][0-9]|25[0-5])\\.){3}(\\d|[1-9]\\d|1\\d{2}|2[0-4][0-9]|25[0-5]))(:\\d+)?)(((/+([a-z0-9$_\\.\\+!\\*'\\(\\),;:@&=-]|%[0-9a-f]{2})*)*(\\?([a-z0-9$_\\.\\+!\\*'\\(\\),;:@&=-]|%[0-9a-f]{2})*)?)?)?",
-  "PayPal Braintree Access Token": "access_token\\$production\\$[0-9a-z]{16}\\$[0-9a-f]{32}",
-  "Picatic API Key": "sk_live_[0-9a-z]{32}",
+  "PayPal Braintree Access Token": "(?i)access_token\\$production\\$[0-9a-z]{16}\\$[0-9a-f]{32}",
+  "Picatic API Key": "(?i)sk_live_[0-9a-z]{32}",
   "Slack Webhook": "(?i)https://hooks.slack.com/services/T[a-zA-Z0-9_]{8}/B[a-zA-Z0-9_]{8}/[a-zA-Z0-9_]{24}",
-  "Stripe API Key": "sk_live_[0-9a-zA-Z]{24}",
-  "Stripe Restricted API Key": "rk_live_[0-9a-zA-Z]{24}",
-  "Square Access Token": "sq0atp-[0-9A-Za-z\\-_]{22}",
-  "Square OAuth Secret": "sq0csp-[0-9A-Za-z\\-_]{43}",
+  "Stripe API Key": "(?i)sk_live_[0-9a-zA-Z]{24}",
+  "Stripe Restricted API Key": "(?i)rk_live_[0-9a-zA-Z]{24}",
+  "Square Access Token": "(?i)sq0atp-[0-9A-Za-z\\-_]{22}",
+  "Square OAuth Secret": "(?i)sq0csp-[0-9A-Za-z\\-_]{43}",
   "Twilio API Key": "SK[0-9a-fA-F]{32}",
-  "Twitter Access Token": "(?i)twitter.{0,4}[1-9][0-9]+-[0-9a-zA-Z]{40}",
-  "Twitter OAuth": "(?i)twitter.{0,4}['|\"]?[0-9a-zA-Z]{35,44}['|\"]?",
+  "Twitter Access Token": "(?i)twitter[\\s[[:punct:]]]{1,4}[1-9][0-9]+-[0-9a-zA-Z]{40}",
+  "Twitter OAuth": "(?i)twitter[\\s[[:punct:]]]{1,4}['|\"]?[0-9a-zA-Z]{35,44}['|\"]?",
   "New Relic Partner & REST API Key": "[^\\w./\\-\\+][A-Fa-f0-9]{47}[^\\w./\\-\\+]",
   "New Relic Mobile Application Token": "[^\\w./\\-\\+][A-Fa-f0-9]{42}[^\\w./\\-\\+]",
   "New Relic Synthetics Private Location": "(?i)minion_private_location_key",
-  "New Relic Insights Key (specific)": "(?i)insights.{0,4}(key|query|insert).{0,4}\\b[\\w-]{32,40}\\b",
-  "New Relic Insights Key (vague)": "(?i)(query|insert).{0,4}key.{0,4}b[\\w-]{32,40}\\b",
-  "New Relic License Key": "(?i)license.{0,4}key.{0,4}\\b[\\w-]{32,40}\\b",
+  "New Relic Insights Key (specific)": "(?i)insights[\\s[[:punct:]]]?(key|query|insert)[\\s[[:punct:]]]{1,4}\\b[\\w-]{32,40}\\b",
+  "New Relic Insights Key (vague)": "(?i)(query|insert)[\\s[[:punct:]]]?key[\\s[[:punct:]]]{1,4}b[\\w-]{32,40}\\b",
+  "New Relic License Key": "(?i)license[\\s[[:punct:]]]?key[\\s[[:punct:]]]{1,4}\\b[\\w-]{32,40}\\b",
   "New Relic Internal API Key": "(?i)nr-internal-api-key",
-  "New Relic HTTP Auth Headers and API Key": "(?i)(x|newrelic|nr)-(partner|account|query|insert|api|license)-(id|key).{0,4}\\b[\\w-]{32,47}\\b",
+  "New Relic HTTP Auth Headers and API Key": "(?i)(x|newrelic|nr)-(partner|account|query|insert|api|license)-(id|key)[\\s[[:punct:]]]{1,4}\\b[\\w-]{32,47}\\b",
   "Email address": "(?i)(?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|\"(?:[\\x01-\\x08\\x0b\\x0c\\x0e-\\x1f\\x21\\x23-\\x5b\\x5d-\\x7f]|\\\\[\\x01-\\x09\\x0b\\x0c\\x0e-\\x7f])*\")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\\[(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?|[a-z0-9-]*[a-z0-9]:(?:[\\x01-\\x08\\x0b\\x0c\\x0e-\\x1f\\x21-\\x5a\\x53-\\x7f]|\\\\[\\x01-\\x09\\x0b\\x0c\\x0e-\\x7f])+)\\])",
   "New Relic Account IDs in URL": "(newrelic\\.com/)?accounts/\\d{1,10}/",
-  "Account ID": "(?i)account.{0,4}id.{0,4}\\b[\\d]{1,10}\\b"
+  "Account ID": "(?i)account[\\s[[:punct:]]]?id[\\s[[:punct:]]]{1,4}\\b[\\d]{1,10}\\b"
 }
 "##;
 
@@ -235,7 +236,7 @@ pub struct SecretScanner {
 /// use rusty_hogs::{SecretScannerBuilder, SecretScanner};
 /// let ssb: SecretScannerBuilder = SecretScannerBuilder::new();
 /// let ss: SecretScanner = ssb.build();
-/// assert_eq!(ss.regex_map.len(), 50);
+/// assert_eq!(ss.regex_map.len(), 51);
 /// ```
 ///
 /// Alternatively, you can supply your own regular expression JSON, and set a global
@@ -251,6 +252,7 @@ pub struct SecretScanner {
 /// assert_eq!(ss.regex_map.len(), 1);
 /// ```
 ///
+#[derive(Default)]
 pub struct SecretScannerBuilder {
     pub case_insensitive: Option<bool>,
     pub regex_json_str: Option<String>,
@@ -465,10 +467,9 @@ impl SecretScanner {
         } else {
             json_text.append(serde_json::ser::to_vec(findings).unwrap().as_mut());
         }
-        if output_path.is_some() {
-            fs::write(output_path.unwrap(), json_text).unwrap();
-        } else {
-            println!("{}", str::from_utf8(json_text.as_ref()).unwrap());
-        }
+        match output_path {
+            Some(op) => fs::write(op, json_text).unwrap(),
+            None => println!("{}", str::from_utf8(json_text.as_ref()).unwrap())
+        };
     }
 }
