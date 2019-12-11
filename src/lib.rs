@@ -85,6 +85,8 @@ use std::hash::Hash;
 use serde::{Serialize};
 use simple_logger::init_with_level;
 
+// Regex in progress:   "Basic Auth": "basic(_auth)?([\\s[[:punct:]]]{1,4}[[[:word:]][[:punct:]]]{8,64}[\\s[[:punct:]]]?){1,2}",
+
 const DEFAULT_REGEX_JSON: &str = r##"
 {
   "Slack Token": "(xox[p|b|o|a]-[0-9]{12}-[0-9]{12}-[0-9]{12}-[a-z0-9]{32})",
@@ -95,7 +97,6 @@ const DEFAULT_REGEX_JSON: &str = r##"
   "Amazon AWS Access Key ID": "AKIA[0-9A-Z]{16}",
   "Amazon MWS Auth Token": "amzn\\.mws\\.[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
   "AWS API Key": "AKIA[0-9A-Z]{16}",
-  "Basic Auth": "basic(_auth)?([\\s[[:punct:]]]{1,4}[[[:word:]][[:punct:]]]{8,64}[\\s[[:punct:]]]?){1,2}",
   "Facebook Access Token": "EAACEdEose0cBA[0-9A-Za-z]+",
   "Facebook OAuth": "(?i)facebook[\\s[[:punct:]]]{1,4}[0-9a-f]{32}[\\s[[:punct:]]]?",
   "GitHub": "(?i)github[\\s[[:punct:]]]{1,4}[0-9a-zA-Z]{35,40}",
