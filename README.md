@@ -21,10 +21,15 @@ Choctaw Hog: Scan for secrets in a Git repository
 * [Issues / Enhancement Requests](#issues--enhancement-requests)
 * [Contributing](#contributing)
 * [Feature Roadmap](#feature-roadmap)
-* [Performance comparison](#performance-comparison)
 * [What does the name mean?](#what-does-the-name-mean)
 
-## How to run
+### Usage 
+
+This project provides a set of scanners that will use regular expressions to try and detect the presence of sensitive
+information such as API keys, passwords, and personal information. It includes a set of regular expressions by 
+default, but will also accept a JSON object containing your custom regular expressions.
+
+## How to install
 Download and unzip the [latest ZIP](https://github.com/newrelic/rusty-hog/releases/download/v0.4.4/rustyhogs-0.4.4.zip)
 on the releases tab, then you can run each binary with `-h` to see the usage.
 
@@ -41,7 +46,8 @@ Ensure you have [Rust](https://www.rust-lang.org/learn/get-started) installed an
 Perform a git clone, then run `cargo build --release`. The binaries will be located in `target/release`
 
 To cross-compile Berkshire Hog for the AWS Lambda environment, first install 
-[cross](https://github.com/rust-embedded/cross). Then run the following commands and upload berkshire_lambda.zip:
+[cross](https://github.com/rust-embedded/cross). Then run the following commands and upload berkshire_lambda.zip to 
+your AWS Lambda dashboard:
 ```shell script
 cross build --release --target x86_64-unknown-linux-musl
 cp target/x86_64-unknown-linux-musl/release/berkshire_hog bootstrap
@@ -177,9 +183,10 @@ Keep in mind that when you submit your pull request, you'll need to sign the CLA
     - [x] Clear with New Relic open source committee
     - [x] Finish initial implementation of Ankamali Hog and Berkshire Hog CLI
     - [ ] Finish New Relic Open Source checklist
-    - [ ] Unit tests
+    - [x] Unit tests
     - [ ] Prep for crates.io release
     - [x] Flatten original Git repo
+    - [ ] Support git HTTPS auth
 
 - 1.1: Enterprise features
     - [ ] Support config files (instead of command line args)
@@ -188,6 +195,8 @@ Keep in mind that when you submit your pull request, you'll need to sign the CLA
     - [ ] Better context detection and false positive filtering (GitHound, machine learning)
     - [ ] Support for other modes of use for Berkshire Hog (CLI, lambda without SQS)
     - [ ] Use Rusoto instead of s3-rust
+    - [ ] Add JIRA scanner
+    - [ ] Add file-system & archive scanner
 
 - 1.2: Integration with larger scripts and UIs
     - [ ] Support Github API for larger org management
@@ -197,23 +206,6 @@ Keep in mind that when you submit your pull request, you'll need to sign the CLA
     - [ ] Agent/manager model
     - [ ] Scheduler process (blocked by save state support)
 
-
-## Performance comparison
-Using this repo as a test: `git clone git@github.com:NathanRomike/dictionary-builder.git`
-
-I ran trufflehog 50 times and saw it take 81 seconds...
-```
-time ( repeat 50 { trufflehog --rules trufflehog_rules.json --regex --entropy=False ../dictionary-builder/ })
-
-37.67s user 40.56s system 95% cpu 1:21.88 total
-```
-
-Then I ran Choctaw Hog 50 times and saw it take 49 seconds...
-```
-time ( repeat 50 { target/release/choctaw_hog ../dictionary-builder })
-
-46.28s user 1.94s system 98% cpu 48.749 total
-```
 
 ## What does the name mean?
 TruffleHog is considered the de-facto standard / original secret scanner. I have been
