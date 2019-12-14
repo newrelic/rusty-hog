@@ -18,19 +18,17 @@
 //! ```
 //!
 
-
 use crate::SecretScanner;
-use serde_derive::{Deserialize, Serialize};
-use google_drive3::{DriveHub, Scope};
-use hyper::Client;
-use yup_oauth2::{Authenticator, DefaultAuthenticatorDelegate, DiskTokenStorage};
-use simple_error::SimpleError;
-use std::io::Read;
-use std::collections::HashSet;
-use std::iter::FromIterator;
 use encoding::all::ASCII;
 use encoding::{DecoderTrap, Encoding};
-
+use google_drive3::{DriveHub, Scope};
+use hyper::Client;
+use serde_derive::{Deserialize, Serialize};
+use simple_error::SimpleError;
+use std::collections::HashSet;
+use std::io::Read;
+use std::iter::FromIterator;
+use yup_oauth2::{Authenticator, DefaultAuthenticatorDelegate, DiskTokenStorage};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash)]
 /// serde_json object that represents a single found secret - finding
@@ -42,12 +40,12 @@ pub struct GDriveFinding {
     pub strings_found: Vec<String>,
     pub g_drive_id: String,
     pub reason: String,
-    pub web_link: String
+    pub web_link: String,
 }
 
 /// Contains helper functions for performing scans of Google Drive objects
 pub struct GDriveScanner {
-    pub secret_scanner: SecretScanner
+    pub secret_scanner: SecretScanner,
 }
 
 /// A helper object containing a set of strings describing a Google Drive file.
@@ -58,17 +56,33 @@ pub struct GDriveFileInfo {
     pub web_link: String,
     pub parents: Vec<String>,
     pub name: String,
-    pub path: String
+    pub path: String,
 }
 
 impl GDriveFileInfo {
     /// Construct a GDriveFileInfo object from a Google Drive File ID and an authorized DriveHub object
-    pub fn new(file_id: &str, hub: &DriveHub<Client, Authenticator<DefaultAuthenticatorDelegate, DiskTokenStorage, Client>>) -> Result<GDriveFileInfo, SimpleError> {
+    pub fn new(
+        file_id: &str,
+        hub: &DriveHub<
+            Client,
+            Authenticator<DefaultAuthenticatorDelegate, DiskTokenStorage, Client>,
+        >,
+    ) -> Result<GDriveFileInfo, SimpleError> {
         let fields = "kind, id, name, mimeType, webViewLink, modifiedTime, parents";
-        let hub_result = hub.files().get(file_id).add_scope(Scope::Readonly).param("fields",fields).doit();
-        let (_,file_object) = match hub_result {
+        let hub_result = hub
+            .files()
+            .get(file_id)
+            .add_scope(Scope::Readonly)
+            .param("fields", fields)
+            .doit();
+        let (_, file_object) = match hub_result {
             Ok(x) => x,
-            Err(e) => return Err(SimpleError::new(format!("failed accessing Google Metadata API {:?}", e)))
+            Err(e) => {
+                return Err(SimpleError::new(format!(
+                    "failed accessing Google Metadata API {:?}",
+                    e
+                )))
+            }
         };
 
         // initialize some variables from the response
@@ -80,7 +94,7 @@ impl GDriveFileInfo {
         let mime_type = match file_object.mime_type.unwrap().as_ref() {
             "application/vnd.google-apps.spreadsheet" => "text/csv", //TODO: Support application/x-vnd.oasis.opendocument.spreadsheet https://github.com/tafia/calamine
             "application/vnd.google-apps.document" => "text/plain",
-            u => return Err(SimpleError::new(format!("unknown doc type {}", u)))
+            u => return Err(SimpleError::new(format!("unknown doc type {}", u))),
         };
         Ok(GDriveFileInfo {
             file_id: file_id.to_owned(),
@@ -89,7 +103,7 @@ impl GDriveFileInfo {
             web_link,
             parents,
             name,
-            path
+            path,
         })
     }
 }
@@ -106,23 +120,40 @@ impl GDriveScanner {
 
     /// Takes information about the file, and the DriveHub object, and retrieves the content from
     /// Google Drive. Expect authorization issues here if you don't have access to the file.
-    fn get_file_contents(gdrivefile: &GDriveFileInfo, hub: &DriveHub<Client, Authenticator<DefaultAuthenticatorDelegate, DiskTokenStorage, Client>>) -> Result<Vec<u8>, SimpleError> {
-        let resp_obj = hub.files().export(&gdrivefile.file_id, &gdrivefile.mime_type).doit();
-        let mut resp_obj= match resp_obj {
+    fn get_file_contents(
+        gdrivefile: &GDriveFileInfo,
+        hub: &DriveHub<
+            Client,
+            Authenticator<DefaultAuthenticatorDelegate, DiskTokenStorage, Client>,
+        >,
+    ) -> Result<Vec<u8>, SimpleError> {
+        let resp_obj = hub
+            .files()
+            .export(&gdrivefile.file_id, &gdrivefile.mime_type)
+            .doit();
+        let mut resp_obj = match resp_obj {
             Ok(r) => r,
-            Err(e) => return Err(SimpleError::new(e.to_string()))
+            Err(e) => return Err(SimpleError::new(e.to_string())),
         };
         let mut buffer: Vec<u8> = Vec::new();
         match resp_obj.read_to_end(&mut buffer) {
             Err(e) => return Err(SimpleError::new(e.to_string())),
-            Ok(s) => s
+            Ok(s) => s,
         };
         Ok(buffer)
     }
 
     /// Takes information about the file, and the DriveHub object, and return a list of findings.
     /// This calls get_file_contents(), so expect an HTTPS call to GDrive.
-    pub fn perform_scan(&self, gdrivefile: &GDriveFileInfo, hub: &DriveHub<Client, Authenticator<DefaultAuthenticatorDelegate, DiskTokenStorage, Client>>, scan_entropy: bool) -> HashSet<GDriveFinding> {
+    pub fn perform_scan(
+        &self,
+        gdrivefile: &GDriveFileInfo,
+        hub: &DriveHub<
+            Client,
+            Authenticator<DefaultAuthenticatorDelegate, DiskTokenStorage, Client>,
+        >,
+        scan_entropy: bool,
+    ) -> HashSet<GDriveFinding> {
         // download an export of the file, split on new lines, store in lines
         let buffer = GDriveScanner::get_file_contents(gdrivefile, hub).unwrap();
         let lines = buffer.split(|x| (*x as char) == '\n');
@@ -153,7 +184,7 @@ impl GDriveScanner {
                         reason: reason.clone(),
                         g_drive_id: gdrivefile.file_id.to_string(),
                         path: gdrivefile.path.clone(),
-                        web_link: gdrivefile.web_link.clone()
+                        web_link: gdrivefile.web_link.clone(),
                     });
                 }
             }
@@ -170,7 +201,7 @@ impl GDriveScanner {
                         reason: "Entropy".parse().unwrap(),
                         g_drive_id: gdrivefile.file_id.to_string(),
                         path: gdrivefile.path.clone(),
-                        web_link: gdrivefile.web_link.clone()
+                        web_link: gdrivefile.web_link.clone(),
                     });
                 }
             }

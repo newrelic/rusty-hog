@@ -17,9 +17,10 @@
 
 extern crate s3;
 
-use std::error::Error;
 use lambda_runtime::{error::HandlerError, lambda, Context};
 use log::{self, warn};
+use rusty_hogs::aws_scanning::{S3Finding, S3Scanner};
+use rusty_hogs::SecretScannerBuilder;
 use s3::bucket::Bucket;
 use s3::credentials::Credentials;
 use s3::region::Region;
@@ -27,9 +28,8 @@ use serde_derive::{Deserialize, Serialize};
 use simple_error::SimpleError;
 use simple_logger;
 use std::env;
+use std::error::Error;
 use std::time::SystemTime;
-use rusty_hogs::aws_scanning::{S3Finding, S3Scanner};
-use rusty_hogs::SecretScannerBuilder;
 
 // Each of these structs correspond to parsed JSON objects coming from S3 -> SQS -> Lambda
 #[derive(Deserialize, Clone, Debug)]
@@ -139,7 +139,7 @@ fn my_handler(e: CustomEvent, _c: Context) -> Result<CustomOutput, HandlerError>
             let bucket_name = record.s3.bucket.name;
             let bucket = Bucket::new(bucket_name.as_ref(), region, credentials.clone()).unwrap();
             let key = record.s3.object.key;
-//            let filesize = record.s3.object.size;
+            //            let filesize = record.s3.object.size;
             let f_result: Result<Vec<S3Finding>, SimpleError> =
                 s3scanner.scan_s3_file(bucket, key.as_ref());
             match f_result {

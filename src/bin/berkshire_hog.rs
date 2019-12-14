@@ -35,10 +35,10 @@ use s3::region::Region;
 use simple_error::SimpleError;
 use simple_error::{require_with, try_with};
 use std::str;
-use url::{Url};
+use url::Url;
 
 use rusty_hogs::aws_scanning::{S3Finding, S3Scanner};
-use rusty_hogs::{SecretScannerBuilder, SecretScanner};
+use rusty_hogs::{SecretScanner, SecretScannerBuilder};
 use std::collections::HashSet;
 use std::iter::FromIterator;
 
@@ -89,7 +89,8 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
 
     // Initialize our S3 variables
     let profile = arg_matches
-        .value_of("PROFILE").and_then(|x| Some(x.to_string()));
+        .value_of("PROFILE")
+        .and_then(|x| Some(x.to_string()));
     let credentials = Credentials::new(None, None, None, profile);
     debug!(
         "credentials: {:?} {:?} {:?}",
@@ -117,14 +118,16 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     let results = match results {
         Ok(r) => r,
         Err(e) => {
-            error!("WARNING: There is a bug in rust-s3 library that prevents it from \
-            reading access tokens from .credentials files. If you are using this method, \
-            you will need to export the credentials as environment variables instead. \
-            https://durch.github.io/rust-s3/s3/credentials/struct.Credentials.html");
+            error!(
+                "WARNING: There is a bug in rust-s3 library that prevents it from \
+                 reading access tokens from .credentials files. If you are using this method, \
+                 you will need to export the credentials as environment variables instead. \
+                 https://durch.github.io/rust-s3/s3/credentials/struct.Credentials.html"
+            );
             return Err(SimpleError::new(format!(
                 "Error running AWS list operation: {:?} (failed auth?)",
                 e
-            )))
+            )));
         }
     };
     let mut keys: Vec<String> = results

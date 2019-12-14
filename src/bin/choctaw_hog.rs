@@ -24,7 +24,6 @@
 //!    <GITPATH>    Sets the path (or URL) of the Git repo to scan. SSH links must include username (git@)
 //! ```
 
-
 #[macro_use]
 extern crate clap;
 
@@ -40,7 +39,7 @@ use simple_error::SimpleError;
 use std::str;
 use tempdir::TempDir;
 
-use rusty_hogs::git_scanning::{GitScanner};
+use rusty_hogs::git_scanning::GitScanner;
 use rusty_hogs::{SecretScanner, SecretScannerBuilder};
 
 fn main() {
@@ -58,6 +57,8 @@ fn main() {
         (@arg SINCECOMMIT: --since_commit +takes_value "Filters commits based on date committed (branch agnostic)")
         (@arg SSHKEYPATH: --sshkeypath +takes_value "Takes a path to a private SSH key for git authentication, defaults to ssh-agent")
         (@arg SSHKEYPHRASE: --sshkeyphrase +takes_value "Takes a passphrase to a private SSH key for git authentication, defaults to none")
+        (@arg HTTPSUSER: --httpsuser +takes_value "Takes a username for HTTPS-based authentication")
+        (@arg HTTPSPASS: --httpspass +takes_value "Takes a password for HTTPS-based authentication")
     )
     .get_matches();
     match run(&matches) {
@@ -65,7 +66,6 @@ fn main() {
         Err(e) => panic!("error: {}", e),
     }
 }
-
 
 fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     // Set logging
@@ -75,6 +75,8 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     let secret_scanner = SecretScannerBuilder::new().conf_argm(arg_matches).build();
     let sshkeypath = arg_matches.value_of("SSHKEYPATH");
     let sshkeyphrase = arg_matches.value_of("SSHKEYPHRASE");
+    let httpsuser = arg_matches.value_of("HTTPSUSER");
+    let httpspass = arg_matches.value_of("HTTPSPASS");
     let since_commit = arg_matches.value_of("SINCECOMMIT");
     let scan_entropy = arg_matches.is_present("ENTROPY");
 
@@ -84,7 +86,14 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     let source_path: &str = arg_matches.value_of("GITPATH").unwrap();
 
     // Do the scan
-    let git_scanner = GitScanner::new(secret_scanner).init_git_repo(source_path, &dest_dir_path, sshkeypath, sshkeyphrase);
+    let git_scanner = GitScanner::new(secret_scanner).init_git_repo(
+        source_path,
+        &dest_dir_path,
+        sshkeypath,
+        sshkeyphrase,
+        httpsuser,
+        httpspass,
+    );
     let findings = git_scanner.perform_scan(None, since_commit, scan_entropy);
 
     // Output the results

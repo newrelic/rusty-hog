@@ -5,7 +5,7 @@ use encoding::all::ASCII;
 use encoding::{DecoderTrap, Encoding};
 use log::{self, trace};
 use s3::bucket::Bucket;
-use serde_derive::{Serialize, Deserialize};
+use serde_derive::{Deserialize, Serialize};
 use simple_error::SimpleError;
 use std::str;
 
@@ -23,14 +23,13 @@ pub struct S3Finding {
 
 /// Contains helper functions for performing scans of S3 objects
 pub struct S3Scanner {
-    pub secret_scanner: SecretScanner
+    pub secret_scanner: SecretScanner,
 }
 
 /// Acts as a wrapper around a SecretScanner object to provide helper functions for performing
 /// scanning against AWS S3 objects. Relies on the [rust-s3](https://github.com/durch/rust-s3)
 /// which provides S3 access without the AWS Rusoto library.
 impl S3Scanner {
-
     /// Initialize the SecretScanner object first using the SecretScannerBuilder, then provide
     /// it to this constructor method.
     pub fn new(secret_scanner: SecretScanner) -> S3Scanner {

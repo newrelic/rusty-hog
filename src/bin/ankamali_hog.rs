@@ -22,19 +22,21 @@
 
 #[macro_use]
 extern crate clap;
+extern crate google_drive3 as drive3;
 extern crate hyper;
 extern crate hyper_rustls;
 extern crate yup_oauth2 as oauth2;
-extern crate google_drive3 as drive3;
 
 use clap::ArgMatches;
-use simple_error::SimpleError;
-use oauth2::{Authenticator, DefaultAuthenticatorDelegate, ApplicationSecret, FlowType, DiskTokenStorage};
 use drive3::DriveHub;
 use log::{self, info};
+use oauth2::{
+    ApplicationSecret, Authenticator, DefaultAuthenticatorDelegate, DiskTokenStorage, FlowType,
+};
+use simple_error::SimpleError;
 use std::path::Path;
 
-use rusty_hogs::google_scanning::{GDriveScanner, GDriveFileInfo};
+use rusty_hogs::google_scanning::{GDriveFileInfo, GDriveScanner};
 use rusty_hogs::{SecretScanner, SecretScannerBuilder};
 
 fn main() {
@@ -64,21 +66,36 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     SecretScanner::set_logging(arg_matches.occurrences_of("VERBOSE"));
 
     // Initialize some variables
-    let oauthsecretfile = arg_matches.value_of("OAUTHSECRETFILE").unwrap_or_else(|| "clientsecret.json");
-    let oauthtokenfile =  arg_matches.value_of("OAUTHTOKENFILE").unwrap_or_else(|| "temp_token");
+    let oauthsecretfile = arg_matches
+        .value_of("OAUTHSECRETFILE")
+        .unwrap_or_else(|| "clientsecret.json");
+    let oauthtokenfile = arg_matches
+        .value_of("OAUTHTOKENFILE")
+        .unwrap_or_else(|| "temp_token");
     let file_id = arg_matches.value_of("GDRIVEID").unwrap();
     let scan_entropy = arg_matches.is_present("ENTROPY");
     let secret_scanner = SecretScannerBuilder::new().conf_argm(arg_matches).build();
     let gdrive_scanner = GDriveScanner::new(secret_scanner);
 
     // Start with GDrive auth - based on example code from drive3 API and yup-oauth2
-    let secret: ApplicationSecret =  yup_oauth2::read_application_secret(Path::new(oauthsecretfile))
-        .expect(oauthsecretfile);
+    let secret: ApplicationSecret =
+        yup_oauth2::read_application_secret(Path::new(oauthsecretfile)).expect(oauthsecretfile);
     let token_storage = DiskTokenStorage::new(&String::from(oauthtokenfile)).unwrap();
-    let auth = Authenticator::new(&secret, DefaultAuthenticatorDelegate,
-                                      hyper::Client::with_connector(hyper::net::HttpsConnector::new(hyper_rustls::TlsClient::new())),
-                                      token_storage, Some(FlowType::InstalledInteractive));
-    let hub = DriveHub::new(hyper::Client::with_connector(hyper::net::HttpsConnector::new(hyper_rustls::TlsClient::new())), auth);
+    let auth = Authenticator::new(
+        &secret,
+        DefaultAuthenticatorDelegate,
+        hyper::Client::with_connector(hyper::net::HttpsConnector::new(
+            hyper_rustls::TlsClient::new(),
+        )),
+        token_storage,
+        Some(FlowType::InstalledInteractive),
+    );
+    let hub = DriveHub::new(
+        hyper::Client::with_connector(hyper::net::HttpsConnector::new(
+            hyper_rustls::TlsClient::new(),
+        )),
+        auth,
+    );
 
     // get some initial info about the file
     let gdriveinfo = GDriveFileInfo::new(file_id, &hub).unwrap();

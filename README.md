@@ -186,7 +186,7 @@ Keep in mind that when you submit your pull request, you'll need to sign the CLA
     - [x] Unit tests
     - [ ] Prep for crates.io release
     - [x] Flatten original Git repo
-    - [ ] Support git HTTPS auth
+    - [x] Support git HTTPS auth
 
 - 1.1: Enterprise features
     - [ ] Support config files (instead of command line args)

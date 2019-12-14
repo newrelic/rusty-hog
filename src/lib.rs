@@ -65,25 +65,24 @@
 //! assert_eq!(secrets.pop().unwrap(), "Email address");
 //! ```
 
-
 pub mod aws_scanning;
-pub mod google_scanning;
 pub mod git_scanning;
+pub mod google_scanning;
 
+use clap::ArgMatches;
 use hex;
 use log::{self, error, info};
 use regex::bytes::{Matches, Regex, RegexBuilder};
+use serde::Serialize;
 use serde_json::{Map, Value};
 use simple_error::SimpleError;
+use simple_logger::init_with_level;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fs::File;
+use std::hash::Hash;
 use std::io::BufReader;
 use std::iter::FromIterator;
-use std::{str, fs};
-use clap::ArgMatches;
-use std::hash::Hash;
-use serde::{Serialize};
-use simple_logger::init_with_level;
+use std::{fs, str};
 
 // Regex in progress:   "Basic Auth": "basic(_auth)?([\\s[[:punct:]]]{1,4}[[[:word:]][[:punct:]]]{8,64}[\\s[[:punct:]]]?){1,2}",
 
@@ -223,7 +222,7 @@ const STANDARD_ENCODE: &[u8; 64] = &[
 pub struct SecretScanner {
     pub regex_map: BTreeMap<String, Regex>,
     pub pretty_print: bool,
-    pub output_path: Option<String>
+    pub output_path: Option<String>,
 }
 
 /// Used to instantiate the SecretScanner object with user-supplied options
@@ -261,9 +260,8 @@ pub struct SecretScannerBuilder {
     pub regex_json_str: Option<String>,
     pub regex_json_path: Option<String>,
     pub pretty_print: bool,
-    pub output_path: Option<String>
+    pub output_path: Option<String>,
 }
-
 
 impl SecretScannerBuilder {
     /// Create a new SecretScannerBuilder object with the default config (50 rules, case sensitive)
@@ -273,7 +271,7 @@ impl SecretScannerBuilder {
             regex_json_str: None,
             regex_json_path: None,
             pretty_print: false,
-            output_path: None
+            output_path: None,
         }
     }
 
@@ -283,12 +281,12 @@ impl SecretScannerBuilder {
         self.case_insensitive = arg_matches.is_present("CASE");
         self.output_path = match arg_matches.value_of("REGEX") {
             Some(s) => Some(String::from(s)),
-            None => None
+            None => None,
         };
         self.pretty_print = arg_matches.is_present("PRETTYPRINT");
         self.output_path = match arg_matches.value_of("OUTPUT") {
             Some(s) => Some(String::from(s)),
-            None => None
+            None => None,
         };
         self
     }
@@ -329,22 +327,29 @@ impl SecretScannerBuilder {
             Some(p) => SecretScannerBuilder::get_json_from_file(&p),
             _ => match &self.regex_json_str {
                 Some(s) => SecretScannerBuilder::get_json_from_str(&s),
-                _ => SecretScannerBuilder::get_json_from_str(DEFAULT_REGEX_JSON)
-            }
+                _ => SecretScannerBuilder::get_json_from_str(DEFAULT_REGEX_JSON),
+            },
         };
         let json_obj: Map<String, Value> = match json_obj {
             Ok(x) => x,
             Err(e) => {
-                error!("Error parsing Regex JSON object, falling back to default regex rules: {:?}", e);
+                error!(
+                    "Error parsing Regex JSON object, falling back to default regex rules: {:?}",
+                    e
+                );
                 SecretScannerBuilder::get_json_from_str(DEFAULT_REGEX_JSON).unwrap()
             }
         };
         let regex_map = SecretScannerBuilder::get_regex_objects(json_obj, self.case_insensitive);
         let output_path = match &self.output_path {
             Some(s) => Some(s.clone()),
-            None => None
+            None => None,
         };
-        SecretScanner { regex_map, pretty_print: self.pretty_print, output_path }
+        SecretScanner {
+            regex_map,
+            pretty_print: self.pretty_print,
+            output_path,
+        }
     }
 
     fn get_json_from_file(filename: &str) -> Result<Map<String, Value>, SimpleError> {
@@ -399,11 +404,9 @@ impl SecretScannerBuilder {
             .map(|(k, v)| (k, v.unwrap()))
             .collect()
     }
-
 }
 
 impl SecretScanner {
-
     /// Helper function to set global logging level
     pub fn set_logging(verbose_level: u64) {
         match verbose_level {
@@ -497,7 +500,7 @@ impl SecretScanner {
         }
         match &self.output_path {
             Some(op) => fs::write(op, json_text).unwrap(),
-            None => println!("{}", str::from_utf8(json_text.as_ref()).unwrap())
+            None => println!("{}", str::from_utf8(json_text.as_ref()).unwrap()),
         };
     }
 }
