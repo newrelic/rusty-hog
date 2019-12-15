@@ -1,3 +1,7 @@
+# This script takes a Github access token and the name of an organization, and runs Choctaw_hog for each repo
+# It runs the scans in a multi-processing pool, and collects the results and writes them to output.csv
+# It is meant to be used with false_positives.py
+# It requires a single third party library: https://github.com/PyGithub/PyGithub
 from github import Github
 import subprocess
 from multiprocessing import Pool

@@ -1,4 +1,8 @@
 #!/usr/bin/env python
+
+# This is a simple script meant to filter the results from gh_org_scanner.py using a blacklist of words.
+# It outputs the results as output_filtered.csv
+
 import csv
 
 fpwords = ['foo',
