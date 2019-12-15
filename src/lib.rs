@@ -238,7 +238,7 @@ pub struct SecretScanner {
 /// use rusty_hogs::{SecretScannerBuilder, SecretScanner};
 /// let ssb: SecretScannerBuilder = SecretScannerBuilder::new();
 /// let ss: SecretScanner = ssb.build();
-/// assert_eq!(ss.regex_map.len(), 51);
+/// assert_eq!(ss.regex_map.len(), 50);
 /// ```
 ///
 /// Alternatively, you can supply your own regular expression JSON, and set a global
@@ -249,7 +249,7 @@ pub struct SecretScanner {
 /// let ssb: SecretScannerBuilder = SecretScannerBuilder::new()
 ///     .set_json_str(regex_string)
 ///     .global_case_insensitive(true);
-/// assert!(ssb.case_insensitive.unwrap());
+/// assert!(ssb.case_insensitive);
 /// let ss: SecretScanner = ssb.build();
 /// assert_eq!(ss.regex_map.len(), 1);
 /// ```
