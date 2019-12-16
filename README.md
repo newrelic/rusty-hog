@@ -1,43 +1,47 @@
 # Rusty Hogs
-A suite of secret scanners built in Rust for performance. Based on [TruffleHog](https://github.com/dxa4481/truffleHog)
-which is written in Python.
+Rusty Hog is built in Rust for performance, and based on TruffleHog which is written
+in Python. It provides the following binaries:
 
-Ankamali Hog: Scan for secrets in a Google Doc
+* Ankamali Hog: Scan for secrets in a Google Doc
+* Berkshire Hog: Scan for secrets in an S3 bucket
+* Choctaw Hog: Scan for secrets in a Git repository
 
-Berkshire Hog: Scan for secrets in an S3 bucket
+## Table of Contents
+<!-- TOC depthFrom:1 depthTo:6 withLinks:1 updateOnSave:1 orderedList:0 -->
 
-Choctaw Hog: Scan for secrets in a Git repository
+- [Rusty Hogs](#rusty-hogs)
+	- [Table of Contents](#table-of-contents)
+- [Usage](#usage)
+	- [How to install](#how-to-install)
+	- [How to build](#how-to-build)
+	- [Anakamali Hog Usage](#anakamali-hog-usage)
+	- [Berkshire Hog (CLI) Usage](#berkshire-hog-cli-usage)
+	- [Berkshire Hog (Lambda) Usage](#berkshire-hog-lambda-usage)
+	- [Choctaw Hog Usage](#choctaw-hog-usage)
+- [Project information](#project-information)
+	- [Open Source License](#open-source-license)
+	- [Support](#support)
+	- [Community](#community)
+	- [Issues / Enhancement Requests](#issues-enhancement-requests)
+	- [Contributing](#contributing)
+	- [Feature Roadmap](#feature-roadmap)
+	- [What does the name mean?](#what-does-the-name-mean)
 
-* [Rusty Hogs](#rusty-hogs)
-* [How to run](#how-to-run)
-* [How to build](#how-to-build)
-* [Anakamali Hog Usage](#anakamali-hog-usage)
-* [Berkshire Hog (CLI) Usage](#berkshire-hog-cli-usage)
-* [Berkshire Hog (Lambda) Usage](#berkshire-hog-lambda-usage)
-* [Choctaw Hog Usage](#choctaw-hog-usage)
-* [Open Source License](#open-source-license)
-* [Support](#support)
-* [Community](#community)
-* [Issues / Enhancement Requests](#issues--enhancement-requests)
-* [Contributing](#contributing)
-* [Feature Roadmap](#feature-roadmap)
-* [What does the name mean?](#what-does-the-name-mean)
-
-### Usage 
+<!-- /TOC -->
+# Usage
 
 This project provides a set of scanners that will use regular expressions to try and detect the presence of sensitive
-information such as API keys, passwords, and personal information. It includes a set of regular expressions by 
+information such as API keys, passwords, and personal information. It includes a set of regular expressions by
 default, but will also accept a JSON object containing your custom regular expressions.
 
 ## How to install
-Download and unzip the [latest ZIP](https://github.com/newrelic/rusty-hog/releases/download/v0.4.4/rustyhogs-0.4.4.zip)
+Download and unzip the [latest ZIP](https://github.com/newrelic/rusty-hog/releases/)
 on the releases tab, then you can run each binary with `-h` to see the usage.
 
 ```shell script
 wget https://github.com/newrelic/rusty-hog/releases/download/v0.4.4/rustyhogs-0.4.4.zip
 unzip rustyhogs-0.4.4.zip
-cd darwin_releases
-./choctaw_hog -h
+darwin_releases/choctaw_hog -h
 ```
 
 ## How to build
@@ -45,8 +49,8 @@ Ensure you have [Rust](https://www.rust-lang.org/learn/get-started) installed an
 
 Perform a git clone, then run `cargo build --release`. The binaries will be located in `target/release`
 
-To cross-compile Berkshire Hog for the AWS Lambda environment, first install 
-[cross](https://github.com/rust-embedded/cross). Then run the following commands and upload berkshire_lambda.zip to 
+To cross-compile Berkshire Hog for the AWS Lambda environment, first install
+[cross](https://github.com/rust-embedded/cross). Then run the following commands and upload berkshire_lambda.zip to
 your AWS Lambda dashboard:
 ```shell script
 cross build --release --target x86_64-unknown-linux-musl
@@ -145,7 +149,7 @@ OPTIONS:
 ARGS:
     <GITPATH>    Sets the path (or URL) of the Git repo to scan. SSH links must include username (git@)
 ```
-
+# Project information
 ## Open Source License
 
 This project is distributed under the [Apache 2 license](LICENSE).
@@ -210,7 +214,6 @@ Keep in mind that when you submit your pull request, you'll need to sign the CLA
 ## What does the name mean?
 TruffleHog is considered the de-facto standard / original secret scanner. I have been
 building a suite of secret scanning tools for various platforms based on TruffleHog
-and needed a naming scheme, so I started at the top of Wikipedia's 
-[list of pig breeds](https://en.wikipedia.org/wiki/List_of_pig_breeds). 
+and needed a naming scheme, so I started at the top of Wikipedia's
+[list of pig breeds](https://en.wikipedia.org/wiki/List_of_pig_breeds).
 Thus each tool name is a breed of pig starting at A and working up.
-
