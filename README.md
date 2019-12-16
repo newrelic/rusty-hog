@@ -49,6 +49,10 @@ Ensure you have [Rust](https://www.rust-lang.org/learn/get-started) installed an
 
 Perform a git clone, then run `cargo build --release`. The binaries will be located in `target/release`
 
+To build and view HTML documents run ```cargo doc --no-deps --open```
+
+To run unit-tests run ```cargo test```
+
 To cross-compile Berkshire Hog for the AWS Lambda environment, first install
 [cross](https://github.com/rust-embedded/cross). Then run the following commands and upload berkshire_lambda.zip to
 your AWS Lambda dashboard:
@@ -57,10 +61,6 @@ cross build --release --target x86_64-unknown-linux-musl
 cp target/x86_64-unknown-linux-musl/release/berkshire_hog bootstrap
 zip -j berkshire_lambda.zip bootstrap
 ```
-
-To build and view HTML documents run ```cargo doc --no-deps --open```
-
-To run unit-tests run ```cargo test```
 
 ## Anakamali Hog Usage
 ```

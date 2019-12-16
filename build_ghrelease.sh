@@ -23,7 +23,7 @@ mkdir darwin_releases
 mkdir musl_releases
 cp target/release/*_hog darwin_releases
 cp target/x86_64-unknown-linux-musl/release/*_hog musl_releases
-zip -r release.zip darwin_releases musl_releases berkshire_lambda.zip
+zip -r release.zip darwin_releases musl_releases berkshire_lambda.zip scripts
 rm -rf darwin_releases musl_releases 
 echo "Output build in release.zip"
 
