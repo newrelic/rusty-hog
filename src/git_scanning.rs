@@ -1,6 +1,6 @@
 //! Collection of tools for scanning Git repos for secrets.
 //!
-//! GitScanner acts as a wrapper around a SecretScanner object to provide helper functions for
+//! `GitScanner` acts as a wrapper around a `SecretScanner` object to provide helper functions for
 //! performing scanning against Git repositories. Relies on the
 //! [git2-rs](https://github.com/rust-lang/git2-rs) library which provides lower level access to
 //! the Git data structures.
@@ -17,8 +17,9 @@
 //! let gs = GitScanner::new(ss);
 //! ```
 //!
-//! After that, you must first run init_git_repo(), then perform_scan(), which returns a HashSet
-//! of findings...
+//! After that, you must first run `init_git_repo()`, then `perform_scan()`, which returns a
+//! `HashSet` of findings. In this example we're specifying a specific commit to stop scanning at
+//! (801360e) so we can have a reliable result.
 //!
 //! ```
 //! use rusty_hogs::SecretScannerBuilder;
@@ -30,8 +31,8 @@
 //! let gs = GitScanner::new(ss);
 //!
 //! let mut gs = gs.init_git_repo(".", Path::new("."), None, None, None, None);
-//! let findings: HashSet<GitFinding> = gs.perform_scan(None, None, false);
-//! assert_eq!(findings.len(), 43);
+//! let findings: HashSet<GitFinding> = gs.perform_scan(None, None, Some("8013160e"), false);
+//! assert_eq!(findings.len(), 45);
 //! ```
 
 use crate::SecretScanner;
@@ -49,7 +50,7 @@ use std::str;
 use url::{ParseError, Url};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash)]
-/// serde_json object that represents a single found secret - finding
+/// `serde_json` object that represents a single found secret - finding
 pub struct GitFinding {
     //    branch: String, // this requires a walk of the commits for each finding, so lets leave it out for the moment
     pub commit: String,
@@ -82,8 +83,8 @@ pub struct GitScanner {
 impl GitScanner {
     /// Initialize the SecretScanner object first using the SecretScannerBuilder, then provide
     /// it to this constructor method.
-    pub fn new(secret_scanner: SecretScanner) -> GitScanner {
-        GitScanner {
+    pub fn new(secret_scanner: SecretScanner) -> Self {
+        Self {
             secret_scanner,
             repo: None,
             scheme: None,
@@ -95,6 +96,7 @@ impl GitScanner {
         &self,
         glob: Option<&str>,
         since_commit: Option<&str>,
+        until_commit: Option<&str>,
         scan_entropy: bool,
     ) -> HashSet<GitFinding> {
         let repo_option = self.repo.as_ref(); //borrowing magic here!
@@ -118,10 +120,22 @@ impl GitScanner {
             None => Time::new(0, 0),
         };
 
+        let until_time_obj: Time = match until_commit {
+            Some(sc) => {
+                let revspec = match repo.revparse(sc) {
+                    Ok(r) => r,
+                    Err(e) => panic!("UNTILCOMMIT value returned an error: {:?}", e),
+                };
+                let o = revspec.from().unwrap();
+                o.as_commit().unwrap().time()
+            }
+            None => Time::new(i64::max_value(), 0),
+        };
+
         // convert our iterator of OIDs to an iterator of commit objects filtered by commit date
         let revwalk = revwalk
             .map(|id| repo.find_commit(id.unwrap()))
-            .filter(|c| c.as_ref().unwrap().time() >= since_time_obj);
+            .filter(|c| c.as_ref().unwrap().time() >= since_time_obj && c.as_ref().unwrap().time() <= until_time_obj);
 
         let mut findings: HashSet<GitFinding> = HashSet::new();
         // The main loop - scan each line of each diff of each commit for regex matches
@@ -298,7 +312,7 @@ impl GitScanner {
         sshkeyphrase: Option<&str>,
         httpsuser: Option<&str>,
         httpspass: Option<&str>,
-    ) -> GitScanner {
+    ) -> Self {
         let url = Url::parse(path);
         // try to figure out the format of the path
         self.scheme = match &url {
@@ -358,7 +372,7 @@ impl GitScanner {
                     Some(s) => s,
                     None => panic!("HTTPS GIT URL detected but no password supplied"),
                 };
-                Some(GitScanner::get_https_git_repo(
+                Some(Self::get_https_git_repo(
                     path, dest_dir, httpsuser, httpspass,
                 ))
             }
@@ -368,7 +382,7 @@ impl GitScanner {
                     "" => "git",
                     s => s,
                 };
-                Some(GitScanner::get_ssh_git_repo(
+                Some(Self::get_ssh_git_repo(
                     path,
                     dest_dir,
                     sshkeypath,
@@ -379,7 +393,7 @@ impl GitScanner {
             Some(GitScheme::Ssh) => {
                 let url = url.unwrap(); // we already have assurance this passed successfully
                 let username = url.username();
-                Some(GitScanner::get_ssh_git_repo(
+                Some(Self::get_ssh_git_repo(
                     path,
                     dest_dir,
                     sshkeypath,
@@ -397,7 +411,7 @@ impl GitScanner {
                         Some(i) => path.split_at(i).0,
                         None => "git",
                     };
-                    Some(GitScanner::get_ssh_git_repo(
+                    Some(Self::get_ssh_git_repo(
                         path,
                         dest_dir,
                         sshkeypath,

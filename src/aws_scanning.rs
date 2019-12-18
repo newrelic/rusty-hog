@@ -10,7 +10,7 @@ use simple_error::SimpleError;
 use std::str;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, Clone)]
-/// serde_json object that represents a single found secret - finding
+/// `serde_json` object that represents a single found secret - finding
 pub struct S3Finding {
     pub diff: String,
     #[serde(rename = "stringsFound")]
@@ -26,14 +26,14 @@ pub struct S3Scanner {
     pub secret_scanner: SecretScanner,
 }
 
-/// Acts as a wrapper around a SecretScanner object to provide helper functions for performing
+/// Acts as a wrapper around a `SecretScanner` object to provide helper functions for performing
 /// scanning against AWS S3 objects. Relies on the [rust-s3](https://github.com/durch/rust-s3)
 /// which provides S3 access without the AWS Rusoto library.
 impl S3Scanner {
     /// Initialize the SecretScanner object first using the SecretScannerBuilder, then provide
     /// it to this constructor method.
-    pub fn new(secret_scanner: SecretScanner) -> S3Scanner {
-        S3Scanner { secret_scanner }
+    pub fn new(secret_scanner: SecretScanner) -> Self {
+        Self { secret_scanner }
     }
 
     /// Takes an initialized [Bucket](https://durch.github.io/rust-s3/s3/bucket/struct.Bucket.html)

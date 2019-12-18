@@ -9,7 +9,7 @@
 //!
 //! ## Using the Secret Scanner Library
 //!
-//! In order to get a Secret Scanner object you can use the SecretScannerBuilder. It uses the
+//! In order to get a Secret Scanner object you can use the `SecretScannerBuilder`. It uses the
 //! Rust builder pattern, and will use the default regex rules without any configuration.
 //!
 //! ```
@@ -219,13 +219,13 @@ const STANDARD_ENCODE: &[u8; 64] = &[
 
 /// Contains helper functions and the map of regular expressions that are used to find secrets
 ///
-/// The main object that provides the "secret scanning" functionality. The regex_map field
+/// The main object that provides the "secret scanning" functionality. The `regex_map` field
 /// provides all the regular expressions that the secret scanner will look for.
 /// Use `get_matches(line: [u8])` to perform a `regex.find_iter()` for each regular expression in
-/// regex_map. ```get_matches``` will return another
-/// [BTreeMap](https://doc.rust-lang.org/std/collections/struct.BTreeMap.html) where the key is
+/// `regex_map`. `get_matches` will return another
+/// [`BTreeMap`](https://doc.rust-lang.org/std/collections/struct.BTreeMap.html) where the key is
 /// the name of the regular expression and the value is a
-/// [Matches](https://docs.rs/regex/1.3.1/regex/struct.Matches.html) object.
+/// [`Matches`](https://docs.rs/regex/1.3.1/regex/struct.Matches.html) object.
 ///
 pub struct SecretScanner {
     pub regex_map: BTreeMap<String, Regex>,
@@ -233,10 +233,10 @@ pub struct SecretScanner {
     pub output_path: Option<String>,
 }
 
-/// Used to instantiate the SecretScanner object with user-supplied options
+/// Used to instantiate the `SecretScanner` object with user-supplied options
 ///
 /// Use the `new()` function to create a builder object, perform configurations as needed, then
-/// create the SecretScanner object with `.build()`. Each configuration method consumes and returns
+/// create the `SecretScanner` object with `.build()`. Each configuration method consumes and returns
 /// self so that you can chain them.
 ///
 /// # Examples
@@ -246,7 +246,7 @@ pub struct SecretScanner {
 /// use rusty_hogs::{SecretScannerBuilder, SecretScanner};
 /// let ssb: SecretScannerBuilder = SecretScannerBuilder::new();
 /// let ss: SecretScanner = ssb.build();
-/// assert_eq!(ss.regex_map.len(), 50);
+/// assert_eq!(ss.regex_map.len(), 58);
 /// ```
 ///
 /// Alternatively, you can supply your own regular expression JSON, and set a global
@@ -272,9 +272,9 @@ pub struct SecretScannerBuilder {
 }
 
 impl SecretScannerBuilder {
-    /// Create a new SecretScannerBuilder object with the default config (50 rules, case sensitive)
-    pub fn new() -> SecretScannerBuilder {
-        SecretScannerBuilder {
+    /// Create a new `SecretScannerBuilder` object with the default config (50 rules, case sensitive)
+    pub fn new() -> Self {
+        Self {
             case_insensitive: false,
             regex_json_str: None,
             regex_json_path: None,
@@ -283,9 +283,9 @@ impl SecretScannerBuilder {
         }
     }
 
-    /// Configure multiple values using the clap library's "ArgMatches" object.
+    /// Configure multiple values using the clap library's `ArgMatches` object.
     /// This function looks for a "CASE" flag and "REGEX" value.
-    pub fn conf_argm(mut self, arg_matches: &ArgMatches) -> SecretScannerBuilder {
+    pub fn conf_argm(mut self, arg_matches: &ArgMatches) -> Self {
         self.case_insensitive = arg_matches.is_present("CASE");
         self.output_path = match arg_matches.value_of("REGEX") {
             Some(s) => Some(String::from(s)),
@@ -300,42 +300,42 @@ impl SecretScannerBuilder {
     }
 
     /// Supply a path to a JSON file on the system that contains regular expressions
-    pub fn set_json_path(mut self, json_path: &str) -> SecretScannerBuilder {
+    pub fn set_json_path(mut self, json_path: &str) -> Self {
         self.regex_json_path = Some(String::from(json_path));
         self
     }
 
     /// Supply a string containing a JSON object that contains regular expressions
-    pub fn set_json_str(mut self, json_str: &str) -> SecretScannerBuilder {
+    pub fn set_json_str(mut self, json_str: &str) -> Self {
         self.regex_json_str = Some(String::from(json_str));
         self
     }
 
     /// Force all regular expressions to be case-insensitive, overriding any flags in the regex
-    pub fn global_case_insensitive(mut self, case_insensitive: bool) -> SecretScannerBuilder {
+    pub fn global_case_insensitive(mut self, case_insensitive: bool) -> Self {
         self.case_insensitive = case_insensitive;
         self
     }
 
     /// Set output format to pretty printed JSON
-    pub fn set_pretty_print(mut self, pretty_print: bool) -> SecretScannerBuilder {
+    pub fn set_pretty_print(mut self, pretty_print: bool) -> Self {
         self.pretty_print = pretty_print;
         self
     }
 
     /// Set output path (stdout if set to None)
-    pub fn set_output_path(mut self, output_path: &str) -> SecretScannerBuilder {
+    pub fn set_output_path(mut self, output_path: &str) -> Self {
         self.output_path = Some(String::from(output_path));
         self
     }
 
-    /// Returns the configured SecretScanner object used to perform regex scanning
+    /// Returns the configured `SecretScanner` object used to perform regex scanning
     pub fn build(&self) -> SecretScanner {
         let json_obj: Result<Map<String, Value>, SimpleError> = match &self.regex_json_path {
-            Some(p) => SecretScannerBuilder::get_json_from_file(&p),
+            Some(p) => Self::get_json_from_file(&p),
             _ => match &self.regex_json_str {
-                Some(s) => SecretScannerBuilder::get_json_from_str(&s),
-                _ => SecretScannerBuilder::get_json_from_str(DEFAULT_REGEX_JSON),
+                Some(s) => Self::get_json_from_str(&s),
+                _ => Self::get_json_from_str(DEFAULT_REGEX_JSON),
             },
         };
         let json_obj: Map<String, Value> = match json_obj {
@@ -345,10 +345,10 @@ impl SecretScannerBuilder {
                     "Error parsing Regex JSON object, falling back to default regex rules: {:?}",
                     e
                 );
-                SecretScannerBuilder::get_json_from_str(DEFAULT_REGEX_JSON).unwrap()
+                Self::get_json_from_str(DEFAULT_REGEX_JSON).unwrap()
             }
         };
-        let regex_map = SecretScannerBuilder::get_regex_objects(json_obj, self.case_insensitive);
+        let regex_map = Self::get_regex_objects(json_obj, self.case_insensitive);
         let output_path = match &self.output_path {
             Some(s) => Some(s.clone()),
             None => None,
@@ -425,7 +425,7 @@ impl SecretScanner {
         }
     }
 
-    /// Scan a byte array for regular expression matches, returns a BTreeMap of Matches for each
+    /// Scan a byte array for regular expression matches, returns a `BTreeMap` of `Matches` for each
     /// regular expression.
     pub fn get_matches<'a, 'b: 'a>(&'a self, line: &'b [u8]) -> BTreeMap<&'a String, Matches> {
         self.regex_map
@@ -482,15 +482,15 @@ impl SecretScanner {
             .collect();
         let mut b64_words: Vec<String> = words
             .iter()
-            .filter(|word| word.len() >= 20 && SecretScanner::is_base64_string(word))
-            .filter(|word| SecretScanner::calc_entropy(word, 64) > 4.5)
+            .filter(|word| word.len() >= 20 && Self::is_base64_string(word))
+            .filter(|word| Self::calc_entropy(word, 64) > 4.5)
             .map(|word| str::from_utf8(word).unwrap().to_string())
             .collect();
         let mut hex_words: Vec<String> = words
             .iter() // there must be a better way
-            .filter(|word| (word.len() >= 20) && (word.iter().all(|x| x.is_ascii_hexdigit())))
+            .filter(|word| (word.len() >= 20) && (word.iter().all(u8::is_ascii_hexdigit)))
             .filter_map(|&x| hex::decode(x).ok())
-            .filter(|word| SecretScanner::calc_entropy(word, 255) > (3_f32))
+            .filter(|word| Self::calc_entropy(word, 255) > (3_f32))
             .map(hex::encode)
             .collect();
         let mut output: Vec<String> = Vec::new();
@@ -499,6 +499,7 @@ impl SecretScanner {
         output
     }
 
+    /// Helper function that takes a HashSet of serializable structs and outputs them as JSON
     pub fn output_findings<T: Serialize + Eq + Hash>(&self, findings: &HashSet<T>) {
         let mut json_text: Vec<u8> = Vec::new();
         if self.pretty_print {

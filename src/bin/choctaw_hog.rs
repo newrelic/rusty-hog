@@ -55,6 +55,7 @@ fn main() {
         (@arg OUTPUT: -o --outputfile +takes_value "Sets the path to write the scanner results to (stdout by default)")
         (@arg PRETTYPRINT: --prettyprint "Output the JSON in human readable format")
         (@arg SINCECOMMIT: --since_commit +takes_value "Filters commits based on date committed (branch agnostic)")
+        (@arg UNTILCOMMIT: --until_commit +takes_value "Filters commits based on date committed (branch agnostic)")
         (@arg SSHKEYPATH: --sshkeypath +takes_value "Takes a path to a private SSH key for git authentication, defaults to ssh-agent")
         (@arg SSHKEYPHRASE: --sshkeyphrase +takes_value "Takes a passphrase to a private SSH key for git authentication, defaults to none")
         (@arg HTTPSUSER: --httpsuser +takes_value "Takes a username for HTTPS-based authentication")
@@ -78,6 +79,7 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     let httpsuser = arg_matches.value_of("HTTPSUSER");
     let httpspass = arg_matches.value_of("HTTPSPASS");
     let since_commit = arg_matches.value_of("SINCECOMMIT");
+    let until_commit = arg_matches.value_of("UNTILCOMMIT");
     let scan_entropy = arg_matches.is_present("ENTROPY");
 
     // Get Git objects
@@ -94,7 +96,7 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
         httpsuser,
         httpspass,
     );
-    let findings = git_scanner.perform_scan(None, since_commit, scan_entropy);
+    let findings = git_scanner.perform_scan(None, since_commit, until_commit, scan_entropy);
 
     // Output the results
     info!("Found {} secrets", findings.len());

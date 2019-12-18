@@ -1,6 +1,6 @@
 //! Collection of tools for scanning Google Suite for secrets. Currently only supports Google Drive.
 //!
-//! GoogleScanner acts as a wrapper around a SecretScanner object to provide helper functions for
+//! `GoogleScanner` acts as a wrapper around a `SecretScanner` object to provide helper functions for
 //! performing scanning against Google Drive files. Relies on the
 //! [google_drive3](https://docs.rs/google-drive3/1.0.12+20190620/google_drive3/) library which
 //! provides a wrapper around the Google Drive API.
@@ -31,7 +31,7 @@ use std::iter::FromIterator;
 use yup_oauth2::{Authenticator, DefaultAuthenticatorDelegate, DiskTokenStorage};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash)]
-/// serde_json object that represents a single found secret - finding
+/// `serde_json` object that represents a single found secret - finding
 pub struct GDriveFinding {
     pub date: String,
     pub diff: String,
@@ -60,14 +60,14 @@ pub struct GDriveFileInfo {
 }
 
 impl GDriveFileInfo {
-    /// Construct a GDriveFileInfo object from a Google Drive File ID and an authorized DriveHub object
+    /// Construct a `GDriveFileInfo` object from a Google Drive File ID and an authorized `DriveHub` object
     pub fn new(
         file_id: &str,
         hub: &DriveHub<
             Client,
             Authenticator<DefaultAuthenticatorDelegate, DiskTokenStorage, Client>,
         >,
-    ) -> Result<GDriveFileInfo, SimpleError> {
+    ) -> Result<Self, SimpleError> {
         let fields = "kind, id, name, mimeType, webViewLink, modifiedTime, parents";
         let hub_result = hub
             .files()
@@ -96,7 +96,7 @@ impl GDriveFileInfo {
             "application/vnd.google-apps.document" => "text/plain",
             u => return Err(SimpleError::new(format!("unknown doc type {}", u))),
         };
-        Ok(GDriveFileInfo {
+        Ok(Self {
             file_id: file_id.to_owned(),
             mime_type: mime_type.to_owned(),
             modified_time,
@@ -108,14 +108,14 @@ impl GDriveFileInfo {
     }
 }
 
-/// Acts as a wrapper around a SecretScanner object to provide helper functions for performing
-/// scanning against Google Drive files. Relies on the [google_drive3](https://docs.rs/google-drive3/1.0.10+20190620/google_drive3/)
+/// Acts as a wrapper around a `SecretScanner` object to provide helper functions for performing
+/// scanning against Google Drive files. Relies on the [`google_drive3`](https://docs.rs/google-drive3/1.0.10+20190620/google_drive3/)
 /// library which provides a wrapper around the Google Drive v3 API.
 impl GDriveScanner {
-    /// Initialize the SecretScanner object first using the SecretScannerBuilder, then provide
+    /// Initialize the `SecretScanner` object first using the `SecretScannerBuilder`, then provide
     /// it to this constructor method.
-    pub fn new(secret_scanner: SecretScanner) -> GDriveScanner {
-        GDriveScanner { secret_scanner }
+    pub fn new(secret_scanner: SecretScanner) -> Self {
+        Self { secret_scanner }
     }
 
     /// Takes information about the file, and the DriveHub object, and retrieves the content from
@@ -155,7 +155,7 @@ impl GDriveScanner {
         scan_entropy: bool,
     ) -> HashSet<GDriveFinding> {
         // download an export of the file, split on new lines, store in lines
-        let buffer = GDriveScanner::get_file_contents(gdrivefile, hub).unwrap();
+        let buffer = Self::get_file_contents(gdrivefile, hub).unwrap();
         let lines = buffer.split(|x| (*x as char) == '\n');
 
         // main loop - search each line for secrets, output a list of GDriveFinding objects
