@@ -1,5 +1,5 @@
 # Rusty Hogs
-Rusty Hog is built in Rust for performance, and based on TruffleHog which is written
+Rusty Hog is a secret scanner built in Rust for performance, and based on TruffleHog which is written
 in Python. It provides the following binaries:
 
 * Ankamali Hog: Scan for secrets in a Google Doc
@@ -191,21 +191,22 @@ Keep in mind that when you submit your pull request, you'll need to sign the CLA
     - [ ] Prep for crates.io release
     - [x] Flatten original Git repo
     - [x] Support git HTTPS auth
+    - [x] Support for other modes of use for Berkshire Hog (CLI)
 
 - 1.1: Enterprise features
     - [ ] Support config files (instead of command line args)
-    - [ ] Save state between scans, remember and filter "false positives"
+    - [ ] Support environment variables instead of CLI args
     - [ ] Multi-threading
     - [ ] Better context detection and false positive filtering (GitHound, machine learning)
-    - [ ] Support for other modes of use for Berkshire Hog (CLI, lambda without SQS)
     - [ ] Use Rusoto instead of s3-rust
     - [ ] Add JIRA scanner
     - [ ] Add file-system & archive scanner
+    - [ ] Use rust features to reduce compilation dependencies?
 
 - 1.2: Integration with larger scripts and UIs
     - [ ] Support Github API for larger org management
         - [ ] Scan all repos for a list of users
-        - [ ] Scan all repos in an org
+        - [x] Scan all repos in an org
     - [ ] Generate a web-report or web-interface. Support "save state" generation from UI.
     - [ ] Agent/manager model
     - [ ] Scheduler process (blocked by save state support)

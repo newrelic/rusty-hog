@@ -3,6 +3,13 @@ name = "rusty_hogs"
 version = "0.4.5"
 authors = ["Scott Cutler <scutler@newrelic.com>"]
 edition = "2018"
+description = "This project provides a set of scanners that will use regular expressions to try and detect the presence of sensitive information such as API keys, passwords, and personal information. It includes a set of regular expressions by default, but will also accept a JSON object containing your custom regular expressions."
+homepage = "https://github.com/newrelic/rusty-hog"
+keywords = ["secret", "scanner", "regex", "rusty", "hog"]
+categories = ["command-line-utilities", "development-tools::build-utils", "filesystem"]
+readme = "README.md"
+license = "Apache-2.0"
+
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
