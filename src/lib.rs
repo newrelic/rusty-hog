@@ -15,7 +15,7 @@
 //! ```
 //! use rusty_hogs::SecretScannerBuilder;
 //! let ss = SecretScannerBuilder::new().build();
-//! let mut matches_map = ss.get_matches(b"my email is arst@example.com");
+//! let mut matches_map = ss.matches(b"my email is arst@example.com");
 //! assert!(matches_map.contains_key(&String::from("Email address")));
 //!
 //! let matches = matches_map.remove(&String::from("Email address")).unwrap();
@@ -31,7 +31,7 @@
 //! use rusty_hogs::SecretScannerBuilder;
 //! let regex_string = r##"{ "Phone number" : "\\d{3}-?\\d{3}-\\d{4}" }"##;
 //! let ss = SecretScannerBuilder::new().set_json_str(regex_string).build();
-//! let mut matches_map = ss.get_matches(b"my phone is 555-555-5555");
+//! let mut matches_map = ss.matches(b"my phone is 555-555-5555");
 //! assert!(matches_map.contains_key(&String::from("Phone number")));
 //!
 //! let matches = matches_map.remove(&String::from("Phone number")).unwrap();
@@ -54,7 +54,7 @@
 //! let input_split = input.split(|x| (*x as char) == '\n');
 //! let mut secrets: Vec<String> = Vec::new();
 //! for new_line in input_split {
-//!     let matches_map = ss.get_matches(&new_line);
+//!     let matches_map = ss.matches(&new_line);
 //!     for (reason, match_iterator) in matches_map {
 //!         for matchobj in match_iterator {
 //!             secrets.push(reason.clone());
@@ -79,10 +79,10 @@ use simple_error::SimpleError;
 use simple_logger::init_with_level;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fs::File;
-use std::hash::Hash;
+use std::hash::{Hash, Hasher};
 use std::io::BufReader;
 use std::iter::FromIterator;
-use std::{fs, str};
+use std::{fmt, fs, str};
 
 // Regex in progress:   "Basic Auth": "basic(_auth)?([\\s[[:punct:]]]{1,4}[[[:word:]][[:punct:]]]{8,64}[\\s[[:punct:]]]?){1,2}",
 
@@ -227,6 +227,7 @@ const STANDARD_ENCODE: &[u8; 64] = &[
 /// the name of the regular expression and the value is a
 /// [`Matches`](https://docs.rs/regex/1.3.1/regex/struct.Matches.html) object.
 ///
+#[derive(Debug, Clone)]
 pub struct SecretScanner {
     pub regex_map: BTreeMap<String, Regex>,
     pub pretty_print: bool,
@@ -262,7 +263,7 @@ pub struct SecretScanner {
 /// assert_eq!(ss.regex_map.len(), 1);
 /// ```
 ///
-#[derive(Default)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct SecretScannerBuilder {
     pub case_insensitive: bool,
     pub regex_json_str: Option<String>,
@@ -332,10 +333,10 @@ impl SecretScannerBuilder {
     /// Returns the configured `SecretScanner` object used to perform regex scanning
     pub fn build(&self) -> SecretScanner {
         let json_obj: Result<Map<String, Value>, SimpleError> = match &self.regex_json_path {
-            Some(p) => Self::get_json_from_file(&p),
+            Some(p) => Self::build_json_from_file(&p),
             _ => match &self.regex_json_str {
-                Some(s) => Self::get_json_from_str(&s),
-                _ => Self::get_json_from_str(DEFAULT_REGEX_JSON),
+                Some(s) => Self::build_json_from_str(&s),
+                _ => Self::build_json_from_str(DEFAULT_REGEX_JSON),
             },
         };
         let json_obj: Map<String, Value> = match json_obj {
@@ -345,10 +346,10 @@ impl SecretScannerBuilder {
                     "Error parsing Regex JSON object, falling back to default regex rules: {:?}",
                     e
                 );
-                Self::get_json_from_str(DEFAULT_REGEX_JSON).unwrap()
+                Self::build_json_from_str(DEFAULT_REGEX_JSON).unwrap()
             }
         };
-        let regex_map = Self::get_regex_objects(json_obj, self.case_insensitive);
+        let regex_map = Self::build_regex_objects(json_obj, self.case_insensitive);
         let output_path = match &self.output_path {
             Some(s) => Some(s.clone()),
             None => None,
@@ -360,7 +361,7 @@ impl SecretScannerBuilder {
         }
     }
 
-    fn get_json_from_file(filename: &str) -> Result<Map<String, Value>, SimpleError> {
+    fn build_json_from_file(filename: &str) -> Result<Map<String, Value>, SimpleError> {
         // Get regexes from JSON
         info!("Attempting to read JSON regex file from {:?}", filename);
         let regexes_filein = File::open(filename);
@@ -376,7 +377,7 @@ impl SecretScannerBuilder {
         }
     }
 
-    fn get_json_from_str(incoming_str: &str) -> Result<Map<String, Value>, SimpleError> {
+    fn build_json_from_str(incoming_str: &str) -> Result<Map<String, Value>, SimpleError> {
         info!("Attempting to parse JSON regex file from provided string...");
         match serde_json::from_str(incoming_str) {
             Ok(m) => Ok(m),
@@ -384,7 +385,7 @@ impl SecretScannerBuilder {
         }
     }
 
-    fn get_regex_objects(
+    fn build_regex_objects(
         json_obj: Map<String, Value>,
         case_insensitive: bool,
     ) -> BTreeMap<String, Regex> {
@@ -415,6 +416,8 @@ impl SecretScannerBuilder {
 }
 
 impl SecretScanner {
+
+
     /// Helper function to set global logging level
     pub fn set_logging(verbose_level: u64) {
         match verbose_level {
@@ -427,7 +430,7 @@ impl SecretScanner {
 
     /// Scan a byte array for regular expression matches, returns a `BTreeMap` of `Matches` for each
     /// regular expression.
-    pub fn get_matches<'a, 'b: 'a>(&'a self, line: &'b [u8]) -> BTreeMap<&'a String, Matches> {
+    pub fn matches<'a, 'b: 'a>(&'a self, line: &'b [u8]) -> BTreeMap<&'a String, Matches> {
         self.regex_map
             .iter()
             .map(|x| {
@@ -462,7 +465,7 @@ impl SecretScanner {
     /// Scan a byte array for arbitrary hex sequences and base64 sequences. Will return a list of
     /// matches for those sequences with a high amount of entropy, potentially indicating a
     /// private key.
-    pub fn get_entropy_findings(line: &[u8]) -> Vec<String> {
+    pub fn entropy_findings(line: &[u8]) -> Vec<String> {
         let words: Vec<&[u8]> = line.split(|x| (*x as char) == ' ').collect();
         let words: Vec<&[u8]> = words
             .into_iter()
@@ -511,5 +514,76 @@ impl SecretScanner {
             Some(op) => fs::write(op, json_text).unwrap(),
             None => println!("{}", str::from_utf8(json_text.as_ref()).unwrap()),
         };
+    }
+}
+
+impl fmt::Display for SecretScanner {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let pp = if self.pretty_print { "True" } else { "False" };
+        let op = if let Some(p) = self.output_path.as_ref() {
+            p
+        } else {
+            "None"
+        };
+        write!(
+            f,
+            "SecretScanner: Regex_map len:{}, Pretty print:{}, Output path:{}",
+            self.regex_map.len(),
+            pp,
+            op
+        )
+    }
+}
+
+impl PartialEq for SecretScanner {
+    fn eq(&self, other: &Self) -> bool {
+        self.regex_map
+            .iter()
+            .map(|(k, v)| match other.regex_map.get(k) {
+                None => false,
+                Some(r) => r.as_str() == v.as_str(),
+            })
+            .all(|x| x)
+            && self.regex_map.keys().eq(other.regex_map.keys())
+            && self.pretty_print == other.pretty_print
+            && match self.output_path.as_ref() {
+                None => other.output_path.is_none(),
+                Some(s) => match other.output_path.as_ref() {
+                    None => false,
+                    Some(t) => *s == *t,
+                },
+            }
+    }
+}
+
+impl Eq for SecretScanner {}
+
+impl Hash for SecretScanner {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        for (k,v) in &self.regex_map {
+            k.hash(state);
+            v.as_str().hash(state);
+        };
+        match self.pretty_print {
+            false => "prettyprintno".hash(state),
+            true => "prettyprintyes".hash(state)
+        };
+        match self.output_path.as_ref() {
+            None => "outputpathno".hash(state),
+            Some(s) => s.hash(state)
+        };
+    }
+}
+
+impl Default for SecretScanner {
+    fn default() -> Self {
+        let ssb = SecretScannerBuilder::new();
+        ssb.build()
+    }
+}
+
+impl Default for SecretScannerBuilder {
+    fn default() -> Self {
+        Self::new()
     }
 }

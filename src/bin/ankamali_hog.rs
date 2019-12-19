@@ -75,7 +75,7 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     let file_id = arg_matches.value_of("GDRIVEID").unwrap();
     let scan_entropy = arg_matches.is_present("ENTROPY");
     let secret_scanner = SecretScannerBuilder::new().conf_argm(arg_matches).build();
-    let gdrive_scanner = GDriveScanner::new(secret_scanner);
+    let gdrive_scanner = GDriveScanner::new_from_scanner(secret_scanner);
 
     // Start with GDrive auth - based on example code from drive3 API and yup-oauth2
     let secret: ApplicationSecret =

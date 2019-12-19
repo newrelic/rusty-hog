@@ -13,12 +13,15 @@
 //!    -V, --version            Prints version information
 //!
 //!OPTIONS:
+//!        --httpspass <HTTPSPASS>          Takes a password for HTTPS-based authentication
+//!        --httpsuser <HTTPSUSER>          Takes a username for HTTPS-based authentication
 //!    -o, --outputfile <OUTPUT>            Sets the path to write the scanner results to (stdout by default)
-//!        --regex <REGEX>                  Sets a custom regex JSON file, defaults to ./trufflehog_rules.json
+//!    -r, --regex <REGEX>                  Sets a custom regex JSON file, defaults to built-in
 //!        --since_commit <SINCECOMMIT>     Filters commits based on date committed (branch agnostic)
 //!        --sshkeypath <SSHKEYPATH>        Takes a path to a private SSH key for git authentication, defaults to ssh-agent
 //!        --sshkeyphrase <SSHKEYPHRASE>    Takes a passphrase to a private SSH key for git authentication, defaults to
 //!                                         none
+//!        --until_commit <UNTILCOMMIT>     Filters commits based on date committed (branch agnostic)
 //!
 //!ARGS:
 //!    <GITPATH>    Sets the path (or URL) of the Git repo to scan. SSH links must include username (git@)
@@ -47,7 +50,7 @@ fn main() {
         (version: "0.4.5")
         (author: "Scott Cutler <scutler@newrelic.com>")
         (about: "Git secret scanner in Rust")
-        (@arg REGEX: --regex +takes_value "Sets a custom regex JSON file, defaults to ./trufflehog_rules.json")
+        (@arg REGEX: -r --regex +takes_value "Sets a custom regex JSON file, defaults to built-in")
         (@arg GITPATH: +required "Sets the path (or URL) of the Git repo to scan. SSH links must include username (git@)")
         (@arg VERBOSE: -v --verbose ... "Sets the level of debugging information")
         (@arg ENTROPY: --entropy ... "Enables entropy scanning")
@@ -88,7 +91,7 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     let source_path: &str = arg_matches.value_of("GITPATH").unwrap();
 
     // Do the scan
-    let git_scanner = GitScanner::new(secret_scanner).init_git_repo(
+    let git_scanner = GitScanner::new_from_scanner(secret_scanner).init_git_repo(
         source_path,
         &dest_dir_path,
         sshkeypath,

@@ -7,14 +7,22 @@
 //!
 //! # Examples
 //!
-//! Basic usage requires you to first create a secret scanner object and supply it to the
-//! constructor:
+//! Basic usage requires you to create a GDriveScanner object:
 //!
 //! ```
 //! use rusty_hogs::SecretScannerBuilder;
 //! use rusty_hogs::google_scanning::GDriveScanner;
-//! let ss = SecretScannerBuilder::new().build();
-//! let gs = GDriveScanner::new(ss);
+//! let gs = GDriveScanner::new();
+//! ```
+//!
+//! Alternatively you can customize the way the secret scanning will work by building
+//! a `SecretScanner` object and supplying it to the GDriveScanner constructor:
+//!
+//! ```
+//! use rusty_hogs::SecretScannerBuilder;
+//! use rusty_hogs::google_scanning::GDriveScanner;
+//! let ss = SecretScannerBuilder::new().set_pretty_print(true).build();
+//! let gs = GDriveScanner::new_from_scanner(ss);
 //! ```
 //!
 
@@ -30,7 +38,7 @@ use std::io::Read;
 use std::iter::FromIterator;
 use yup_oauth2::{Authenticator, DefaultAuthenticatorDelegate, DiskTokenStorage};
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, Clone, Default)]
 /// `serde_json` object that represents a single found secret - finding
 pub struct GDriveFinding {
     pub date: String,
@@ -43,11 +51,13 @@ pub struct GDriveFinding {
     pub web_link: String,
 }
 
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 /// Contains helper functions for performing scans of Google Drive objects
 pub struct GDriveScanner {
     pub secret_scanner: SecretScanner,
 }
 
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Default)]
 /// A helper object containing a set of strings describing a Google Drive file.
 pub struct GDriveFileInfo {
     pub file_id: String,
@@ -114,13 +124,15 @@ impl GDriveFileInfo {
 impl GDriveScanner {
     /// Initialize the `SecretScanner` object first using the `SecretScannerBuilder`, then provide
     /// it to this constructor method.
-    pub fn new(secret_scanner: SecretScanner) -> Self {
+    pub fn new_from_scanner(secret_scanner: SecretScanner) -> Self {
         Self { secret_scanner }
     }
 
+    pub fn new() -> Self { Self { secret_scanner: SecretScanner::default() } }
+
     /// Takes information about the file, and the DriveHub object, and retrieves the content from
     /// Google Drive. Expect authorization issues here if you don't have access to the file.
-    fn get_file_contents(
+    fn gdrive_file_contents(
         gdrivefile: &GDriveFileInfo,
         hub: &DriveHub<
             Client,
@@ -155,13 +167,13 @@ impl GDriveScanner {
         scan_entropy: bool,
     ) -> HashSet<GDriveFinding> {
         // download an export of the file, split on new lines, store in lines
-        let buffer = Self::get_file_contents(gdrivefile, hub).unwrap();
+        let buffer = Self::gdrive_file_contents(gdrivefile, hub).unwrap();
         let lines = buffer.split(|x| (*x as char) == '\n');
 
         // main loop - search each line for secrets, output a list of GDriveFinding objects
         let mut findings: HashSet<GDriveFinding> = HashSet::new();
         for new_line in lines {
-            let matches_map = self.secret_scanner.get_matches(&new_line);
+            let matches_map = self.secret_scanner.matches(&new_line);
             for (reason, match_iterator) in matches_map {
                 let mut secrets: Vec<String> = Vec::new();
                 for matchobj in match_iterator {
@@ -190,7 +202,7 @@ impl GDriveScanner {
             }
 
             if scan_entropy {
-                let ef = SecretScanner::get_entropy_findings(new_line);
+                let ef = SecretScanner::entropy_findings(new_line);
                 if !ef.is_empty() {
                     findings.insert(GDriveFinding {
                         diff: ASCII
@@ -208,5 +220,11 @@ impl GDriveScanner {
         }
 
         HashSet::from_iter(findings.into_iter())
+    }
+}
+
+impl Default for GDriveScanner {
+    fn default() -> Self {
+        Self::new()
     }
 }

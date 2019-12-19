@@ -73,7 +73,7 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
 
     // Get regex objects
     let ss = SecretScannerBuilder::new().conf_argm(arg_matches).build();
-    let s3scanner = S3Scanner::new(ss);
+    let s3scanner = S3Scanner::new_from_scanner(ss);
 
     // Parse the S3URI
     let url: Url = try_with!(

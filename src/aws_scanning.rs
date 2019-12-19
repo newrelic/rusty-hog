@@ -1,4 +1,55 @@
 //! Collection of tools for scanning AWS for secrets. Currently only supports S3.
+//!
+//! `S3Scanner` acts as a wrapper around a `SecretScanner` object to provide helper functions for
+//! performing scanning against AWS S3 objects. Relies on the
+//! [rust-s3](https://github.com/durch/rust-s3) library which provides helper functions for
+//! accessing S3 objects. Eventually this library should be replaced with the offical Rusoto
+//! libraries.
+//!
+//! # Examples
+//!
+//! Basic usage requires you to create a `S3Scanner` object...
+//!
+//! ```
+//! use rusty_hogs::SecretScannerBuilder;
+//! use rusty_hogs::aws_scanning::S3Scanner;
+//! let s3s = S3Scanner::new();
+//! ```
+//!
+//! Alternatively you can build a custom `SecretScanner` object and supply it to the `S3Scanner`
+//! contructor...
+//!
+//! ```
+//! use rusty_hogs::SecretScannerBuilder;
+//! use rusty_hogs::aws_scanning::S3Scanner;
+//! let ss = SecretScannerBuilder::new().set_pretty_print(true).build();
+//! let s3s = S3Scanner::new_from_scanner(ss);
+//! ```
+//!
+//! After that, you must first run initialize a
+//! [`Bucket`](https://durch.github.io/rust-s3/s3/bucket/struct.Bucket.html), and supply it to
+//! `scan_s3_file()` along with a file path. which returns a
+//! `Vec` of findings. In this example the string values are contrived.
+//!
+//! ```
+//! use rusty_hogs::SecretScannerBuilder;
+//! use rusty_hogs::aws_scanning::{S3Scanner, S3Finding};
+//! use s3::region::Region;
+//! use s3::credentials::Credentials;
+//! use s3::bucket::Bucket;
+//!
+//! let s3s = S3Scanner::new();
+//! let bucket_string = "testbucket1";
+//! let credentials = Credentials::new(None, None, None, None);
+//! let region: Region = Region::UsWest2;
+//! let bucket: Bucket = match Bucket::new(bucket_string, region, credentials.clone()) {
+//! Ok(r) => r,
+//! Err(e) => panic!(e)
+//! };
+//! let results = s3s.scan_s3_file(bucket, "s3://testbucket1/727463.json").unwrap();
+//! assert_eq!(results.len(), 0);
+//! //TODO: Find a working example???
+//! ```
 
 use crate::SecretScanner;
 use encoding::all::ASCII;
@@ -9,7 +60,7 @@ use serde_derive::{Deserialize, Serialize};
 use simple_error::SimpleError;
 use std::str;
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, Clone, Default)]
 /// `serde_json` object that represents a single found secret - finding
 pub struct S3Finding {
     pub diff: String,
@@ -21,6 +72,7 @@ pub struct S3Finding {
     pub reason: String,
 }
 
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 /// Contains helper functions for performing scans of S3 objects
 pub struct S3Scanner {
     pub secret_scanner: SecretScanner,
@@ -32,9 +84,11 @@ pub struct S3Scanner {
 impl S3Scanner {
     /// Initialize the SecretScanner object first using the SecretScannerBuilder, then provide
     /// it to this constructor method.
-    pub fn new(secret_scanner: SecretScanner) -> Self {
+    pub fn new_from_scanner(secret_scanner: SecretScanner) -> Self {
         Self { secret_scanner }
     }
+
+    pub fn new() -> Self { Self { secret_scanner: SecretScanner::default() } }
 
     /// Takes an initialized [Bucket](https://durch.github.io/rust-s3/s3/bucket/struct.Bucket.html)
     /// object and an S3 object path in the format `s3://<path>` and returns a list of S3Finding
@@ -58,7 +112,7 @@ impl S3Scanner {
         // then make a list of findings in output
         let lines = data.split(|&x| (x as char) == '\n');
         for new_line in lines {
-            let results = self.secret_scanner.get_matches(new_line);
+            let results = self.secret_scanner.matches(new_line);
             for (r, matches) in results {
                 let mut strings_found: Vec<String> = Vec::new();
                 for m in matches {
@@ -83,5 +137,11 @@ impl S3Scanner {
             }
         }
         Ok(output)
+    }
+}
+
+impl Default for S3Scanner {
+    fn default() -> Self {
+        Self::new()
     }
 }

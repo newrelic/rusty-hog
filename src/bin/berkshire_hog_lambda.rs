@@ -130,7 +130,7 @@ fn my_handler(e: CustomEvent, _c: Context) -> Result<CustomOutput, HandlerError>
     // Main loop - create a list of findings based on each S3 file contained in the json
     let mut findings: Vec<S3Finding> = Vec::new();
     let ss = SecretScannerBuilder::new().build();
-    let s3scanner = S3Scanner::new(ss);
+    let s3scanner = S3Scanner::new_from_scanner(ss);
     for top_record in e.records {
         let body_obj: Body = serde_json::from_str(top_record.body.as_str()).unwrap(); //yo dawg
         for record in body_obj.records {

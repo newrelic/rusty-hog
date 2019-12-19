@@ -7,14 +7,22 @@
 //!
 //! # Examples
 //!
-//! Basic usage requires you to first create a secret scanner object and supply it to the
-//! constructor:
+//! Basic usage requires you to create a `GitScanner` object...
 //!
 //! ```
 //! use rusty_hogs::SecretScannerBuilder;
 //! use rusty_hogs::git_scanning::GitScanner;
-//! let ss = SecretScannerBuilder::new().build();
-//! let gs = GitScanner::new(ss);
+//! let gs = GitScanner::new();
+//! ```
+//!
+//! Alternatively you can build a custom `SecretScanner` object and supply it to the `GitScanner`
+//! contructor...
+//!
+//! ```
+//! use rusty_hogs::SecretScannerBuilder;
+//! use rusty_hogs::git_scanning::GitScanner;
+//! let ss = SecretScannerBuilder::new().set_pretty_print(true).build();
+//! let gs = GitScanner::new_from_scanner(ss);
 //! ```
 //!
 //! After that, you must first run `init_git_repo()`, then `perform_scan()`, which returns a
@@ -27,8 +35,7 @@
 //! use std::collections::HashSet;
 //! use std::path::Path;
 //!
-//! let ss = SecretScannerBuilder::new().build();
-//! let gs = GitScanner::new(ss);
+//! let gs = GitScanner::new();
 //!
 //! let mut gs = gs.init_git_repo(".", Path::new("."), None, None, None, None);
 //! let findings: HashSet<GitFinding> = gs.perform_scan(None, None, Some("8013160e"), false);
@@ -46,10 +53,11 @@ use regex::bytes::Matches;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashSet};
 use std::path::Path;
-use std::str;
+use std::{str, fmt};
 use url::{ParseError, Url};
+use std::hash::{Hash, Hasher};
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, Clone, Default)]
 /// `serde_json` object that represents a single found secret - finding
 pub struct GitFinding {
     //    branch: String, // this requires a walk of the commits for each finding, so lets leave it out for the moment
@@ -83,13 +91,15 @@ pub struct GitScanner {
 impl GitScanner {
     /// Initialize the SecretScanner object first using the SecretScannerBuilder, then provide
     /// it to this constructor method.
-    pub fn new(secret_scanner: SecretScanner) -> Self {
+    pub fn new_from_scanner(secret_scanner: SecretScanner) -> Self {
         Self {
             secret_scanner,
             repo: None,
             scheme: None,
         }
     }
+
+    pub fn new() -> Self { Self { secret_scanner: SecretScanner::default(), repo: None, scheme: None } }
 
     /// Uses the GitScanner object to return a HashSet of findings from that repository
     pub fn perform_scan(
@@ -133,9 +143,10 @@ impl GitScanner {
         };
 
         // convert our iterator of OIDs to an iterator of commit objects filtered by commit date
-        let revwalk = revwalk
-            .map(|id| repo.find_commit(id.unwrap()))
-            .filter(|c| c.as_ref().unwrap().time() >= since_time_obj && c.as_ref().unwrap().time() <= until_time_obj);
+        let revwalk = revwalk.map(|id| repo.find_commit(id.unwrap())).filter(|c| {
+            c.as_ref().unwrap().time() >= since_time_obj
+                && c.as_ref().unwrap().time() <= until_time_obj
+        });
 
         let mut findings: HashSet<GitFinding> = HashSet::new();
         // The main loop - scan each line of each diff of each commit for regex matches
@@ -163,8 +174,7 @@ impl GitScanner {
             // secondary loop that occurs for each *line* in the diff
             diff.print(DiffFormat::Patch, |delta, _hunk, line| {
                 let new_line = line.content();
-                let matches_map: BTreeMap<&String, Matches> =
-                    self.secret_scanner.get_matches(new_line);
+                let matches_map: BTreeMap<&String, Matches> = self.secret_scanner.matches(new_line);
 
                 for (reason, match_iterator) in matches_map {
                     let mut secrets: Vec<String> = Vec::new();
@@ -201,7 +211,7 @@ impl GitScanner {
                 }
 
                 if scan_entropy {
-                    let ef = SecretScanner::get_entropy_findings(new_line);
+                    let ef = SecretScanner::entropy_findings(new_line);
                     if !ef.is_empty() {
                         findings.insert(GitFinding {
                             commit: commit.message().unwrap().to_string(),
@@ -422,5 +432,111 @@ impl GitScanner {
             },
         };
         self
+    }
+}
+
+impl fmt::Debug for GitScanner {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let repo_str = match self.repo.as_ref() {
+            None => "None",
+            Some(repo_obj) => repo_obj.path().to_str().unwrap_or_else(|| "<path unwrap error>")
+        };
+        write!(f, "GitScanner: SecretScanner: {:?}, Repo: {:?}, GitScheme: {:?}", self.secret_scanner, repo_str, self.scheme)
+    }
+}
+
+impl fmt::Display for GitScanner {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let repo_str = match self.repo.as_ref() {
+            None => "None",
+            Some(repo_obj) => repo_obj.path().to_str().unwrap_or_else(|| "<path unwrap error>")
+        };
+        let scheme_string: String = match self.scheme.as_ref() {
+            None => String::from("None"),
+            Some(s) => fmt::format(format_args!("{}", s))
+        };
+        write!(f, "GitScanner: SecretScanner: {}, Repo: {}, GitScheme: {}", self.secret_scanner, repo_str, &scheme_string)
+    }
+}
+
+impl fmt::Debug for GitScheme {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let display_string = match self {
+            GitScheme::Localpath => "localpath",
+            GitScheme::Http => "http",
+            GitScheme::Ssh => "ssh",
+            GitScheme::Relativepath => "relativepath",
+            GitScheme::Git => "git",
+        };
+        write!(f, "GitScheme: {}", display_string)
+    }
+}
+
+impl fmt::Display for GitScheme {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let display_string = match self {
+            GitScheme::Localpath => "localpath",
+            GitScheme::Http => "http",
+            GitScheme::Ssh => "ssh",
+            GitScheme::Relativepath => "relativepath",
+            GitScheme::Git => "git",
+        };
+        write!(f, "GitScheme: {}", display_string)
+    }
+}
+
+impl PartialEq for GitScheme {
+    fn eq(&self, other: &Self) -> bool {
+        format!("{}", self) == format!("{}", other)
+    }
+}
+
+impl Eq for GitScheme {}
+
+impl PartialEq for GitScanner {
+    fn eq(&self, other: &Self) -> bool {
+        self.secret_scanner == other.secret_scanner &&
+            match self.scheme.as_ref() {
+                None => other.scheme.is_none(),
+                Some(gs) => match other.scheme.as_ref() {
+                    None => false,
+                    Some(gs2) => *gs == *gs2
+                }
+            } &&
+            match self.repo.as_ref() {
+                None => other.repo.is_none(),
+                Some(r) => match other.repo.as_ref() {
+                    None => false,
+                    Some(r2) => r.path() == r2.path()
+                }
+            }
+    }
+}
+
+impl Eq for GitScanner {}
+
+impl Hash for GitScanner {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.secret_scanner.hash(state);
+        match self.repo.as_ref() {
+            None => "norepo".hash(state),
+            Some(r) => r.path().hash(state)
+        };
+        match self.scheme.as_ref() {
+            None => "noscheme".hash(state),
+            Some(gs) => match gs {
+                GitScheme::Localpath => "localpath".hash(state),
+                GitScheme::Http => "http".hash(state),
+                GitScheme::Ssh => "ssh".hash(state),
+                GitScheme::Relativepath => "relativepath".hash(state),
+                GitScheme::Git => "git".hash(state),
+            }
+        }
+    }
+}
+
+impl Default for GitScanner {
+    fn default() -> Self {
+        Self::new()
     }
 }
