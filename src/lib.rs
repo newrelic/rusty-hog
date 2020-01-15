@@ -274,8 +274,6 @@ pub struct SecretScannerBuilder {
     pub output_path: Option<String>,
 }
 
-==
-
 impl SecretScannerBuilder {
     /// Create a new `SecretScannerBuilder` object with the default config (50 rules, case sensitive)
     pub fn new() -> Self {
