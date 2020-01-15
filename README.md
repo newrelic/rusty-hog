@@ -186,7 +186,7 @@ Keep in mind that when you submit your pull request, you'll need to sign the CLA
     - [x] Implement licensing
     - [x] Clear with New Relic open source committee
     - [x] Finish initial implementation of Ankamali Hog and Berkshire Hog CLI
-    - [ ] Finish New Relic Open Source checklist
+    - [x] Finish New Relic Open Source checklist
     - [x] Unit tests
     - [ ] Prep for crates.io release
     - [x] Flatten original Git repo

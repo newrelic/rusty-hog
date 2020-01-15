@@ -44,7 +44,7 @@ use rusty_hogs::{SecretScanner, SecretScannerBuilder};
 /// Main entry function that uses the [clap crate](https://docs.rs/clap/2.33.0/clap/)
 fn main() {
     let matches = clap_app!(ankamali_hog =>
-        (version: "0.4.5")
+        (version: "1.0.0")
         (author: "Scott Cutler <scutler@newrelic.com>")
         (about: "Google Drive secret scanner in Rust.")
         (@arg REGEX: --regex +takes_value "Sets a custom regex JSON file")
