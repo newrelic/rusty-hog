@@ -39,8 +39,8 @@ Download and unzip the [latest ZIP](https://github.com/newrelic/rusty-hog/releas
 on the releases tab. Then, run each binary with `-h` to see the usage.
 
 ```shell script
-wget https://github.com/newrelic/rusty-hog/releases/download/v0.4.4/rustyhogs-0.4.4.zip
-unzip rustyhogs-0.4.4.zip
+wget https://github.com/newrelic/rusty-hog/releases/download/v1.0.0/rustyhogs-1.0.0.zip
+unzip rustyhogs-1.0.0.zip
 darwin_releases/choctaw_hog -h
 ```
 
@@ -178,21 +178,6 @@ Keep in mind that when you submit your pull request, you'll need to sign the CLA
 
 
 ## Feature Roadmap
-- 1.0: Initial open source release
-    - [x] Refactor git-agnostic code into a reusable library
-    - [x] Implement logging correctly
-    - [x] Prep for New Relic Homebrew release
-    - [x] Prep for New Relic GitHub release
-    - [x] Implement licensing
-    - [x] Clear with New Relic open source committee
-    - [x] Finish initial implementation of Ankamali Hog and Berkshire Hog CLI
-    - [x] Finish New Relic Open Source checklist
-    - [x] Unit tests
-    - [ ] Prep for crates.io release
-    - [x] Flatten original Git repo
-    - [x] Support git HTTPS auth
-    - [x] Support for other modes of use for Berkshire Hog (CLI)
-
 - 1.1: Enterprise features
     - [ ] Support config files (instead of command line args)
     - [ ] Support environment variables instead of CLI args
