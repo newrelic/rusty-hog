@@ -240,6 +240,9 @@ impl GitScanner {
         findings
     }
 
+    /// Helper function to return a
+    /// [`Repository`](https://docs.rs/git2/0.11.0/git2/struct.Repository.html) object for HTTPS
+    /// URLs and credentials. Used by `init_git_repo`
     fn get_https_git_repo(
         https_git_url: &str,
         dest_dir: &Path,
@@ -270,6 +273,9 @@ impl GitScanner {
         }
     }
 
+    /// Helper function to return a
+    /// [`Repository`](https://docs.rs/git2/0.11.0/git2/struct.Repository.html) object for SSH
+    /// URLs and credentials. Used by `init_git_repo`
     fn get_ssh_git_repo(
         ssh_git_url: &str,
         dest_dir: &Path,

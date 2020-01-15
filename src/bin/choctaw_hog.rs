@@ -7,7 +7,7 @@
 //!FLAGS:
 //!        --caseinsensitive    Sets the case insensitive flag for all regexes
 //!        --entropy            Enables entropy scanning
-//!        --prettyprint        Output the JSON in human readable format
+//!        --prettyprint        Outputs the JSON in human readable format
 //!    -v, --verbose            Sets the level of debugging information
 //!    -h, --help               Prints help information
 //!    -V, --version            Prints version information
@@ -45,18 +45,19 @@ use tempdir::TempDir;
 use rusty_hogs::git_scanning::GitScanner;
 use rusty_hogs::{SecretScanner, SecretScannerBuilder};
 
+/// Main entry function that uses the [clap crate](https://docs.rs/clap/2.33.0/clap/)
 fn main() {
     let matches = clap_app!(choctaw_hog =>
         (version: "0.4.5")
         (author: "Scott Cutler <scutler@newrelic.com>")
         (about: "Git secret scanner in Rust")
-        (@arg REGEX: -r --regex +takes_value "Sets a custom regex JSON file, defaults to built-in")
+        (@arg REGEX: -r --regex +takes_value "Sets a custom regex JSON file")
         (@arg GITPATH: +required "Sets the path (or URL) of the Git repo to scan. SSH links must include username (git@)")
         (@arg VERBOSE: -v --verbose ... "Sets the level of debugging information")
         (@arg ENTROPY: --entropy ... "Enables entropy scanning")
         (@arg CASE: --caseinsensitive "Sets the case insensitive flag for all regexes")
         (@arg OUTPUT: -o --outputfile +takes_value "Sets the path to write the scanner results to (stdout by default)")
-        (@arg PRETTYPRINT: --prettyprint "Output the JSON in human readable format")
+        (@arg PRETTYPRINT: --prettyprint "Outputs the JSON in human readable format")
         (@arg SINCECOMMIT: --since_commit +takes_value "Filters commits based on date committed (branch agnostic)")
         (@arg UNTILCOMMIT: --until_commit +takes_value "Filters commits based on date committed (branch agnostic)")
         (@arg SSHKEYPATH: --sshkeypath +takes_value "Takes a path to a private SSH key for git authentication, defaults to ssh-agent")
@@ -71,6 +72,7 @@ fn main() {
     }
 }
 
+/// Main logic contained here. Get the CLI variables, and use them to initialize a GitScanner
 fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     // Set logging
     SecretScanner::set_logging(arg_matches.occurrences_of("VERBOSE"));

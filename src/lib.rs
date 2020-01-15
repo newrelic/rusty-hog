@@ -145,11 +145,13 @@ const DEFAULT_REGEX_JSON: &str = r##"
   "New Relic Synthetics Private Location Key (new format)": "(?i)NRSP-[a-z]{2}[0-9]{2}[a-f0-9]{31}",
   "Email address": "(?i)(?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|\"(?:[\\x01-\\x08\\x0b\\x0c\\x0e-\\x1f\\x21\\x23-\\x5b\\x5d-\\x7f]|\\\\[\\x01-\\x09\\x0b\\x0c\\x0e-\\x7f])*\")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\\[(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?|[a-z0-9-]*[a-z0-9]:(?:[\\x01-\\x08\\x0b\\x0c\\x0e-\\x1f\\x21-\\x5a\\x53-\\x7f]|\\\\[\\x01-\\x09\\x0b\\x0c\\x0e-\\x7f])+)\\])",
   "New Relic Account IDs in URL": "(newrelic\\.com/)?accounts/\\d{1,10}/",
-  "Account ID": "(?i)account[\\s[[:punct:]]]?id[\\s[[:punct:]]]{1,4}\\b[\\d]{1,10}\\b"
+  "Account ID": "(?i)account[\\s[[:punct:]]]?id[\\s[[:punct:]]]{1,4}\\b[\\d]{1,10}\\b",
+  "Salary Information": "(?i)(salary|commission|compensation|pay)([\\s[[:punct:]]](amount|target))?[\\s[[:punct:]]]{1,4}\\d+"
 }
 "##;
 
 // from https://docs.rs/crate/base64/0.11.0/source/src/tables.rs
+// copied because the value itself was private in the base64 crate
 const STANDARD_ENCODE: &[u8; 64] = &[
     65,  // input 0 (0x0) => 'A' (0x41)
     66,  // input 1 (0x1) => 'B' (0x42)
@@ -361,6 +363,9 @@ impl SecretScannerBuilder {
         }
     }
 
+    /// Helper function to parse a JSON file path to `Result<Map<String, Value>, SimpleError>` where
+    /// `Value` is a [serde_json Value](https://docs.serde.rs/serde_json/value/enum.Value.html)
+    /// object. This has the side-effect of reading the file-system.
     fn build_json_from_file(filename: &str) -> Result<Map<String, Value>, SimpleError> {
         // Get regexes from JSON
         info!("Attempting to read JSON regex file from {:?}", filename);
@@ -377,6 +382,9 @@ impl SecretScannerBuilder {
         }
     }
 
+    /// Helper function to parse a JSON string to `Result<Map<String, Value>, SimpleError>` where
+    /// `Value` is a [serde_json Value](https://docs.serde.rs/serde_json/value/enum.Value.html)
+    /// object.
     fn build_json_from_str(incoming_str: &str) -> Result<Map<String, Value>, SimpleError> {
         info!("Attempting to parse JSON regex file from provided string...");
         match serde_json::from_str(incoming_str) {
@@ -385,6 +393,9 @@ impl SecretScannerBuilder {
         }
     }
 
+    /// Helper function to convert the `Map<String, Value>` generated in `build_json_from...`
+    /// to `BTreeMap<String, Regex>` where the key is our "reason" and Regex is a
+    /// [regex::bytes::Regex](https://docs.rs/regex/1.3.3/regex/bytes/struct.Regex.html) object.
     fn build_regex_objects(
         json_obj: Map<String, Value>,
         case_insensitive: bool,
@@ -417,7 +428,6 @@ impl SecretScannerBuilder {
 
 impl SecretScanner {
 
-
     /// Helper function to set global logging level
     pub fn set_logging(verbose_level: u64) {
         match verbose_level {
@@ -440,12 +450,15 @@ impl SecretScanner {
             .collect()
     }
 
+    // Helper function to determine whether a byte array only contains valid Base64 characters.
     fn is_base64_string(string_in: &[u8]) -> bool {
         let hashset_string_in: HashSet<&u8> = HashSet::from_iter(string_in.iter());
         hashset_string_in.is_subset(&HashSet::from_iter(STANDARD_ENCODE.iter()))
     }
 
     // from https://docs.rs/crate/entropy/0.3.0/source/src/lib.rs
+    // modified to include the keyspace parameter since we're not calculating against all possible
+    // byte values
     fn calc_entropy(bytes: &[u8], keyspace: i32) -> f32 {
         let mut entropy = 0.0;
         let mut counts: HashMap<u8, i32> = HashMap::new();
@@ -503,6 +516,7 @@ impl SecretScanner {
     }
 
     /// Helper function that takes a HashSet of serializable structs and outputs them as JSON
+    /// Side effect: May write to the file-system based on `self.output_path`
     pub fn output_findings<T: Serialize + Eq + Hash>(&self, findings: &HashSet<T>) {
         let mut json_text: Vec<u8> = Vec::new();
         if self.pretty_print {

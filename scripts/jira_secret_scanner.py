@@ -101,7 +101,7 @@ for result_dict in output:
         for finding in result_list:
             output_array.append(
                 {
-                    "eventType": "Secret_Police_GDrive",
+                    "eventType": "secret_scanner_GDrive",
                     "jira_key": result_dict["key"],
                     "g_drive_id": finding["g_drive_id"],
                     "url": finding["web_link"],

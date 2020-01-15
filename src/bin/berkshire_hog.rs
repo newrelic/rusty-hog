@@ -7,8 +7,8 @@
 //!FLAGS:
 //!        --caseinsensitive    Sets the case insensitive flag for all regexes
 //!        --entropy            Enables entropy scanning
-//!        --prettyprint        Output the JSON in human readable format
-//!    -r, --recursive          Will recursively scan files under the prefix.
+//!        --prettyprint        Outputs the JSON in human readable format
+//!    -r, --recursive          Recursively scans files under the prefix
 //!    -v, --verbose            Sets the level of debugging information
 //!    -h, --help               Prints help information
 //!    -V, --version            Prints version information
@@ -19,7 +19,7 @@
 //!        --regex <REGEX>          Sets a custom regex JSON file
 //!
 //!ARGS:
-//!    <S3URI>       The location of a S3 bucket and optional prefix or file to scan. This must be written in the form
+//!    <S3URI>       The location of a S3 bucket and optional prefix or filename to scan. This must be written in the form
 //!                  s3://!mybucket[/prefix_or_file]
 //!    <S3REGION>    Sets the region of the S3 bucket to scan.
 //! ```
@@ -42,21 +42,22 @@ use rusty_hogs::{SecretScanner, SecretScannerBuilder};
 use std::collections::HashSet;
 use std::iter::FromIterator;
 
+/// Main entry function that uses the [clap crate](https://docs.rs/clap/2.33.0/clap/)
 fn main() {
     let matches = clap_app!(berkshire_hog =>
         (version: "0.4.5")
         (author: "Scott Cutler <scutler@newrelic.com>")
         (about: "S3 secret hunter in Rust. Avoid bandwidth costs, run this within a VPC!")
         (@arg REGEX: --regex +takes_value "Sets a custom regex JSON file")
-        (@arg S3URI: +required "The location of a S3 bucket and optional prefix or file to scan. This must be written in the form s3://mybucket[/prefix_or_file]")
-        (@arg S3REGION: +required "Sets the region of the S3 bucket to scan.")
-        (@arg RECURSIVE: -r --recursive "Will recursively scan files under the prefix.")
+        (@arg S3URI: +required "The location of a S3 bucket and optional prefix or filename to scan. This must be written in the form s3://mybucket[/prefix_or_file]")
+        (@arg S3REGION: +required "Sets the region of the S3 bucket to scan")
+        (@arg RECURSIVE: -r --recursive "Recursively scans files under the prefix")
         (@arg VERBOSE: -v --verbose ... "Sets the level of debugging information")
         (@arg ENTROPY: --entropy ... "Enables entropy scanning")
         (@arg CASE: --caseinsensitive "Sets the case insensitive flag for all regexes")
         (@arg OUTPUT: -o --outputfile +takes_value "Sets the path to write the scanner results to (stdout by default)")
-        (@arg PRETTYPRINT: --prettyprint "Output the JSON in human readable format")
-        (@arg PROFILE: --profile +takes_value "When using a configuration file, use a non-default profile")
+        (@arg PRETTYPRINT: --prettyprint "Outputs the JSON in human readable format")
+        (@arg PROFILE: --profile +takes_value "When using a configuration file, enables a non-default profile")
 //        (@arg AWS_ACCESS_KEY_ID: --awsaccesskeyid +takes_value "Forces manual AWS authentication")
 //        (@arg AWS_SECRET_ACCESS_KEY: --awssecretaccesskey +takes_value "Forces manual AWS authentication")
     )
@@ -67,6 +68,7 @@ fn main() {
     }
 }
 
+/// Main logic contained here. Initialize S3Scanner, parse the URL and objects, then run the scan.
 fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     // Set logging
     SecretScanner::set_logging(arg_matches.occurrences_of("VERBOSE"));

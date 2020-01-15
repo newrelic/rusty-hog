@@ -5,12 +5,14 @@
 //! ankamali_hog [FLAGS] [OPTIONS] <GDRIVEID>
 //!
 //!FLAGS:
-//!        --caseinsensitive    Sets the case insensitive flag for all regexes
-//!        --entropy            Enables entropy scanning
-//!        --prettyprint        Output the JSON in human readable format
-//!    -v, --verbose            Sets the level of debugging information
-//!    -h, --help               Prints help information
-//!    -V, --version            Prints version information
+//!         --caseinsensitive    Sets the case insensitive flag for all regexes
+//!         --entropy            Enables entropy scanning
+//!         --oauthsecret        Path to an OAuth secret file (JSON) ./clientsecret.json by default
+//!         --oauthtoken         Path to an OAuth token storage file ./temp_token by default
+//!         --prettyprint        Output the JSON in human readable format
+//!     -v, --verbose            Sets the level of debugging information
+//!     -h, --help               Prints help information
+//!     -V, --version            Prints version information
 //!
 //!OPTIONS:
 //!    -o, --outputfile <OUTPUT>    Sets the path to write the scanner results to (stdout by default)
@@ -39,18 +41,19 @@ use std::path::Path;
 use rusty_hogs::google_scanning::{GDriveFileInfo, GDriveScanner};
 use rusty_hogs::{SecretScanner, SecretScannerBuilder};
 
+/// Main entry function that uses the [clap crate](https://docs.rs/clap/2.33.0/clap/)
 fn main() {
     let matches = clap_app!(ankamali_hog =>
         (version: "0.4.5")
         (author: "Scott Cutler <scutler@newrelic.com>")
         (about: "Google Drive secret scanner in Rust.")
         (@arg REGEX: --regex +takes_value "Sets a custom regex JSON file")
-        (@arg GDRIVEID: +required "The ID of the google drive file you want to scan")
+        (@arg GDRIVEID: +required "The ID of the Google drive file you want to scan")
         (@arg VERBOSE: -v --verbose ... "Sets the level of debugging information")
         (@arg ENTROPY: --entropy ... "Enables entropy scanning")
         (@arg CASE: --caseinsensitive "Sets the case insensitive flag for all regexes")
         (@arg OUTPUT: -o --outputfile +takes_value "Sets the path to write the scanner results to (stdout by default)")
-        (@arg PRETTYPRINT: --prettyprint "Output the JSON in human readable format")
+        (@arg PRETTYPRINT: --prettyprint "Outputs the JSON in human readable format")
         (@arg OAUTHSECRETFILE: --oauthsecret "Path to an OAuth secret file (JSON) ./clientsecret.json by default")
         (@arg OAUTHTOKENFILE: --oauthtoken "Path to an OAuth token storage file ./temp_token by default")
     )
@@ -61,6 +64,8 @@ fn main() {
     }
 }
 
+/// Main logic contained here. Get the CLI variables, setup OAuth, setup GDriveScanner and output
+/// the results.
 fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     // Set logging
     SecretScanner::set_logging(arg_matches.occurrences_of("VERBOSE"));

@@ -31,7 +31,7 @@
 //! `scan_s3_file()` along with a file path. which returns a
 //! `Vec` of findings. In this example the string values are contrived.
 //!
-//! ```
+//! ```no_run
 //! use rusty_hogs::SecretScannerBuilder;
 //! use rusty_hogs::aws_scanning::{S3Scanner, S3Finding};
 //! use s3::region::Region;
@@ -48,7 +48,6 @@
 //! };
 //! let results = s3s.scan_s3_file(bucket, "s3://testbucket1/727463.json").unwrap();
 //! assert_eq!(results.len(), 0);
-//! //TODO: Find a working example???
 //! ```
 
 use crate::SecretScanner;

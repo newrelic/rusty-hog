@@ -66,6 +66,8 @@ USAGE:
 FLAGS:
         --caseinsensitive    Sets the case insensitive flag for all regexes
         --entropy            Enables entropy scanning
+        --oauthsecret        Path to an OAuth secret file (JSON) ./clientsecret.json by default
+        --oauthtoken         Path to an OAuth token storage file ./temp_token by default
         --prettyprint        Outputs the JSON in human readable format
     -v, --verbose            Sets the level of debugging information
     -h, --help               Prints help information
@@ -135,11 +137,14 @@ FLAGS:
 
 OPTIONS:
     -o, --outputfile <OUTPUT>            Sets the path to write the scanner results to (stdout by default)
-        --regex <REGEX>                  Sets a custom regex JSON file; defaults to ./trufflehog_rules.json
+        --regex <REGEX>                  Sets a custom regex JSON file
         --since_commit <SINCECOMMIT>     Filters commits based on date committed (branch agnostic)
+        --until_commit <SINCECOMMIT>     Filters commits based on date committed (branch agnostic)
         --sshkeypath <SSHKEYPATH>        Takes a path to a private SSH key for git authentication; defaults to ssh-agent
         --sshkeyphrase <SSHKEYPHRASE>    Takes a passphrase to a private SSH key for git authentication; defaults to
                                          none
+        --httpsuser <HTTPSUSER>          Takes a username for HTTPS-based authentication
+        --httpsuser <HTTPSUSER>          Takes a password for HTTPS-based authentication
 
 ARGS:
     <GITPATH>    Sets the path (or URL) of the Git repo to scan. SSH links must include username (git@)

@@ -107,7 +107,7 @@ for result_dict in output:
         for finding in result_list:
             output_array.append(
                 {
-                    "eventType": "secret_scanner",
+                    "eventType": "ghe_secret_monitor",
                     "commitHash": finding["commitHash"],
                     "reason": finding["reason"],
                     "path": finding["path"],

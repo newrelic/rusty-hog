@@ -1,19 +1,18 @@
 //! An S3 secret scanner designed to be run as a Lambda function
 //!  
-//! Berkshire Hog is currently designed to be used as a Lambda function. It was written with this overall data-flow
-//!in mind:
+//! Berkshire Hog is currently designed to be used as a Lambda function. This is the basic data flow:
 //!```text
 //!    ┌───────────┐              ┌───────┐     ┌────────────────┐     ┌────────────┐
-//!    │ S3 Bucket │ ┌────────┐   │       │     │ Berkshire Hog  │     │ S3 Bucket  │
-//!    │  (input) ─┼─┤S3 Event├──▶│  SQS  │────▶│    (Lambda)    │────▶│  (output)  │
+//!    │ S3 bucket │ ┌────────┐   │       │     │ Berkshire Hog  │     │ S3 bucket  │
+//!    │  (input) ─┼─┤S3 event├──▶│  SQS  │────▶│    (Lambda)    │────▶│  (output)  │
 //!    │           │ └────────┘   │       │     │                │     │            │
 //!    └───────────┘              └───────┘     └────────────────┘     └────────────┘
 //!```
 //!
-//!In order to run this you will need to setup the following things:
-//!1) The input bucket must be configured to send an "event" to SQS for each PUSH/PUT event
-//!2) The SQS topic must be setup to accept events from S3, including IAM permissions.
-//!3) Berkshire hog must be running with IAM access to SQS and S3.
+//!In order to run Berkshire Hog this way, set up the following:
+//!1) Configure the input bucket to send an "event" to SQS for each PUSH/PUT event.
+//!2) Set up the SQS topic to accept events from S3, including IAM permissions.
+//!3) Run Berkshire Hog with IAM access to SQS and S3.
 
 extern crate s3;
 
