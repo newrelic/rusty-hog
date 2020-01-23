@@ -34,7 +34,7 @@ encoding = "0.2"
 hex = "0.4"
 lambda_runtime = "0.2"
 rust-s3 = "0.18.5"
-google-drive3 = "*"
+google-drive3 = "1.0.12"
 # This project intentionally uses an old version of Hyper. See
 # https://github.com/Byron/google-apis-rs/issues/173 for more
 # information.
