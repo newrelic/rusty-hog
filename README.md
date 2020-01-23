@@ -39,8 +39,8 @@ Download and unzip the [latest ZIP](https://github.com/newrelic/rusty-hog/releas
 on the releases tab. Then, run each binary with `-h` to see the usage.
 
 ```shell script
-wget https://github.com/newrelic/rusty-hog/releases/download/v1.0.0/rustyhogs-1.0.0.zip
-unzip rustyhogs-1.0.0.zip
+wget https://github.com/newrelic/rusty-hog/releases/download/v1.0.1/rustyhogs-musl_darwin_1.0.1.zip
+unzip rustyhogs-musl_darwin_1.0.1.zip
 darwin_releases/choctaw_hog -h
 ```
 
