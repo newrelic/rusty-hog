@@ -107,7 +107,7 @@ ARGS:
 ```
 
 
-## Berkshire Hog (S3 Scanner - CLI) usage
+## Berkshire Hog (S3 Scanner - Lambda) usage
 Berkshire Hog is currently designed to be used as a Lambda function. This is the basic data flow:
 <pre>
     ┌───────────┐              ┌───────┐     ┌────────────────┐     ┌────────────┐
