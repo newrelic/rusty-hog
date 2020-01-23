@@ -144,7 +144,7 @@ OPTIONS:
         --sshkeyphrase <SSHKEYPHRASE>    Takes a passphrase to a private SSH key for git authentication; defaults to
                                          none
         --httpsuser <HTTPSUSER>          Takes a username for HTTPS-based authentication
-        --httpsuser <HTTPSUSER>          Takes a password for HTTPS-based authentication
+        --httpspass <HTTPSPASS>          Takes a password for HTTPS-based authentication
 
 ARGS:
     <GITPATH>    Sets the path (or URL) of the Git repo to scan. SSH links must include username (git@)
