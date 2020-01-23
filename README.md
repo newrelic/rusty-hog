@@ -58,7 +58,7 @@ cp target/x86_64-unknown-linux-musl/release/berkshire_hog bootstrap
 zip -j berkshire_lambda.zip bootstrap
 ```
 
-## Anakamali Hog usage
+## Anakamali Hog (GDoc Scanner) usage
 ```
 USAGE:
     ankamali_hog [FLAGS] [OPTIONS] <GDRIVEID>
@@ -81,7 +81,7 @@ ARGS:
     <GDRIVEID>    The ID of the Google drive file you want to scan
 ```
 
-## Berkshire Hog (CLI) usage
+## Berkshire Hog (S3 Scanner - CLI) usage
 ```
 USAGE:
     berkshire_hog [FLAGS] [OPTIONS] <S3URI> <S3REGION>
@@ -107,7 +107,7 @@ ARGS:
 ```
 
 
-## Berkshire Hog (Lambda) usage
+## Berkshire Hog (S3 Scanner - CLI) usage
 Berkshire Hog is currently designed to be used as a Lambda function. This is the basic data flow:
 <pre>
     ┌───────────┐              ┌───────┐     ┌────────────────┐     ┌────────────┐
@@ -122,7 +122,7 @@ In order to run Berkshire Hog this way, set up the following:
 2) Set up the SQS topic to accept events from S3, including IAM permissions.
 3) Run Berkshire Hog with IAM access to SQS and S3.
 
-## Choctaw Hog usage
+## Choctaw Hog (Git Scanner) usage
 ```
 USAGE:
     choctaw_hog [FLAGS] [OPTIONS] <GITPATH>
