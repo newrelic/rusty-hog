@@ -9,6 +9,7 @@ use rusty_hogs::SecretScanner;
 use url::Url;
 use hyper::Client;
 use hyper::net::HttpsConnector;
+use hyper::header::{Authorization, Basic, Headers};
 
 /// Main entry function that uses the [clap crate](https://docs.rs/clap/2.33.0/clap/)
 fn main() {
@@ -54,13 +55,23 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     // Still inside `async fn main`...
     let client = Client::with_connector(HttpsConnector::new(hyper_rustls::TlsClient::new()));
 
+    let mut auth_headers = Headers::new();
+    auth_headers.set(
+        Authorization(
+            Basic {
+                username: jirausername.to_owned(),
+                password: Some(jirapassword.to_owned())
+            }
+        )
+    );
+
     // Build the URL
-    // '/rest/api/2/issue/{issue_id}?fields=status,summary'
     // todo make this work regardless of whether the url argument they pass has a trailing slash
     let full_url = format!("{}rest/api/2/issue/{}", base_url, issue_id);
 
     // Await the response...
-    let resp = client.get(&full_url).send().unwrap();
+    // note that get takes &String, or str
+    let resp = client.get(&full_url).headers(auth_headers).send().unwrap();
 
     println!("sending request to {}", full_url);
     println!("Response: {}", resp.status);
