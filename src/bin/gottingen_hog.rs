@@ -47,13 +47,22 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
         .value_of("JIRAURL")
         .unwrap_or_else(||"https://jira.atlassian.com");
     let base_url = Url::parse(base_url_input).unwrap();
+    let issue_id = arg_matches
+        .value_of("JIRAID")  // TODO validate the format somehow
+        .unwrap();
 
     // Still inside `async fn main`...
     let client = Client::with_connector(HttpsConnector::new(hyper_rustls::TlsClient::new()));
 
-    // Await the response...
-    let resp = client.get(base_url_input).send().unwrap();
+    // Build the URL
+    // '/rest/api/2/issue/{issue_id}?fields=status,summary'
+    // todo make this work regardless of whether the url argument they pass has a trailing slash
+    let full_url = format!("{}rest/api/2/issue/{}", base_url, issue_id);
 
+    // Await the response...
+    let resp = client.get(&full_url).send().unwrap();
+
+    println!("sending request to {}", full_url);
     println!("Response: {}", resp.status);
 
     Ok(())
