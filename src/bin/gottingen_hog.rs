@@ -3,6 +3,7 @@ extern crate clap;
 extern crate hyper;
 extern crate hyper_rustls;
 
+use std::io::Read;
 use clap::ArgMatches;
 use simple_error::SimpleError;
 use rusty_hogs::SecretScanner;
@@ -71,10 +72,21 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
 
     // Await the response...
     // note that get takes &String, or str
-    let resp = client.get(&full_url).headers(auth_headers).send().unwrap();
+    let mut resp = client.get(&full_url).headers(auth_headers).send().unwrap();
 
     println!("sending request to {}", full_url);
     println!("Response: {}", resp.status);
+
+    let mut response_body :String = String::new();
+    let response_length = resp.read_to_string(&mut response_body).unwrap();
+
+    println!("result 1: {}", response_body);
+    println!("result 2: {}", response_length);
+
+    let json_results = rusty_hogs::SecretScannerBuilder::build_json_from_str(&response_body).unwrap();
+
+    println!("{}", json_results.get("expand").unwrap());
+    println!("{:?}", json_results);
 
     Ok(())
 }

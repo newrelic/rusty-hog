@@ -385,7 +385,7 @@ impl SecretScannerBuilder {
     /// Helper function to parse a JSON string to `Result<Map<String, Value>, SimpleError>` where
     /// `Value` is a [serde_json Value](https://docs.serde.rs/serde_json/value/enum.Value.html)
     /// object.
-    fn build_json_from_str(incoming_str: &str) -> Result<Map<String, Value>, SimpleError> {
+    pub fn build_json_from_str(incoming_str: &str) -> Result<Map<String, Value>, SimpleError> {
         info!("Attempting to parse JSON regex file from provided string...");
         match serde_json::from_str(incoming_str) {
             Ok(m) => Ok(m),
