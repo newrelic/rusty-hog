@@ -4,13 +4,19 @@ extern crate hyper;
 extern crate hyper_rustls;
 
 use std::io::Read;
+use std::collections::BTreeMap;
 use clap::ArgMatches;
+use regex::bytes::Matches;
 use simple_error::SimpleError;
+use encoding::DecoderTrap;
+use encoding::all::ASCII;
+use encoding::types::Encoding;
 use rusty_hogs::SecretScanner;
 use url::Url;
 use hyper::Client;
 use hyper::net::HttpsConnector;
 use hyper::header::{Authorization, Basic, Headers};
+use rusty_hogs::SecretScannerBuilder;
 
 /// Main entry function that uses the [clap crate](https://docs.rs/clap/2.33.0/clap/)
 fn main() {
@@ -87,6 +93,36 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
 
     println!("{}", json_results.get("expand").unwrap());
     println!("{:?}", json_results);
+
+    let description = json_results
+        .get("fields").unwrap()
+        .get("description").unwrap()
+        .as_str().unwrap()
+        .as_bytes();
+
+    let ssb = SecretScannerBuilder::new().conf_argm(arg_matches);
+    let secret_scanner = ssb.build();
+
+    let lines = description.split(|&x| (x as char) == '\n');
+    for new_line in lines {
+        let matches_map: BTreeMap<&String, Matches> = secret_scanner.matches(new_line);
+
+        for (reason, match_iterator) in matches_map {
+            let mut secrets: Vec<String> = Vec::new();
+            for matchobj in match_iterator {
+                secrets.push(
+                    ASCII
+                        .decode(
+                            &new_line[matchobj.start()..matchobj.end()],
+                            DecoderTrap::Ignore,
+                        )
+                        .unwrap_or_else(|_| "<STRING DECODE ERROR>".parse().unwrap()),
+                );
+            }
+            println!("secrets found: {:?}", secrets);
+        }
+    }
+
 
     Ok(())
 }
