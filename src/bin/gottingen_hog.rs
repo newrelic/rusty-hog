@@ -4,7 +4,9 @@ extern crate hyper;
 extern crate hyper_rustls;
 
 use std::io::Read;
-use std::collections::BTreeMap;
+use std::collections::{HashSet, BTreeMap};
+use log::{self, debug, error, info};
+use std::iter::FromIterator;
 use clap::ArgMatches;
 use regex::bytes::Matches;
 use simple_error::SimpleError;
@@ -17,6 +19,17 @@ use hyper::Client;
 use hyper::net::HttpsConnector;
 use hyper::header::{Authorization, Basic, Headers};
 use rusty_hogs::SecretScannerBuilder;
+use serde_derive::{Deserialize, Serialize};
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, Clone, Default)]
+pub struct JiraFinding {
+    #[serde(rename = "stringsFound")]
+    pub strings_found: Vec<String>,
+    pub issue_id: String,
+    pub reason: String,
+    pub web_link: String,
+}
+
 
 /// Main entry function that uses the [clap crate](https://docs.rs/clap/2.33.0/clap/)
 fn main() {
@@ -80,19 +93,19 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     // note that get takes &String, or str
     let mut resp = client.get(&full_url).headers(auth_headers).send().unwrap();
 
-    println!("sending request to {}", full_url);
-    println!("Response: {}", resp.status);
+    debug!("sending request to {}", full_url);
+    debug!("Response: {}", resp.status);
 
     let mut response_body :String = String::new();
     let response_length = resp.read_to_string(&mut response_body).unwrap();
 
-    println!("result 1: {}", response_body);
-    println!("result 2: {}", response_length);
+    debug!("result 1: {}", response_body);
+    debug!("result 2: {}", response_length);
 
     let json_results = rusty_hogs::SecretScannerBuilder::build_json_from_str(&response_body).unwrap();
 
-    println!("{}", json_results.get("expand").unwrap());
-    println!("{:?}", json_results);
+    debug!("{}", json_results.get("expand").unwrap());
+    debug!("{:?}", json_results);
 
     let description = json_results
         .get("fields").unwrap()
@@ -104,13 +117,16 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     let secret_scanner = ssb.build();
 
     let lines = description.split(|&x| (x as char) == '\n');
+    let mut secrets: Vec<JiraFinding> = Vec::new();
+
+    let web_link = format!("{}browse/{}", base_url, issue_id);
+
     for new_line in lines {
         let matches_map: BTreeMap<&String, Matches> = secret_scanner.matches(new_line);
-
         for (reason, match_iterator) in matches_map {
-            let mut secrets: Vec<String> = Vec::new();
+            let mut secrets_for_reason:Vec<String> = Vec::new();
             for matchobj in match_iterator {
-                secrets.push(
+                secrets_for_reason.push(
                     ASCII
                         .decode(
                             &new_line[matchobj.start()..matchobj.end()],
@@ -119,10 +135,20 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
                         .unwrap_or_else(|_| "<STRING DECODE ERROR>".parse().unwrap()),
                 );
             }
-            println!("secrets found: {:?}", secrets);
+            if secrets_for_reason.len() > 0 {
+                secrets.push(JiraFinding{
+                    strings_found: secrets_for_reason,
+                    issue_id: String::from(issue_id),
+                    reason: String::from(reason),
+                    web_link: web_link.clone(),
+                });
+            }
         }
     }
 
+    let findings: HashSet<JiraFinding> = HashSet::from_iter(secrets.into_iter());
+    info!("Found {} secrets", findings.len());
+    secret_scanner.output_findings(&findings);
 
     Ok(())
 }
