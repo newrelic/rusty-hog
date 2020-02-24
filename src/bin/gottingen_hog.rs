@@ -58,6 +58,9 @@ fn main() {
 fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     SecretScanner::set_logging(arg_matches.occurrences_of("VERBOSE"));
 
+    let ssb = SecretScannerBuilder::new().conf_argm(arg_matches);
+    let secret_scanner = ssb.build();
+
     let jirausername = arg_matches
         .value_of("USERNAME")
         .unwrap();
@@ -89,42 +92,40 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     // todo make this work regardless of whether the url argument they pass has a trailing slash
     let full_url = format!("{}rest/api/2/issue/{}", base_url, issue_id);
 
-    // Await the response...
-    // note that get takes &String, or str
-    let mut resp = client.get(&full_url).headers(auth_headers).send().unwrap();
+    let secrets = get_issue_findings(&secret_scanner, base_url, issue_id, client, auth_headers, &full_url);
 
+    let findings: HashSet<JiraFinding> = HashSet::from_iter(secrets.into_iter());
+    info!("Found {} secrets", findings.len());
+    secret_scanner.output_findings(&findings);
+
+    Ok(())
+}
+
+fn get_issue_findings(secret_scanner: &SecretScanner, base_url: Url, issue_id: &str, client: Client, auth_headers: Headers, full_url: &String) -> Vec<JiraFinding> {
+// Await the response...
+// note that get takes &String, or str
+    let mut resp = client.get(full_url).headers(auth_headers).send().unwrap();
     debug!("sending request to {}", full_url);
     debug!("Response: {}", resp.status);
-
-    let mut response_body :String = String::new();
+    let mut response_body: String = String::new();
     let response_length = resp.read_to_string(&mut response_body).unwrap();
-
     debug!("result 1: {}", response_body);
     debug!("result 2: {}", response_length);
-
     let json_results = rusty_hogs::SecretScannerBuilder::build_json_from_str(&response_body).unwrap();
-
     debug!("{}", json_results.get("expand").unwrap());
     debug!("{:?}", json_results);
-
     let description = json_results
         .get("fields").unwrap()
         .get("description").unwrap()
         .as_str().unwrap()
         .as_bytes();
-
-    let ssb = SecretScannerBuilder::new().conf_argm(arg_matches);
-    let secret_scanner = ssb.build();
-
     let lines = description.split(|&x| (x as char) == '\n');
     let mut secrets: Vec<JiraFinding> = Vec::new();
-
     let web_link = format!("{}browse/{}", base_url, issue_id);
-
     for new_line in lines {
         let matches_map: BTreeMap<&String, Matches> = secret_scanner.matches(new_line);
         for (reason, match_iterator) in matches_map {
-            let mut secrets_for_reason:Vec<String> = Vec::new();
+            let mut secrets_for_reason: Vec<String> = Vec::new();
             for matchobj in match_iterator {
                 secrets_for_reason.push(
                     ASCII
@@ -136,7 +137,7 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
                 );
             }
             if secrets_for_reason.len() > 0 {
-                secrets.push(JiraFinding{
+                secrets.push(JiraFinding {
                     strings_found: secrets_for_reason,
                     issue_id: String::from(issue_id),
                     reason: String::from(reason),
@@ -145,10 +146,5 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
             }
         }
     }
-
-    let findings: HashSet<JiraFinding> = HashSet::from_iter(secrets.into_iter());
-    info!("Found {} secrets", findings.len());
-    secret_scanner.output_findings(&findings);
-
-    Ok(())
+    secrets
 }
