@@ -31,6 +31,7 @@ pub struct JiraFinding {
     pub issue_id: String,
     pub reason: String,
     pub web_link: String,
+    pub location: String,
 }
 
 
@@ -105,7 +106,7 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
         .as_str().unwrap()
         .as_bytes();
     // find secrets in issue body
-    let mut secrets = get_findings(&secret_scanner, base_url, issue_id, &full_url, description);
+    let mut secrets = get_findings(&secret_scanner, base_url, issue_id, &full_url, description, String::from("Issue Description"));
 
     // find secrets in comments
     // TODO don't make this call multiple times (we get "moved value" errors if I try to reuse json_results)
@@ -129,7 +130,7 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     println!("all comments: {:?}", all_comments);
 
     for comment in all_comments {
-        println!(
+        let location = format!(
             "comment by {} on {}",
             comment.get("author").unwrap()
                 .get("displayName").unwrap(),
@@ -143,7 +144,8 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
             base_url.clone(),
             issue_id,
             &full_url,
-            comment_body
+            comment_body,
+            location
         );
         secrets.extend(comment_findings);
     }
@@ -171,7 +173,7 @@ fn get_issue_json(client: Client, auth_headers: Headers, full_url: &String) -> M
 }
 
 
-fn get_findings(secret_scanner: &SecretScanner, base_url: &str, issue_id: &str, full_url: &String, description: &[u8]) -> Vec<JiraFinding> {
+fn get_findings(secret_scanner: &SecretScanner, base_url: &str, issue_id: &str, full_url: &String, description: &[u8], location: String) -> Vec<JiraFinding> {
 // Await the response...
 // note that get takes &String, or str
 
@@ -198,6 +200,7 @@ fn get_findings(secret_scanner: &SecretScanner, base_url: &str, issue_id: &str, 
                     issue_id: String::from(issue_id),
                     reason: String::from(reason),
                     web_link: web_link.clone(),
+                    location: location.clone(),
                 });
             }
         }
