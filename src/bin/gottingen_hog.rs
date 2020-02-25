@@ -20,6 +20,9 @@ use hyper::net::HttpsConnector;
 use hyper::header::{Authorization, Basic, Headers};
 use rusty_hogs::SecretScannerBuilder;
 use serde_derive::{Deserialize, Serialize};
+use serde_json::{Map, Value};
+
+
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, Clone, Default)]
 pub struct JiraFinding {
@@ -92,7 +95,44 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     // todo make this work regardless of whether the url argument they pass has a trailing slash
     let full_url = format!("{}rest/api/2/issue/{}", base_url, issue_id);
 
-    let secrets = get_issue_findings(&secret_scanner, base_url, issue_id, client, auth_headers, &full_url);
+    let json_results = get_issue_json(client, auth_headers, &full_url);
+
+    // find secrets in issue body
+    let secrets = get_issue_findings(&secret_scanner, base_url, issue_id, &full_url, json_results);
+
+    // find secrets in comments
+    // TODO don't make this call multiple times (we get "moved value" errors if I try to reuse json_results)
+    let client = Client::with_connector(HttpsConnector::new(hyper_rustls::TlsClient::new()));
+
+    let mut auth_headers = Headers::new();
+    auth_headers.set(
+        Authorization(
+            Basic {
+                username: jirausername.to_owned(),
+                password: Some(jirapassword.to_owned())
+            }
+        )
+    );
+    let json_results = get_issue_json(client, auth_headers, &full_url);
+
+    let all_comments = json_results.get("fields").unwrap()
+        .get("comment").unwrap()
+        .get("comments").unwrap()
+        .as_array().unwrap();
+    println!("all comments: {:?}", all_comments);
+
+    for comment in all_comments {
+        println!(
+            "comment by {} on {}",
+            comment.get("author").unwrap()
+                .get("displayName").unwrap(),
+            comment.get("created").unwrap()
+        );
+        println!("comment body: {}",
+            comment.get("body").unwrap()
+        );
+    }
+
 
     let findings: HashSet<JiraFinding> = HashSet::from_iter(secrets.into_iter());
     info!("Found {} secrets", findings.len());
@@ -101,9 +141,7 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     Ok(())
 }
 
-fn get_issue_findings(secret_scanner: &SecretScanner, base_url: Url, issue_id: &str, client: Client, auth_headers: Headers, full_url: &String) -> Vec<JiraFinding> {
-// Await the response...
-// note that get takes &String, or str
+fn get_issue_json(client: Client, auth_headers: Headers, full_url: &String) -> Map<String, Value> {
     let mut resp = client.get(full_url).headers(auth_headers).send().unwrap();
     debug!("sending request to {}", full_url);
     debug!("Response: {}", resp.status);
@@ -114,6 +152,14 @@ fn get_issue_findings(secret_scanner: &SecretScanner, base_url: Url, issue_id: &
     let json_results = rusty_hogs::SecretScannerBuilder::build_json_from_str(&response_body).unwrap();
     debug!("{}", json_results.get("expand").unwrap());
     debug!("{:?}", json_results);
+    json_results
+}
+
+
+fn get_issue_findings(secret_scanner: &SecretScanner, base_url: Url, issue_id: &str, full_url: &String, json_results: Map<String, Value>) -> Vec<JiraFinding> {
+// Await the response...
+// note that get takes &String, or str
+
     let description = json_results
         .get("fields").unwrap()
         .get("description").unwrap()
