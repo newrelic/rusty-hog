@@ -73,10 +73,12 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     let base_url_input = arg_matches
         .value_of("JIRAURL")
         .unwrap_or_else(||"https://jira.atlassian.com");
-    let base_url = Url::parse(base_url_input).unwrap();
+    let base_url_as_url = Url::parse(base_url_input).unwrap();
     let issue_id = arg_matches
         .value_of("JIRAID")  // TODO validate the format somehow
         .unwrap();
+
+    let base_url = base_url_as_url.as_str();
 
     // Still inside `async fn main`...
     let client = Client::with_connector(HttpsConnector::new(hyper_rustls::TlsClient::new()));
@@ -97,8 +99,13 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
 
     let json_results = get_issue_json(client, auth_headers, &full_url);
 
+    let description = json_results
+        .get("fields").unwrap()
+        .get("description").unwrap()
+        .as_str().unwrap()
+        .as_bytes();
     // find secrets in issue body
-    let secrets = get_issue_findings(&secret_scanner, base_url, issue_id, &full_url, json_results);
+    let mut secrets = get_findings(&secret_scanner, base_url, issue_id, &full_url, description);
 
     // find secrets in comments
     // TODO don't make this call multiple times (we get "moved value" errors if I try to reuse json_results)
@@ -128,9 +135,17 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
                 .get("displayName").unwrap(),
             comment.get("created").unwrap()
         );
-        println!("comment body: {}",
-            comment.get("body").unwrap()
+        let comment_body = comment.get("body").unwrap()
+            .as_str().unwrap()
+            .as_bytes();
+        let mut comment_findings = get_findings(
+            &secret_scanner,
+            base_url.clone(),
+            issue_id,
+            &full_url,
+            comment_body
         );
+        secrets.extend(comment_findings);
     }
 
 
@@ -156,15 +171,10 @@ fn get_issue_json(client: Client, auth_headers: Headers, full_url: &String) -> M
 }
 
 
-fn get_issue_findings(secret_scanner: &SecretScanner, base_url: Url, issue_id: &str, full_url: &String, json_results: Map<String, Value>) -> Vec<JiraFinding> {
+fn get_findings(secret_scanner: &SecretScanner, base_url: &str, issue_id: &str, full_url: &String, description: &[u8]) -> Vec<JiraFinding> {
 // Await the response...
 // note that get takes &String, or str
 
-    let description = json_results
-        .get("fields").unwrap()
-        .get("description").unwrap()
-        .as_str().unwrap()
-        .as_bytes();
     let lines = description.split(|&x| (x as char) == '\n');
     let mut secrets: Vec<JiraFinding> = Vec::new();
     let web_link = format!("{}browse/{}", base_url, issue_id);
