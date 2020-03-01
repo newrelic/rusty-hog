@@ -44,6 +44,7 @@
 
 use crate::SecretScanner;
 use chrono::NaiveDateTime;
+use chrono::Utc;
 use encoding::all::ASCII;
 use encoding::{DecoderTrap, Encoding};
 use git2::{Commit, DiffFormat};
@@ -108,6 +109,7 @@ impl GitScanner {
         since_commit: Option<&str>,
         until_commit: Option<&str>,
         scan_entropy: bool,
+        recent_days: u32,
     ) -> HashSet<GitFinding> {
         let repo_option = self.repo.as_ref(); //borrowing magic here!
         let repo = repo_option.unwrap();
@@ -125,9 +127,16 @@ impl GitScanner {
                     Err(e) => panic!("SINCECOMMIT value returned an error: {:?}", e),
                 };
                 let o = revspec.from().unwrap();
+                println!("{:?}", o.as_commit().unwrap());
                 o.as_commit().unwrap().time()
             }
-            None => Time::new(0, 0),
+            None =>  {
+                if recent_days > 0 {
+                    Time::new( Utc::now().timestamp() - (recent_days as i64 * 24 * 60 * 60), 0)
+                } else {
+                    Time::new(0,0)
+                }
+            }
         };
 
         let until_time_obj: Time = match until_commit {
