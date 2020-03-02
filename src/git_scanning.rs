@@ -46,7 +46,7 @@ use crate::SecretScanner;
 use chrono::NaiveDateTime;
 use encoding::all::ASCII;
 use encoding::{DecoderTrap, Encoding};
-use git2::{Commit, DiffFormat};
+use git2::{Commit, DiffFormat, Tree};
 use git2::{DiffOptions, Repository, Time};
 use log::{self, info};
 use regex::bytes::Matches;
@@ -70,6 +70,11 @@ pub struct GitFinding {
     pub strings_found: Vec<String>,
     pub path: String,
     pub reason: String,
+    pub old_file_id: String,
+    pub new_file_id: String,
+    pub old_line_num: u32,
+    pub new_line_num: u32,
+    pub parent_commit_hash: String
 }
 
 /// enum used by init_git_repo to communicate the type of git repo specified by the supplied URL
@@ -157,15 +162,23 @@ impl GitScanner {
             if commit.parents().len() > 1 {
                 continue;
             }
-            let a = if commit.parents().len() == 1 {
-                let parent = commit.parent(0).unwrap();
-                Some(parent.tree().unwrap())
+            let parent_commit_option = if commit.parents().len() == 1 {
+                Some(commit.parent(0).unwrap())
             } else {
                 None
+            };
+            let parent_commit_hash: String = match parent_commit_option.as_ref() {
+                Some(pc) => pc.id().to_string(),
+                None => String::from("None")
+            };
+            let a: Option<Tree> = match parent_commit_option {
+                Some(pc) => Some(pc.tree().unwrap()),
+                _ => None
             };
             let b = commit.tree().unwrap();
             let mut diffopts = DiffOptions::new();
             diffopts.force_binary(true);
+            diffopts.context_lines(0);
 
             let diff = repo
                 .diff_tree_to_tree(a.as_ref(), Some(&b), Some(&mut diffopts))
@@ -173,8 +186,13 @@ impl GitScanner {
 
             // secondary loop that occurs for each *line* in the diff
             diff.print(DiffFormat::Patch, |delta, _hunk, line| {
+                if line.origin() == 'F' || line.origin() == 'H' { return true };
                 let new_line = line.content();
                 let matches_map: BTreeMap<&String, Matches> = self.secret_scanner.matches(new_line);
+                let old_file_id = delta.old_file().id();
+                let new_file_id = delta.new_file().id();
+                let old_line_num = line.old_lineno().unwrap_or_else(|| 0);
+                let new_line_num = line.new_lineno().unwrap_or_else(|| 0);
 
                 for (reason, match_iterator) in matches_map {
                     let mut secrets: Vec<String> = Vec::new();
@@ -206,6 +224,11 @@ impl GitScanner {
                                 .unwrap()
                                 .to_string(),
                             reason: reason.clone(),
+                            old_file_id: old_file_id.to_string(),
+                            new_file_id: new_file_id.to_string(),
+                            old_line_num,
+                            new_line_num,
+                            parent_commit_hash: parent_commit_hash.clone()
                         });
                     }
                 }
@@ -230,6 +253,11 @@ impl GitScanner {
                                 .unwrap()
                                 .to_string(),
                             reason: "Entropy".to_string(),
+                            old_file_id: old_file_id.to_string(),
+                            new_file_id: new_file_id.to_string(),
+                            old_line_num,
+                            new_line_num,
+                            parent_commit_hash: parent_commit_hash.clone()
                         });
                     }
                 }
