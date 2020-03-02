@@ -106,22 +106,7 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
         .as_str().unwrap()
         .as_bytes();
     // find secrets in issue body
-    let mut secrets = get_findings(&secret_scanner, base_url, issue_id, &full_url, description, String::from("Issue Description"));
-
-    // find secrets in comments
-    // TODO don't make this call multiple times (we get "moved value" errors if I try to reuse json_results)
-    let client = Client::with_connector(HttpsConnector::new(hyper_rustls::TlsClient::new()));
-
-    let mut auth_headers = Headers::new();
-    auth_headers.set(
-        Authorization(
-            Basic {
-                username: jirausername.to_owned(),
-                password: Some(jirapassword.to_owned())
-            }
-        )
-    );
-    let json_results = get_issue_json(client, auth_headers, &full_url);
+    let mut secrets = get_findings(&secret_scanner, base_url, issue_id,  description, String::from("Issue Description"));
 
     let all_comments = json_results.get("fields").unwrap()
         .get("comment").unwrap()
@@ -139,11 +124,10 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
         let comment_body = comment.get("body").unwrap()
             .as_str().unwrap()
             .as_bytes();
-        let mut comment_findings = get_findings(
+        let comment_findings = get_findings(
             &secret_scanner,
             base_url.clone(),
             issue_id,
-            &full_url,
             comment_body,
             location
         );
@@ -173,7 +157,7 @@ fn get_issue_json(client: Client, auth_headers: Headers, full_url: &String) -> M
 }
 
 
-fn get_findings(secret_scanner: &SecretScanner, base_url: &str, issue_id: &str, full_url: &String, description: &[u8], location: String) -> Vec<JiraFinding> {
+fn get_findings(secret_scanner: &SecretScanner, base_url: &str, issue_id: &str, description: &[u8], location: String) -> Vec<JiraFinding> {
 // Await the response...
 // note that get takes &String, or str
 
@@ -183,9 +167,9 @@ fn get_findings(secret_scanner: &SecretScanner, base_url: &str, issue_id: &str, 
     for new_line in lines {
         let matches_map: BTreeMap<&String, Matches> = secret_scanner.matches(new_line);
         for (reason, match_iterator) in matches_map {
-            let mut secrets_for_reason: Vec<String> = Vec::new();
+            let mut secrets_for_reason: HashSet<String> = HashSet::new();
             for matchobj in match_iterator {
-                secrets_for_reason.push(
+                secrets_for_reason.insert(
                     ASCII
                         .decode(
                             &new_line[matchobj.start()..matchobj.end()],
@@ -196,7 +180,7 @@ fn get_findings(secret_scanner: &SecretScanner, base_url: &str, issue_id: &str, 
             }
             if secrets_for_reason.len() > 0 {
                 secrets.push(JiraFinding {
-                    strings_found: secrets_for_reason,
+                    strings_found: Vec::from_iter(secrets_for_reason.iter().cloned()),
                     issue_id: String::from(issue_id),
                     reason: String::from(reason),
                     web_link: web_link.clone(),
