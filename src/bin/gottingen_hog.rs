@@ -5,7 +5,7 @@ extern crate hyper_rustls;
 
 use std::io::Read;
 use std::collections::{HashSet, BTreeMap};
-use log::{self, debug, error, info};
+use log::{self, debug, info};
 use std::iter::FromIterator;
 use clap::ArgMatches;
 use regex::bytes::Matches;
@@ -18,6 +18,7 @@ use url::Url;
 use hyper::Client;
 use hyper::net::HttpsConnector;
 use hyper::header::{Authorization, Basic, Headers};
+use hyper::status::StatusCode;
 use rusty_hogs::SecretScannerBuilder;
 use serde_derive::{Deserialize, Serialize};
 use serde_json::{Map, Value};
@@ -112,7 +113,6 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
         .get("comment").unwrap()
         .get("comments").unwrap()
         .as_array().unwrap();
-    println!("all comments: {:?}", all_comments);
 
     for comment in all_comments {
         let location = format!(
@@ -147,12 +147,12 @@ fn get_issue_json(client: Client, auth_headers: Headers, full_url: &String) -> M
     debug!("sending request to {}", full_url);
     debug!("Response: {}", resp.status);
     let mut response_body: String = String::new();
-    let response_length = resp.read_to_string(&mut response_body).unwrap();
-    debug!("result 1: {}", response_body);
-    debug!("result 2: {}", response_length);
+    resp.read_to_string(&mut response_body).unwrap();
+    if resp.status != StatusCode::Ok {
+        panic!("Request to {} failed with code {}: {}", full_url, resp.status, response_body)
+    }
     let json_results = rusty_hogs::SecretScannerBuilder::build_json_from_str(&response_body).unwrap();
-    debug!("{}", json_results.get("expand").unwrap());
-    debug!("{:?}", json_results);
+    debug!("Response JSON: \n{:?}", json_results);
     json_results
 }
 
