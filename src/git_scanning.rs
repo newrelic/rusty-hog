@@ -38,7 +38,7 @@
 //! let gs = GitScanner::new();
 //!
 //! let mut gs = gs.init_git_repo(".", Path::new("."), None, None, None, None);
-//! let findings: HashSet<GitFinding> = gs.perform_scan(None, None, Some("8013160e"), false);
+//! let findings: HashSet<GitFinding> = gs.perform_scan(None, None, Some("8013160e"), false, None);
 //! assert_eq!(findings.len(), 45);
 //! ```
 
@@ -109,7 +109,7 @@ impl GitScanner {
         since_commit: Option<&str>,
         until_commit: Option<&str>,
         scan_entropy: bool,
-        recent_days: u32,
+        recent_days: Option<u32>,
     ) -> HashSet<GitFinding> {
         let repo_option = self.repo.as_ref(); //borrowing magic here!
         let repo = repo_option.unwrap();
@@ -131,10 +131,9 @@ impl GitScanner {
                 o.as_commit().unwrap().time()
             }
             None =>  {
-                if recent_days > 0 {
-                    Time::new( Utc::now().timestamp() - (recent_days as i64 * 24 * 60 * 60), 0)
-                } else {
-                    Time::new(0,0)
+                match recent_days {
+                    Some(rd) => Time::new(Utc::now().timestamp() - (rd as i64 * 24 * 60 * 60), 0),
+                    None => Time::new(0, 0)
                 }
             }
         };

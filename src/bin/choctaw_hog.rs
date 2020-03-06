@@ -88,7 +88,10 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     let since_commit = arg_matches.value_of("SINCECOMMIT");
     let until_commit = arg_matches.value_of("UNTILCOMMIT");
     let scan_entropy = arg_matches.is_present("ENTROPY");
-    let recent_days = value_t!(arg_matches.value_of("RECENTDAYS"), u32).unwrap_or(0);
+    let recent_days: Option<u32> = match value_t!(arg_matches.value_of("RECENTDAYS"), u32) {
+        Ok(d) => { if d <= 0 { None } else { Some(d) } },
+        Err(e) => None
+    };
 
     // Get Git objects
     let dest_dir = TempDir::new("rusty_hogs").unwrap();
