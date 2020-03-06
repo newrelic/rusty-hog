@@ -38,12 +38,13 @@
 //! let gs = GitScanner::new();
 //!
 //! let mut gs = gs.init_git_repo(".", Path::new("."), None, None, None, None);
-//! let findings: HashSet<GitFinding> = gs.perform_scan(None, None, Some("8013160e"), false);
+//! let findings: HashSet<GitFinding> = gs.perform_scan(None, None, Some("8013160e"), false, None);
 //! assert_eq!(findings.len(), 45);
 //! ```
 
 use crate::SecretScanner;
 use chrono::NaiveDateTime;
+use chrono::Utc;
 use encoding::all::ASCII;
 use encoding::{DecoderTrap, Encoding};
 use git2::{Commit, DiffFormat};
@@ -108,6 +109,7 @@ impl GitScanner {
         since_commit: Option<&str>,
         until_commit: Option<&str>,
         scan_entropy: bool,
+        recent_days: Option<u32>,
     ) -> HashSet<GitFinding> {
         let repo_option = self.repo.as_ref(); //borrowing magic here!
         let repo = repo_option.unwrap();
@@ -125,9 +127,15 @@ impl GitScanner {
                     Err(e) => panic!("SINCECOMMIT value returned an error: {:?}", e),
                 };
                 let o = revspec.from().unwrap();
+                println!("{:?}", o.as_commit().unwrap());
                 o.as_commit().unwrap().time()
             }
-            None => Time::new(0, 0),
+            None =>  {
+                match recent_days {
+                    Some(rd) => Time::new(Utc::now().timestamp() - (rd as i64 * 24 * 60 * 60), 0),
+                    None => Time::new(0, 0)
+                }
+            }
         };
 
         let until_time_obj: Time = match until_commit {
