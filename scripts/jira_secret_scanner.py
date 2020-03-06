@@ -32,7 +32,12 @@ url = f"https://newrelic.atlassian.net/rest/api/2/search?jql={search_query}&star
 
 issues = []
 r = requests.get(url, headers=headers)
-result = r.json()
+result = None
+try:
+    result = r.json()
+except:
+    print(f"JIRA error: {r.text}")
+    sys.exit(1)
 total = result['total']
 issues.extend(result['issues'])
 while len(issues) < total:
@@ -46,6 +51,7 @@ while len(issues) < total:
 gdoc_re = re.compile(r'https://docs.google.com/[^\s|\]]+', re.IGNORECASE)
 links = defaultdict(set)
 
+logging.info("Reading issue descriptions...")
 for issue in issues:
     description = issue['fields']['description']
     if not description:
@@ -54,6 +60,7 @@ for issue in issues:
     for match in matches:
         links[issue['key']].add(match)
 
+logging.info("Retrieving issue comments...")
 for issue in issues:
     url = f"https://newrelic.atlassian.net/rest/api/2/issue/{issue['key']}/comment"
     r = requests.get(url, headers=headers)
@@ -67,11 +74,18 @@ tempdir = tempfile.gettempdir()
 gdoc_id_re = re.compile(r'https://docs.google.com/\w+/d/([a-zA-Z0-9-_]+)/?.*',re.IGNORECASE)
 output = []
 
+logging.info("Running ankamali hog on each Google Drive link found in Jira...")
 for x in links.items():
+    logging.debug(f"x: {str(x)}")
     filename = os.path.join(tempdir, str(uuid.uuid4()))
     results = []
     for gdoc_link in x[1]:
-        gdocid = gdoc_id_re.match(gdoc_link).group(1)
+        logging.debug(f"gdoc_link: {gdoc_link}")
+        logging.debug(f"gdoc_id_re.match(gdoc_link): {str(gdoc_id_re.match(gdoc_link))}")
+        gdoc_id_match = gdoc_id_re.match(gdoc_link)
+        if not gdoc_id_match:
+            continue
+        gdocid = gdoc_id_match.group(1)
         s = subprocess.run(
             [
                 ANKAMALI_HOG_PATH,
@@ -79,8 +93,13 @@ for x in links.items():
                 filename,
                 gdocid
             ],
-            capture_output=True,
+            capture_output=True
         )
+        logging.debug(f"ankamali hog output: {s.stdout}")
+        if s.returncode != 0:
+            logging.warning(f"ankamali hog exited with a non-zero status code: {s.stdout} {s.stderr}")
+        # TODO: add better error handling here. some will fail because you don't have
+        # permission to the doc. others will fail because you setup your token wrong.
         results.append({"gdoc_link": gdoc_link, "results": filename, "key": x[0]})
     output.extend(results)
 
@@ -93,7 +112,9 @@ for result_dict in output:
     try:
         f = open(result_dict["results"], "r")
     except:
-        logging.debug("failed to open " + result_dict["results"])
+        # TODO: add better error handling here. the file won't exist if we couldn't
+        # access the file
+        logging.warning("failed to open " + result_dict["results"])
         continue
 
     with f:
@@ -108,8 +129,9 @@ for result_dict in output:
                     "reason": finding["reason"]
                 }
             )
+    os.remove(result_dict["results"])
 
-url = "https://insights-collector.newrelic.com/v1/accounts/{INSIGHTS_ACCT_ID}/events"
+url = f"https://insights-collector.newrelic.com/v1/accounts/{INSIGHTS_ACCT_ID}/events"
 headers = {
     "Content-Type": "application/json",
     "X-Insert-Key": INSIGHTS_INSERT_KEY,

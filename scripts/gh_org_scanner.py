@@ -25,7 +25,7 @@ tempdir = tempfile.gettempdir()
 def f(x):
     filename = os.path.join(tempdir, str(uuid.uuid4()))
     # expects choctaw_hog in your path
-    s = subprocess.run(["choctaw_hog", "--outputfile", filename, "--regex", "trufflehog_rules.json", x.ssh_url],
+    s = subprocess.run(["choctaw_hog", "--outputfile", filename, x.ssh_url],
                        capture_output=True)
     return {"repo": x.name, "results": filename}
 
@@ -46,7 +46,7 @@ with open('output.csv', 'w') as csvfile:
                 result_list = json.load(f)
                 for finding in result_list:
                     writer.writerow([result['repo'],
-                                     result['reason'],
+                                     finding['reason'],
                                      str(finding['stringsFound']),
                                      finding['path'],
                                      finding['commit'],
@@ -54,5 +54,6 @@ with open('output.csv', 'w') as csvfile:
                                      finding['date']])
         except:
             pass
+        os.remove(result['results'])
 
 print("Output written to output.csv")
