@@ -35,13 +35,30 @@ extern crate encoding;
 use clap::ArgMatches;
 use log::{self, info, debug};
 use simple_error::SimpleError;
+use serde::{Deserialize, Serialize};
 use std::str;
 use std::path::{Path, PathBuf};
+use std::io::{BufReader, BufRead, Read};
+use std::fs::File;
 use tempdir::TempDir;
 use walkdir::{WalkDir, DirEntry};
 
 use rusty_hogs::git_scanning::GitScanner;
 use rusty_hogs::{SecretScanner, SecretScannerBuilder};
+use std::collections::HashSet;
+use encoding::all::ASCII;
+use encoding::{DecoderTrap, Encoding};
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, Clone, Default)]
+/// `serde_json` object that represents a single found secret - finding
+pub struct FileFinding {
+    //    branch: String, // this requires a walk of the commits for each finding, so lets leave it out for the moment
+    #[serde(rename = "stringsFound")]
+    pub strings_found: Vec<String>,
+    pub path: String,
+    pub reason: String,
+    pub linenum: usize
+}
 
 /// Main entry function that uses the [clap crate](https://docs.rs/clap/2.33.0/clap/)
 fn main() {
@@ -53,7 +70,7 @@ fn main() {
         (@arg FSPATH: +required "Sets the path (or URL) of the Git repo to scan. SSH links must include username (git@)")
         (@arg RECURSIVE: --recursive "Scans all subdirectories underneath the supplied path")
         (@arg VERBOSE: -v --verbose ... "Sets the level of debugging information")
-        (@arg ENTROPY: --entropy ... "Enables entropy scanning")
+        // (@arg ENTROPY: --entropy ... "Enables entropy scanning")
         (@arg CASE: --caseinsensitive "Sets the case insensitive flag for all regexes")
         (@arg OUTPUT: -o --outputfile +takes_value "Sets the path to write the scanner results to (stdout by default)")
         (@arg PRETTYPRINT: --prettyprint "Outputs the JSON in human readable format")
@@ -75,6 +92,7 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     let scan_entropy = arg_matches.is_present("ENTROPY");
     let recursive = arg_matches.is_present("RECURSIVE");
     let fspath = Path::new(arg_matches.value_of("FSPATH").unwrap());
+
     debug!("fspath: {:?}", fspath);
 
     // First verify the path
@@ -87,7 +105,8 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     if Path::is_dir(fspath) {
         if recursive {
             for entry in WalkDir::new(fspath).into_iter().filter_map(|e| e.ok()) {
-                scan_file(entry.path());
+                let inner_findings = scan_file(entry.path(), &secret_scanner);
+                info!("inner findings: {:?}", inner_findings);
             }
         } else {
             let dir_contents: Vec<PathBuf> = fspath.read_dir()
@@ -98,14 +117,59 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
                 .collect();
             info!("dir_contents: {:?}", dir_contents);
             for file_path in dir_contents {
-                scan_file(file_path.as_path());
+                let inner_findings = scan_file(file_path.as_path(), &secret_scanner);
+                info!("inner findings: {:?}", inner_findings);
+            }
+        }
+    } else {
+        let inner_findings = scan_file(fspath, &secret_scanner);
+        info!("inner findings: {:?}", inner_findings);
+    }
+
+    fn scan_file(file_path: &Path, ss: &SecretScanner) -> HashSet<FileFinding> {
+        let mut findings: HashSet<FileFinding> = HashSet::new();
+        info!("scan_file({:?})", file_path);
+        let ext: String = match file_path.extension() {
+            Some(osstr) => String::from(osstr.to_str().unwrap_or_else(|| "")),
+            None => String::from("")
+        };
+
+        if file_path.to_str().unwrap() == "./output.json" {
+            debug!("output.json")
+        }
+        let mut f = File::open(file_path).unwrap();
+        let mut data = Vec::new();
+        f.read_to_end(&mut data);
+
+        // Main loop - split the data based on newlines, then run get_matches() on each line,
+        // then make a list of findings in output
+        let lines = data.split(|&x| (x as char) == '\n');
+        for (index, new_line) in lines.enumerate() {
+            let results = ss.matches(new_line);
+            for (r, matches) in results {
+                let mut strings_found: Vec<String> = Vec::new();
+                for m in matches {
+                    let result = ASCII
+                        .decode(&new_line[m.start()..m.end()], DecoderTrap::Ignore)
+                        .unwrap_or_else(|_| "<STRING DECODE ERROR>".parse().unwrap());
+                    strings_found.push(result);
+                }
+                if !strings_found.is_empty() {
+                    let new_line_string = ASCII
+                        .decode(&new_line, DecoderTrap::Ignore)
+                        .unwrap_or_else(|_| "<STRING DECODE ERROR>".parse().unwrap());
+                    findings.insert(FileFinding {
+                        strings_found,
+                        reason: r.clone(),
+                        path: String::from(file_path.to_str().unwrap()),
+                        linenum: index + 1
+                    });
+                }
             }
         }
 
-    }
 
-    fn scan_file(file_path: &Path) {
-        info!("scan_file({:?})", file_path);
+        findings
     }
 
     Ok(())
