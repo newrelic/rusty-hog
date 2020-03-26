@@ -148,7 +148,7 @@ fn scan_dir(
         debug!("dir_contents: {:?}", dir_contents);
         for file_path in dir_contents {
             let path = file_path.clone();
-            let mut f = File::open(file_path).unwrap();
+            let f = File::open(file_path).unwrap();
             let mut inner_findings = scan_file(&path, &ss, f, "", unzip);
             for d in inner_findings.drain() {
                 info!("FileFinding: {:?}", d);

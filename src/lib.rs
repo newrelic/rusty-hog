@@ -434,7 +434,7 @@ impl SecretScanner {
             0 => init_with_level(log::Level::Warn).unwrap(),
             1 => init_with_level(log::Level::Info).unwrap(),
             2 => init_with_level(log::Level::Debug).unwrap(),
-            3 | _ => init_with_level(log::Level::Trace).unwrap(),
+            _ => init_with_level(log::Level::Trace).unwrap(),
         }
     }
 
@@ -578,10 +578,11 @@ impl Hash for SecretScanner {
             k.hash(state);
             v.as_str().hash(state);
         };
-        match self.pretty_print {
-            false => "prettyprintno".hash(state),
-            true => "prettyprintyes".hash(state)
-        };
+        if self.pretty_print {
+            "prettyprintyes".hash(state)
+        } else {
+            "prettyprintno".hash(state)
+        }
         match self.output_path.as_ref() {
             None => "outputpathno".hash(state),
             Some(s) => s.hash(state)

@@ -92,7 +92,7 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     // Initialize our S3 variables
     let profile = arg_matches
         .value_of("PROFILE")
-        .and_then(|x| Some(x.to_string()));
+        .map(|x| x.to_string());
     let credentials = Credentials::new(None, None, None, profile);
     debug!(
         "credentials: {:?} {:?} {:?}",
@@ -103,7 +103,7 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
         Ok(r) => r,
         Err(e) => return Err(SimpleError::new(e.to_string())),
     };
-    let bucket: Bucket = match Bucket::new(bucket_string, region, credentials.clone()) {
+    let bucket: Bucket = match Bucket::new(bucket_string, region, credentials) {
         Ok(r) => r,
         Err(e) => return Err(SimpleError::new(e.to_string())),
     };
