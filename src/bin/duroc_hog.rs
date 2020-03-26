@@ -33,21 +33,19 @@ extern crate chrono;
 extern crate encoding;
 
 use clap::ArgMatches;
-use log::{self, info, debug};
-use simple_error::SimpleError;
+use log::{self, debug, info};
 use serde::{Deserialize, Serialize};
-use std::str;
-use std::path::{Path, PathBuf};
-use std::io::{BufReader, BufRead, Read};
+use simple_error::SimpleError;
 use std::fs::File;
-use tempdir::TempDir;
-use walkdir::{WalkDir, DirEntry};
+use std::io::{Cursor, Read};
+use std::path::{Path, PathBuf};
+use std::{io, str};
+use walkdir::{WalkDir};
 
-use rusty_hogs::git_scanning::GitScanner;
-use rusty_hogs::{SecretScanner, SecretScannerBuilder};
-use std::collections::HashSet;
 use encoding::all::ASCII;
 use encoding::{DecoderTrap, Encoding};
+use rusty_hogs::{SecretScanner, SecretScannerBuilder};
+use std::collections::HashSet;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, Clone, Default)]
 /// `serde_json` object that represents a single found secret - finding
@@ -57,10 +55,11 @@ pub struct FileFinding {
     pub strings_found: Vec<String>,
     pub path: String,
     pub reason: String,
-    pub linenum: usize
+    pub linenum: usize,
+    pub diff: String,
 }
 
-const ZIPEXTENSIONS: &'static [&'static str] = &["zip"];
+const ZIPEXTENSIONS: &[&str] = &["zip"];
 
 /// Main entry function that uses the [clap crate](https://docs.rs/clap/2.33.0/clap/)
 fn main() {
@@ -73,6 +72,7 @@ fn main() {
         (@arg RECURSIVE: --recursive "Scans all subdirectories underneath the supplied path")
         (@arg VERBOSE: -v --verbose ... "Sets the level of debugging information")
         // (@arg ENTROPY: --entropy ... "Enables entropy scanning")
+        (@arg UNZIP: -z --unzip "Recursively scans ZIP archives in memory (dangerous)")
         (@arg CASE: --caseinsensitive "Sets the case insensitive flag for all regexes")
         (@arg OUTPUT: -o --outputfile +takes_value "Sets the path to write the scanner results to (stdout by default)")
         (@arg PRETTYPRINT: --prettyprint "Outputs the JSON in human readable format")
@@ -91,9 +91,10 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
 
     // Initialize some more variables
     let secret_scanner = SecretScannerBuilder::new().conf_argm(arg_matches).build();
-    let scan_entropy = arg_matches.is_present("ENTROPY");
+    // let scan_entropy = arg_matches.is_present("ENTROPY");
     let recursive = arg_matches.is_present("RECURSIVE");
     let fspath = Path::new(arg_matches.value_of("FSPATH").unwrap());
+    let unzip: bool = arg_matches.is_present("UNZIP");
 
     debug!("fspath: {:?}", fspath);
 
@@ -107,9 +108,10 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     let mut output: HashSet<FileFinding> = HashSet::new();
 
     if Path::is_dir(fspath) {
-        output.extend(scan_dir(fspath, &secret_scanner, recursive));
+        output.extend(scan_dir(fspath, &secret_scanner, recursive, unzip));
     } else {
-        output.extend(scan_file(fspath, &secret_scanner));
+        let f = File::open(fspath).unwrap();
+        output.extend(scan_file(fspath, &secret_scanner, f, "", unzip));
     }
 
     info!("Found {} secrets", output.len());
@@ -118,70 +120,91 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     Ok(())
 }
 
-fn scan_dir(fspath: &Path, ss: &SecretScanner, recursive: bool) -> HashSet<FileFinding> {
+fn scan_dir(
+    fspath: &Path,
+    ss: &SecretScanner,
+    recursive: bool,
+    unzip: bool,
+) -> HashSet<FileFinding> {
     let mut output: HashSet<FileFinding> = HashSet::new();
     if recursive {
         for entry in WalkDir::new(fspath).into_iter().filter_map(|e| e.ok()) {
             if entry.file_type().is_file() {
-                let mut inner_findings = scan_file(entry.path(), &ss);
+                let f = File::open(entry.path()).unwrap();
+                let mut inner_findings = scan_file(entry.path(), &ss, f, "", unzip);
                 for d in inner_findings.drain() {
                     output.insert(d);
                 }
             }
         }
     } else {
-        let dir_contents: Vec<PathBuf> = fspath.read_dir()
+        let dir_contents: Vec<PathBuf> = fspath
+            .read_dir()
             .expect("read_dir call failed")
             .filter_map(|e| e.ok())
             .filter(|e| e.file_type().unwrap().is_file())
             .map(|e| e.path())
             .collect();
-        // info!("dir_contents: {:?}", dir_contents);
+        debug!("dir_contents: {:?}", dir_contents);
         for file_path in dir_contents {
-            let mut inner_findings = scan_file(file_path.as_path(), &ss);
+            let path = file_path.clone();
+            let mut f = File::open(file_path).unwrap();
+            let mut inner_findings = scan_file(&path, &ss, f, "", unzip);
             for d in inner_findings.drain() {
-                info!("FileFinding: {:?}",d);
+                info!("FileFinding: {:?}", d);
                 output.insert(d);
             }
-            // info!("inner findings: {:?}", inner_findings);
+            debug!("inner findings: {:?}", inner_findings);
         }
     }
     output
 }
 
-fn scan_file(file_path: &Path, ss: &SecretScanner) -> HashSet<FileFinding> {
+fn scan_file<R: Read + io::Seek>(
+    file_path: &Path,
+    ss: &SecretScanner,
+    mut reader: R,
+    path_prefix: &str,
+    unzip: bool,
+) -> HashSet<FileFinding> {
     let mut findings: HashSet<FileFinding> = HashSet::new();
-    info!("scan_file({:?})", file_path);
+    let path_string = String::from(Path::new(path_prefix).join(file_path).to_str().unwrap());
+    info!("scan_file({:?})", path_string);
     let ext: String = match file_path.extension() {
         Some(osstr) => String::from(osstr.to_str().unwrap_or_else(|| "")).to_ascii_lowercase(),
-        None => String::from("")
+        None => String::from(""),
     };
 
-    let mut f = File::open(file_path).unwrap();
-
     // https://stackoverflow.com/questions/23975391/how-to-convert-a-string-into-a-static-str
-    return if ZIPEXTENSIONS.contains(&&*ext) {
-        let mut zip = zip::ZipArchive::new(f).unwrap();
-        for i in 0..zip.len()
-        {
+    if ZIPEXTENSIONS.contains(&&*ext) && unzip {
+        let mut zip = zip::ZipArchive::new(reader).unwrap();
+        for i in 0..zip.len() {
             let mut innerfile = zip.by_index(i).unwrap();
-            let mut data = Vec::new();
-            innerfile.read_to_end(&mut data);
-            let inner_path = format!("{}/{}", file_path.display(), innerfile.name());
-            info!("Scanning inner_path: {}", inner_path);
-            let mut inner_findings = scan_bytes(data, ss, inner_path);
+            // by using read_to_end we are decompressing the data (expensive)
+            // and moving it (inefficient) *but* that means we can recursively decompress
+            let mut innerdata: Vec<u8> = Vec::new();
+            let read_result = innerfile.read_to_end(&mut innerdata);
+            if read_result.is_err() { info!("read error within ZIP file"); continue; }
+            let new_reader = Cursor::new(innerdata);
+            let mut inner_findings = scan_file(
+                innerfile.sanitized_name().as_path(),
+                ss,
+                new_reader,
+                &path_string,
+                unzip,
+            );
             for d in inner_findings.drain() {
-                info!("FileFinding: {:?}",d);
+                info!("FileFinding: {:?}", d);
                 findings.insert(d);
             }
         }
         findings
     } else {
         let mut data = Vec::new();
-        f.read_to_end(&mut data);
-        scan_bytes(data, ss, String::from(file_path.to_str().unwrap()))
+        let read_result = reader.read_to_end(&mut data);
+        if read_result.is_err() { info!("read error for file {}", path_string); }
+        scan_bytes(data, ss, path_string)
     }
-
 }
 
 fn scan_bytes(input: Vec<u8>, ss: &SecretScanner, path: String) -> HashSet<FileFinding> {
@@ -204,10 +227,11 @@ fn scan_bytes(input: Vec<u8>, ss: &SecretScanner, path: String) -> HashSet<FileF
                     .decode(&new_line, DecoderTrap::Ignore)
                     .unwrap_or_else(|_| "<STRING DECODE ERROR>".parse().unwrap());
                 findings.insert(FileFinding {
+                    diff: new_line_string,
                     strings_found,
                     reason: r.clone(),
                     path: path.clone(),
-                    linenum: index + 1
+                    linenum: index + 1,
                 });
             }
         }
