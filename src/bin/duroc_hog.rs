@@ -60,6 +60,8 @@ pub struct FileFinding {
 }
 
 const ZIPEXTENSIONS: &[&str] = &["zip"];
+const TAREXTENSIONS: &[&str] = &["tar", "gem"];
+const GZEXTENSIONS: &[&str] = &["gz", "tgz"];
 
 /// Main entry function that uses the [clap crate](https://docs.rs/clap/2.33.0/clap/)
 fn main() {
@@ -72,7 +74,7 @@ fn main() {
         (@arg RECURSIVE: --recursive "Scans all subdirectories underneath the supplied path")
         (@arg VERBOSE: -v --verbose ... "Sets the level of debugging information")
         // (@arg ENTROPY: --entropy ... "Enables entropy scanning")
-        (@arg UNZIP: -z --unzip "Recursively scans ZIP archives in memory (dangerous)")
+        (@arg UNZIP: -z --unzip "Recursively scans archives (ZIP and TAR) in memory (dangerous)")
         (@arg CASE: --caseinsensitive "Sets the case insensitive flag for all regexes")
         (@arg OUTPUT: -o --outputfile +takes_value "Sets the path to write the scanner results to (stdout by default)")
         (@arg PRETTYPRINT: --prettyprint "Outputs the JSON in human readable format")
@@ -199,6 +201,52 @@ fn scan_file<R: Read + io::Seek>(
             }
         }
         findings
+    } else if TAREXTENSIONS.contains(&&*ext) && unzip {
+        let mut tarobj = tar::Archive::new(reader);
+        let tar_entries = tarobj.entries().unwrap();
+        for entry_result in tar_entries {
+            let mut inner_entry = entry_result.unwrap();
+            let mut innerdata: Vec<u8> = Vec::new();
+            let read_result = inner_entry.read_to_end(&mut innerdata);
+            if read_result.is_err() { info!("read error within TAR file"); continue; }
+            let new_reader = Cursor::new(innerdata);
+            let mut inner_findings = scan_file(
+                inner_entry.path().unwrap().as_ref(),
+                ss,
+                new_reader,
+                &path_string,
+                unzip,
+            );
+            for d in inner_findings.drain() {
+                info!("FileFinding: {:?}", d);
+                findings.insert(d);
+            }
+        }
+        findings
+    } else if GZEXTENSIONS.contains(&&*ext) && unzip {
+        let mut decompressor = flate2::read::GzDecoder::new(reader);
+        let mut innerdata: Vec<u8> = Vec::new();
+        let read_result = decompressor.read_to_end(&mut innerdata);
+        if read_result.is_err() { info!("read error within ZIP file"); return findings; }
+        let new_reader = Cursor::new(innerdata);
+        let mut tempstring = String::from(file_path.file_stem().unwrap().to_str().unwrap());
+        if ext.to_ascii_lowercase() == "tgz" {
+            tempstring.push_str(".tar");
+        }
+        let inner_path: &Path = Path::new(&tempstring);
+        info!("gunzip inner path: {:?}", inner_path);
+        let mut inner_findings = scan_file(
+            inner_path,
+            ss,
+            new_reader,
+            &path_string,
+            unzip,
+        );
+        for d in inner_findings.drain() {
+            info!("FileFinding: {:?}", d);
+            findings.insert(d);
+        }
+        findings
     } else {
         let mut data = Vec::new();
         let read_result = reader.read_to_end(&mut data);
@@ -208,6 +256,7 @@ fn scan_file<R: Read + io::Seek>(
 }
 
 fn scan_bytes(input: Vec<u8>, ss: &SecretScanner, path: String) -> HashSet<FileFinding> {
+    info!("scan_bytes: {:?}", path);
     let mut findings: HashSet<FileFinding> = HashSet::new();
     // Main loop - split the data based on newlines, then run get_matches() on each line,
     // then make a list of findings in output
