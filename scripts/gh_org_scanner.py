@@ -12,7 +12,15 @@ import os
 import csv
 import sys
 
-g = Github(os.environ['GITHUB_ACCESS_TOKEN'])
+g = None
+
+if len(sys.argv) == 3:
+    g = Github(base_url=f"https://{sys.argv[2]}/api/v3", login_or_token=os.environ['GITHUB_ACCESS_TOKEN'], per_page=100)
+elif len(sys.argv) == 2:
+    g = Github(os.environ['GITHUB_ACCESS_TOKEN'])
+else:
+    sys.exit(1)
+
 repos_to_scan = []
 for repo in g.get_organization(sys.argv[1]).get_repos(type="all"):
     repos_to_scan.append(repo)
