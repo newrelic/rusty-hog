@@ -149,6 +149,30 @@ OPTIONS:
 ARGS:
     <GITPATH>    Sets the path (or URL) of the Git repo to scan. SSH links must include username (git@)
 ```
+
+## Duroc Hog (file system scanner) usage
+```
+File system secret scanner in Rust
+
+USAGE:
+    duroc_hog [FLAGS] [OPTIONS] <FSPATH>
+
+FLAGS:
+        --caseinsensitive    Sets the case insensitive flag for all regexes
+        --prettyprint        Outputs the JSON in human readable format
+        --recursive          Scans all subdirectories underneath the supplied path
+    -z, --unzip              Recursively scans archives (ZIP and TAR) in memory (dangerous)
+    -v, --verbose            Sets the level of debugging information
+    -h, --help               Prints help information
+    -V, --version            Prints version information
+
+OPTIONS:
+    -o, --outputfile <OUTPUT>    Sets the path to write the scanner results to (stdout by default)
+    -r, --regex <REGEX>          Sets a custom regex JSON file
+
+ARGS:
+    <FSPATH>    Sets the path of the directory or file to scan.
+```
 # Project information
 ## Open source license
 

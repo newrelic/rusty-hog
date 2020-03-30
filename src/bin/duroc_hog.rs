@@ -65,12 +65,12 @@ const GZEXTENSIONS: &[&str] = &["gz", "tgz"];
 
 /// Main entry function that uses the [clap crate](https://docs.rs/clap/2.33.0/clap/)
 fn main() {
-    let matches = clap_app!(choctaw_hog =>
+    let matches = clap_app!(duroc_hog =>
         (version: "1.0.3")
         (author: "Scott Cutler <scutler@newrelic.com>")
         (about: "File system secret scanner in Rust")
         (@arg REGEX: -r --regex +takes_value "Sets a custom regex JSON file")
-        (@arg FSPATH: +required "Sets the path (or URL) of the Git repo to scan. SSH links must include username (git@)")
+        (@arg FSPATH: +required "Sets the path of the directory or file to scan.")
         (@arg RECURSIVE: --recursive "Scans all subdirectories underneath the supplied path")
         (@arg VERBOSE: -v --verbose ... "Sets the level of debugging information")
         // (@arg ENTROPY: --entropy ... "Enables entropy scanning")
