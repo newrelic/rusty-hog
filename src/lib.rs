@@ -290,7 +290,7 @@ impl SecretScannerBuilder {
     /// This function looks for a "CASE" flag and "REGEX" value.
     pub fn conf_argm(mut self, arg_matches: &ArgMatches) -> Self {
         self.case_insensitive = arg_matches.is_present("CASE");
-        self.output_path = match arg_matches.value_of("REGEX") {
+        self.regex_json_path = match arg_matches.value_of("REGEX") {
             Some(s) => Some(String::from(s)),
             None => None,
         };
