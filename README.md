@@ -5,6 +5,8 @@ in Python. Rusty Hog provides the following binaries:
 * Ankamali Hog: Scans for secrets in a Google doc.
 * Berkshire Hog: Scans for secrets in an S3 bucket.
 * Choctaw Hog: Scans for secrets in a Git repository.
+* Duroc Hog: Scans for secrets in a directory, file, and archive.
+* Gottingen Hog: Scans for secrets in a JIRA issue.
 
 ## Table of contents
 <!-- TOC depthFrom:1 depthTo:6 withLinks:1 updateOnSave:1 orderedList:0 -->
@@ -14,23 +16,26 @@ in Python. Rusty Hog provides the following binaries:
 - [Usage](#usage)
 	- [How to install](#how-to-install)
 	- [How to build](#how-to-build)
-	- [Anakamali Hog usage](#anakamali-hog-usage)
-	- [Berkshire Hog (CLI) usage](#berkshire-hog-cli-usage)
-	- [Berkshire Hog (Lambda) usage](#berkshire-hog-lambda-usage)
-	- [Choctaw Hog usage](#choctaw-hog-usage)
+	- [Anakamali Hog (GDoc Scanner) usage](#anakamali-hog-gdoc-scanner-usage)
+	- [Berkshire Hog (S3 Scanner - CLI) usage](#berkshire-hog-s3-scanner-cli-usage)
+	- [Berkshire Hog (S3 Scanner - Lambda) usage](#berkshire-hog-s3-scanner-lambda-usage)
+	- [Choctaw Hog (Git Scanner) usage](#choctaw-hog-git-scanner-usage)
+	- [Duroc Hog (file system scanner) usage](#duroc-hog-file-system-scanner-usage)
+	- [Gottingen Hog (JIRA scanner) usage](#gottingen-hog-jira-scanner-usage)
 - [Project information](#project-information)
 	- [Open source license](#open-source-license)
 	- [Support](#support)
 	- [Community](#community)
 	- [Issues / enhancement requests](#issues-enhancement-requests)
 	- [Contributing](#contributing)
-	- [Feature roadmap](#feature-roadmap)
+	- [Feature Roadmap](#feature-roadmap)
 	- [What does the name mean?](#what-does-the-name-mean)
 
 <!-- /TOC -->
+
 # Usage
 
-This project provides a set of scanners that use regular expressions to try and detect the presence of sensitive
+This project provides a set of scanners that useA regular expressions to try and detect the presence of sensitive
 information, such as API keys, passwords, and personal information. It includes a set of regular expressions by
 default, but also accepts a JSON object containing your custom regular expressions.
 
@@ -172,6 +177,32 @@ OPTIONS:
 
 ARGS:
     <FSPATH>    Sets the path of the directory or file to scan.
+```
+
+## Gottingen Hog (JIRA scanner) usage
+```
+Jira secret scanner in Rust.
+
+USAGE:
+    gottingen_hog [FLAGS] [OPTIONS] <JIRAID> --password <PASSWORD> --username <USERNAME>
+
+FLAGS:
+        --caseinsensitive    Sets the case insensitive flag for all regexes
+        --entropy            Enables entropy scanning
+        --prettyprint        Outputs the JSON in human readable format
+    -v, --verbose            Sets the level of debugging information
+    -h, --help               Prints help information
+    -V, --version            Prints version information
+
+OPTIONS:
+        --url <JIRAURL>
+    -o, --outputfile <OUTPUT>    Sets the path to write the scanner results to (stdout by default)
+        --password <PASSWORD>    Jira password (or API token)
+        --regex <REGEX>          Sets a custom regex JSON file
+        --username <USERNAME>    Jira username
+
+ARGS:
+    <JIRAID>    The ID (e.g. PROJECT-123) of the Jira issue you want to scan
 ```
 # Project information
 ## Open source license

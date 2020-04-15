@@ -1,3 +1,26 @@
+//! Jira secret scanner in Rust.
+//!
+//! USAGE:
+//!     gottingen_hog [FLAGS] [OPTIONS] <JIRAID> --password <PASSWORD> --username <USERNAME>
+//!
+//! FLAGS:
+//!         --caseinsensitive    Sets the case insensitive flag for all regexes
+//!         --entropy            Enables entropy scanning
+//!         --prettyprint        Outputs the JSON in human readable format
+//!     -v, --verbose            Sets the level of debugging information
+//!     -h, --help               Prints help information
+//!     -V, --version            Prints version information
+//!
+//! OPTIONS:
+//!         --url <JIRAURL>
+//!     -o, --outputfile <OUTPUT>    Sets the path to write the scanner results to (stdout by default)
+//!         --password <PASSWORD>    Jira password (or API token)
+//!         --regex <REGEX>          Sets a custom regex JSON file
+//!         --username <USERNAME>    Jira username
+//!
+//! ARGS:
+//!     <JIRAID>    The ID (e.g. PROJECT-123) of the Jira issue you want to scan
+
 #[macro_use]
 extern crate clap;
 extern crate hyper;
@@ -24,14 +47,14 @@ use serde_derive::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
 
-
+/// `serde_json` object that represents a single found secret - finding
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, Clone, Default)]
 pub struct JiraFinding {
     #[serde(rename = "stringsFound")]
     pub strings_found: Vec<String>,
     pub issue_id: String,
     pub reason: String,
-    pub web_link: String,
+    pub url: String,
     pub location: String,
 }
 
@@ -60,9 +83,12 @@ fn main() {
     }
 }
 
+/// Main logic contained here. Get the CLI variables, create the appropriate TLS objects,
+/// make the TLS calls, and scan the result..
 fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     SecretScanner::set_logging(arg_matches.occurrences_of("VERBOSE"));
 
+    // initialize the basic variables and CLI options
     let ssb = SecretScannerBuilder::new().conf_argm(arg_matches);
     let secret_scanner = ssb.build();
 
@@ -85,6 +111,7 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     // Still inside `async fn main`...
     let client = Client::with_connector(HttpsConnector::new(hyper_rustls::TlsClient::new()));
 
+    // TODO: Support other modes of JIRA authentication
     let mut auth_headers = Headers::new();
     auth_headers.set(
         Authorization(
@@ -106,6 +133,7 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
         .get("description").unwrap()
         .as_str().unwrap()
         .as_bytes();
+
     // find secrets in issue body
     let mut secrets = get_findings(&secret_scanner, base_url, issue_id,  description, String::from("Issue Description"));
 
@@ -114,6 +142,7 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
         .get("comments").unwrap()
         .as_array().unwrap();
 
+    // find secrets in each comment
     for comment in all_comments {
         let location = format!(
             "comment by {} on {}",
@@ -126,7 +155,7 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
             .as_bytes();
         let comment_findings = get_findings(
             &secret_scanner,
-            base_url.clone(),
+            base_url,
             issue_id,
             comment_body,
             location
@@ -134,7 +163,7 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
         secrets.extend(comment_findings);
     }
 
-
+    // combine and output the results
     let findings: HashSet<JiraFinding> = HashSet::from_iter(secrets.into_iter());
     info!("Found {} secrets", findings.len());
     secret_scanner.output_findings(&findings);
@@ -142,7 +171,8 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     Ok(())
 }
 
-fn get_issue_json(client: Client, auth_headers: Headers, full_url: &String) -> Map<String, Value> {
+/// Uses a hyper::client object to perform a GET on the full_url and return parsed serde JSON data
+fn get_issue_json(client: Client, auth_headers: Headers, full_url: &str) -> Map<String, Value> {
     let mut resp = client.get(full_url).headers(auth_headers).send().unwrap();
     debug!("sending request to {}", full_url);
     debug!("Response: {}", resp.status);
@@ -156,7 +186,9 @@ fn get_issue_json(client: Client, auth_headers: Headers, full_url: &String) -> M
     json_results
 }
 
-
+/// Takes the JIRA finding data (base_url, issue_id, description, location) and a `SecretScanner`
+/// object and produces a list of `JiraFinding` objects. Because `description` is a &[u8] the
+/// function can be reused for any part of the ticket (description, comments, etc.)
 fn get_findings(secret_scanner: &SecretScanner, base_url: &str, issue_id: &str, description: &[u8], location: String) -> Vec<JiraFinding> {
 // Await the response...
 // note that get takes &String, or str
@@ -178,12 +210,12 @@ fn get_findings(secret_scanner: &SecretScanner, base_url: &str, issue_id: &str, 
                         .unwrap_or_else(|_| "<STRING DECODE ERROR>".parse().unwrap()),
                 );
             }
-            if secrets_for_reason.len() > 0 {
+            if !secrets_for_reason.is_empty() {
                 secrets.push(JiraFinding {
                     strings_found: Vec::from_iter(secrets_for_reason.iter().cloned()),
                     issue_id: String::from(issue_id),
                     reason: String::from(reason),
-                    web_link: web_link.clone(),
+                    url: web_link.clone(),
                     location: location.clone(),
                 });
             }
