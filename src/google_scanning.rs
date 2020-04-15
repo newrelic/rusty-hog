@@ -178,7 +178,7 @@ impl GDriveFileInfo {
         };
 
         // initialize some variables from the response
-        let modified_time = file_object.modified_time.unwrap().clone();
+        let modified_time = file_object.modified_time.unwrap();
         let web_link = file_object.web_view_link.unwrap();
         let parents = file_object.parents.unwrap_or_else(Vec::new); //TODO: add code to map from id -> name
         let name = file_object.name.unwrap();

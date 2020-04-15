@@ -13,6 +13,7 @@
 //!    -V, --version            Prints version information
 //!
 //!OPTIONS:
+//!        --recent_days <RECENTDAYS>       Filters commits to the last number of days (branch agnostic)
 //!        --httpspass <HTTPSPASS>          Takes a password for HTTPS-based authentication
 //!        --httpsuser <HTTPSUSER>          Takes a username for HTTPS-based authentication
 //!    -o, --outputfile <OUTPUT>            Sets the path to write the scanner results to (stdout by default)
@@ -48,7 +49,7 @@ use rusty_hogs::{SecretScanner, SecretScannerBuilder};
 /// Main entry function that uses the [clap crate](https://docs.rs/clap/2.33.0/clap/)
 fn main() {
     let matches = clap_app!(choctaw_hog =>
-        (version: "1.0.1")
+        (version: "1.0.3")
         (author: "Scott Cutler <scutler@newrelic.com>")
         (about: "Git secret scanner in Rust")
         (@arg REGEX: -r --regex +takes_value "Sets a custom regex JSON file")
@@ -64,6 +65,7 @@ fn main() {
         (@arg SSHKEYPHRASE: --sshkeyphrase +takes_value "Takes a passphrase to a private SSH key for git authentication, defaults to none")
         (@arg HTTPSUSER: --httpsuser +takes_value "Takes a username for HTTPS-based authentication")
         (@arg HTTPSPASS: --httpspass +takes_value "Takes a password for HTTPS-based authentication")
+        (@arg RECENTDAYS: --recent_days +takes_value conflicts_with[SINCECOMMIT] "Filters commits to the last number of days (branch agnostic)")
     )
     .get_matches();
     match run(&matches) {
@@ -86,6 +88,10 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     let since_commit = arg_matches.value_of("SINCECOMMIT");
     let until_commit = arg_matches.value_of("UNTILCOMMIT");
     let scan_entropy = arg_matches.is_present("ENTROPY");
+    let recent_days: Option<u32> = match value_t!(arg_matches.value_of("RECENTDAYS"), u32) {
+        Ok(d) => { if d == 0 { None } else { Some(d) } },
+        Err(_e) => None
+    };
 
     // Get Git objects
     let dest_dir = TempDir::new("rusty_hogs").unwrap();
@@ -101,7 +107,7 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
         httpsuser,
         httpspass,
     );
-    let findings = git_scanner.perform_scan(None, since_commit, until_commit, scan_entropy);
+    let findings = git_scanner.perform_scan(None, since_commit, until_commit, scan_entropy, recent_days);
 
     // Output the results
     info!("Found {} secrets", findings.len());

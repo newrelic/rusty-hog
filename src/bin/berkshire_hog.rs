@@ -45,7 +45,7 @@ use std::iter::FromIterator;
 /// Main entry function that uses the [clap crate](https://docs.rs/clap/2.33.0/clap/)
 fn main() {
     let matches = clap_app!(berkshire_hog =>
-        (version: "1.0.1")
+        (version: "1.0.3")
         (author: "Scott Cutler <scutler@newrelic.com>")
         (about: "S3 secret hunter in Rust. Avoid bandwidth costs, run this within a VPC!")
         (@arg REGEX: --regex +takes_value "Sets a custom regex JSON file")
@@ -92,7 +92,7 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     // Initialize our S3 variables
     let profile = arg_matches
         .value_of("PROFILE")
-        .and_then(|x| Some(x.to_string()));
+        .map(|x| x.to_string());
     let credentials = Credentials::new(None, None, None, profile);
     debug!(
         "credentials: {:?} {:?} {:?}",
@@ -103,7 +103,7 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
         Ok(r) => r,
         Err(e) => return Err(SimpleError::new(e.to_string())),
     };
-    let bucket: Bucket = match Bucket::new(bucket_string, region, credentials.clone()) {
+    let bucket: Bucket = match Bucket::new(bucket_string, region, credentials) {
         Ok(r) => r,
         Err(e) => return Err(SimpleError::new(e.to_string())),
     };

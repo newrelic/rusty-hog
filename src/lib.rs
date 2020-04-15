@@ -98,7 +98,7 @@ const DEFAULT_REGEX_JSON: &str = r##"
   "AWS API Key": "AKIA[0-9A-Z]{16}",
   "Facebook Access Token": "EAACEdEose0cBA[0-9A-Za-z]+",
   "Facebook OAuth": "(?i)facebook[\\s[[:punct:]]]{1,4}[0-9a-f]{32}[\\s[[:punct:]]]?",
-  "GitHub": "(?i)github[\\s[[:punct:]]]{1,4}[0-9a-zA-Z]{35,40}",
+  "GitHub": "(?i)(github|access[[:punct:]]token)[\\s[[:punct:]]]{1,4}[0-9a-zA-Z]{35,40}",
   "Generic API Key": "(?i)(api|access)[\\s[[:punct:]]]?key[\\s[[:punct:]]]{1,4}[0-9a-zA-Z\\-_]{16,64}[\\s[[:punct:]]]?",
   "Generic Account API Key": "(?i)account[\\s[[:punct:]]]?api[\\s[[:punct:]]]{1,4}[0-9a-zA-Z\\-_]{16,64}[\\s[[:punct:]]]?",
   "Generic Secret": "(?i)secret[\\s[[:punct:]]]{1,4}[0-9a-zA-Z-_]{16,64}[\\s[[:punct:]]]?",
@@ -127,14 +127,14 @@ const DEFAULT_REGEX_JSON: &str = r##"
   "Twilio API Key": "SK[0-9a-fA-F]{32}",
   "Twitter Access Token": "(?i)twitter[\\s[[:punct:]]]{1,4}[1-9][0-9]+-[0-9a-zA-Z]{40}",
   "Twitter OAuth": "(?i)twitter[\\s[[:punct:]]]{1,4}['|\"]?[0-9a-zA-Z]{35,44}['|\"]?",
-  "New Relic Partner & REST API Key": "[^\\w./\\-\\+][A-Fa-f0-9]{47}[^\\w./\\-\\+]",
-  "New Relic Mobile Application Token": "[^\\w./\\-\\+][A-Fa-f0-9]{42}[^\\w./\\-\\+]",
+  "New Relic Partner & REST API Key": "[\\s[[:punct:]]][A-Fa-f0-9]{47}[\\s[[:punct:]][[:cntrl:]]]",
+  "New Relic Mobile Application Token": "[\\s[[:punct:]]][A-Fa-f0-9]{42}[\\s[[:punct:]][[:cntrl:]]]",
   "New Relic Synthetics Private Location": "(?i)minion_private_location_key",
   "New Relic Insights Key (specific)": "(?i)insights[\\s[[:punct:]]]?(key|query|insert)[\\s[[:punct:]]]{1,4}\\b[\\w-]{32,40}\\b",
   "New Relic Insights Key (vague)": "(?i)(query|insert)[\\s[[:punct:]]]?key[\\s[[:punct:]]]{1,4}b[\\w-]{32,40}\\b",
   "New Relic License Key": "(?i)license[\\s[[:punct:]]]?key[\\s[[:punct:]]]{1,4}\\b[\\w-]{32,40}\\b",
   "New Relic Internal API Key": "(?i)nr-internal-api-key",
-  "New Relic HTTP Auth Headers and API Key": "(?i)(x|newrelic|nr)-(partner|account|query|insert|api|license)-(id|key)[\\s[[:punct:]]]{1,4}\\b[\\w-]{32,47}\\b",
+  "New Relic HTTP Auth Headers and API Key": "(?i)(x|newrelic|nr)-?(admin|partner|account|query|insert|api|license)-?(id|key)[\\s[[:punct:]]]{1,4}\\b[\\w-]{32,47}\\b",
   "New Relic API Key Service Key (new format)": "(?i)NRAK-[A-Z0-9]{27}",
   "New Relic APM License Key (new format)": "(?i)[a-f0-9]{36}NRAL",
   "New Relic APM License Key (new format, region-aware)": "(?i)[a-z]{2}[0-9]{2}xx[a-f0-9]{30}NRAL",
@@ -290,7 +290,7 @@ impl SecretScannerBuilder {
     /// This function looks for a "CASE" flag and "REGEX" value.
     pub fn conf_argm(mut self, arg_matches: &ArgMatches) -> Self {
         self.case_insensitive = arg_matches.is_present("CASE");
-        self.output_path = match arg_matches.value_of("REGEX") {
+        self.regex_json_path = match arg_matches.value_of("REGEX") {
             Some(s) => Some(String::from(s)),
             None => None,
         };
@@ -434,7 +434,7 @@ impl SecretScanner {
             0 => init_with_level(log::Level::Warn).unwrap(),
             1 => init_with_level(log::Level::Info).unwrap(),
             2 => init_with_level(log::Level::Debug).unwrap(),
-            3 | _ => init_with_level(log::Level::Trace).unwrap(),
+            _ => init_with_level(log::Level::Trace).unwrap(),
         }
     }
 
@@ -578,10 +578,11 @@ impl Hash for SecretScanner {
             k.hash(state);
             v.as_str().hash(state);
         };
-        match self.pretty_print {
-            false => "prettyprintno".hash(state),
-            true => "prettyprintyes".hash(state)
-        };
+        if self.pretty_print {
+            "prettyprintyes".hash(state)
+        } else {
+            "prettyprintno".hash(state)
+        }
         match self.output_path.as_ref() {
             None => "outputpathno".hash(state),
             Some(s) => s.hash(state)

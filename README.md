@@ -39,8 +39,8 @@ Download and unzip the [latest ZIP](https://github.com/newrelic/rusty-hog/releas
 on the releases tab. Then, run each binary with `-h` to see the usage.
 
 ```shell script
-wget https://github.com/newrelic/rusty-hog/releases/download/v1.0.1/rustyhogs-musl_darwin_1.0.1.zip
-unzip rustyhogs-musl_darwin_1.0.1.zip
+wget https://github.com/newrelic/rusty-hog/releases/download/v1.0.3/rustyhogs-musl_darwin_1.0.3.zip
+unzip rustyhogs-musl_darwin_1.0.3.zip
 darwin_releases/choctaw_hog -h
 ```
 
@@ -148,6 +148,30 @@ OPTIONS:
 
 ARGS:
     <GITPATH>    Sets the path (or URL) of the Git repo to scan. SSH links must include username (git@)
+```
+
+## Duroc Hog (file system scanner) usage
+```
+File system secret scanner in Rust
+
+USAGE:
+    duroc_hog [FLAGS] [OPTIONS] <FSPATH>
+
+FLAGS:
+        --caseinsensitive    Sets the case insensitive flag for all regexes
+        --prettyprint        Outputs the JSON in human readable format
+        --recursive          Scans all subdirectories underneath the supplied path
+    -z, --unzip              Recursively scans archives (ZIP and TAR) in memory (dangerous)
+    -v, --verbose            Sets the level of debugging information
+    -h, --help               Prints help information
+    -V, --version            Prints version information
+
+OPTIONS:
+    -o, --outputfile <OUTPUT>    Sets the path to write the scanner results to (stdout by default)
+    -r, --regex <REGEX>          Sets a custom regex JSON file
+
+ARGS:
+    <FSPATH>    Sets the path of the directory or file to scan.
 ```
 # Project information
 ## Open source license

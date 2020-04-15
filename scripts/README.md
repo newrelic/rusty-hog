@@ -15,9 +15,9 @@ EC2 instance on a nightly basis. You can install it using the following commands
 ```shell script
 cd ~
 mkdir rusty-hog
-wget https://github.com/newrelic/rusty-hog/releases/download/v0.4.5/rustyhogs-0.4.5.zip
-unzip rustyhogs-0.4.5.zip -d rusty-hog
-cd rusty-hog
+wget https://github.com/newrelic/rusty-hog/releases/download/v1.0.3/rustyhogs-musl_darwin_1.0.3.zip
+unzip rustyhogs-musl_darwin_1.0.3.zip -d rusty_hog_1.0.3
+cd rusty_hog_1.0.3
 sudo cp ghe_secret_monitor.service /etc/systemd/system
 sudo vi ghe_secret_monitor.timer # modify each <redacted for git> field
 sudo cp ghe_secret_monitor.timer /etc/systemd/system
@@ -49,3 +49,55 @@ It requires a single third party library: https://github.com/PyGithub/PyGithub
 
 This is a simple script meant to filter the results from gh_org_scanner.py using a 
 blacklist of words. It outputs the results as output_filtered.csv
+
+## pypi_secret_monitor.py
+
+This is a simple script meant to retrieve the latest pypi package (provided through environment variables) and perform a
+Rusty Hog scan on the contents of the download. It will then post the results to Insights.  You can use 
+the same installation method as above, substituting pypi_secret_monitor for secret_scanner
+in each step.
+
+You will need to supply 4 environment variables to it:
+PYPIPACKAGE_NAME - the name of the pypi package used in the pypi URL, e.g. newrelic for https://pypi.org/project/newrelic/
+INSIGHTS_INSERT_KEY - the New Relic Insights Insert API key for results
+INSIGHTS_ACCT_ID - the New Relic Insights account number for results
+DUROC_HOG_PATH - the path to the duroc hog binary (relative or absolute)
+
+## rubygem_secret_monitor.py
+
+Based on pypi_secret_monitor, this is a simple script meant to retrieve the latest rubygem package (provided through 
+environment variables) and perform a Rusty Hog scan on the contents of the download. It will then post the results to 
+Insights. You can use the same installation method as above, substituting rubygem_secret_monitor for secret_scanner
+in each step.
+
+You will need to supply 4 environment variables to it:
+RUBYGEM_NAME - the name of the gem package used in the Rubygem URL, e.g. newrelic_rpm for https://rubygems.org/gems/newrelic_rpm
+INSIGHTS_INSERT_KEY - the New Relic Insights Insert API key for results
+INSIGHTS_ACCT_ID - the New Relic Insights account number for results
+DUROC_HOG_PATH - the path to the duroc hog binary (relative or absolute)
+
+## htmldirlisting_secret_monitor.py
+
+This is a python script meant to perform a Rusty Hog scan for all binaries on a web server that uses the generic
+Apache directory listing. It uses the [htmllisting-parser](https://github.com/gumblex/htmllisting-parser) library 
+to parse a JSON config file (see the example htmldirlisting_secret_monitor.json file) to determine which URLs are scanned.
+It outputs the results in New Relic Insights.
+
+You will need to supply 4 environment variables to it:
+DOWNLOAD_CONFIG_PATH - the path to the JSON config file, e.g. scripts/htmldirlisting_secret_monitor.json
+INSIGHTS_INSERT_KEY - the New Relic Insights Insert API key for results
+INSIGHTS_ACCT_ID - the New Relic Insights account number for results
+DUROC_HOG_PATH - the path to the duroc hog binary (relative or absolute)
+
+## s3weblisting_secret_monitor.py
+
+This is a python script meant to perform a Rusty Hog scan for all binaries on a web server that uses the generic
+web directory listing for an AWS S3 bucket. It parses the XML output from the AWS S3 server and a JSON config file 
+(see the example s3weblisting_secret_monitor.json file) to determine which URLs are scanned.
+It outputs the results in New Relic Insights.
+
+You will need to supply 4 environment variables to it:
+DOWNLOAD_CONFIG_PATH - the path to the JSON config file, e.g. scripts/s3weblisting_secret_monitor.json
+INSIGHTS_INSERT_KEY - the New Relic Insights Insert API key for results
+INSIGHTS_ACCT_ID - the New Relic Insights account number for results
+DUROC_HOG_PATH - the path to the duroc hog binary (relative or absolute)
