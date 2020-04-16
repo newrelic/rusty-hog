@@ -40,7 +40,7 @@ use rusty_hogs::SecretScanner;
 use url::Url;
 use hyper::Client;
 use hyper::net::HttpsConnector;
-use hyper::header::{Authorization, Basic, Headers};
+use hyper::header::{Authorization, Basic, Headers, Bearer};
 use hyper::status::StatusCode;
 use rusty_hogs::SecretScannerBuilder;
 use serde_derive::{Deserialize, Serialize};
@@ -72,9 +72,10 @@ fn main() {
         (@arg CASE: --caseinsensitive "Sets the case insensitive flag for all regexes")
         (@arg OUTPUT: -o --outputfile +takes_value "Sets the path to write the scanner results to (stdout by default)")
         (@arg PRETTYPRINT: --prettyprint "Outputs the JSON in human readable format")
-        (@arg USERNAME: --username +takes_value +required  "Jira username")
-        (@arg PASSWORD: --password +takes_value +required  "Jira password (or API token)")
-        (@arg JIRAURL: --url +takes_value)
+        (@arg USERNAME: --username +takes_value conflicts_with[AUTHTOKEN] "Jira username (crafts basic auth header)")
+        (@arg PASSWORD: --password +takes_value conflicts_with[AUTHTOKEN] "Jira password (crafts basic auth header)")
+        (@arg BEARERTOKEN: --authtoken +takes_value conflicts_with[USERNAME PASSWORD] "Jira basic auth bearer token (instead of user & pass)")
+        (@arg JIRAURL: --url +takes_value  "Base URL of JIRA instance (e.g. https://jira.atlassian.net/)")
     )
         .get_matches();
     match run(&matches) {
@@ -93,14 +94,14 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     let secret_scanner = ssb.build();
 
     let jirausername = arg_matches
-        .value_of("USERNAME")
-        .unwrap();
+        .value_of("USERNAME");
     let jirapassword = arg_matches
-        .value_of("PASSWORD")
-        .unwrap();
+        .value_of("PASSWORD");
+    let jiraauthtoken = arg_matches
+        .value_of("BEARERTOKEN");
     let base_url_input = arg_matches
         .value_of("JIRAURL")
-        .unwrap_or_else(||"https://jira.atlassian.com");
+        .unwrap_or_else(||"https://jira.atlassian.com/");
     let base_url_as_url = Url::parse(base_url_input).unwrap();
     let issue_id = arg_matches
         .value_of("JIRAID")  // TODO validate the format somehow
@@ -113,14 +114,30 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
 
     // TODO: Support other modes of JIRA authentication
     let mut auth_headers = Headers::new();
-    auth_headers.set(
-        Authorization(
-            Basic {
-                username: jirausername.to_owned(),
-                password: Some(jirapassword.to_owned())
-            }
-        )
-    );
+    match jirausername {
+        // craft auth header using username and password if present
+        Some(u) => {
+            let jirapassword = jirapassword.unwrap().to_owned();
+            auth_headers.set(
+                Authorization(
+                    Basic {
+                        username: u.to_owned(),
+                        password: Some(jirapassword)
+                    }
+                )
+            );
+        },
+        // otherwise use AUTHTOKEN to craft the auth header
+        None => {
+            auth_headers.set(
+                Authorization(
+                    Bearer {
+                        token: jiraauthtoken.unwrap().to_owned()
+                    })
+            );
+        }
+    }
+
 
     // Build the URL
     // todo make this work regardless of whether the url argument they pass has a trailing slash
