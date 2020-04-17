@@ -4,7 +4,7 @@ This is a collection of scripts that act as wrappers around the Rusty Hog binari
 They provide additional functionality that the New Relic security team uses to monitor
 and perform wider scans.
 
-## GHE Secret Monitor
+## ghe_secret_monitor.py
 
 This is a Python script, re-written based on Douglas Day's work, that performs a scan
 of the last 24 hours of commits for an entire GitHub Enterprise instance. It outputs
@@ -28,13 +28,12 @@ sudo systemctl enable ghe_secret_monitor
 You can then perform a one-time execution of secret_scanner with the command 
 `sudo service ghe_secret_monitor start` and examine the results in /var/log/messages
 
-## JIRA Secret Scanner
+## jira_secret_monitor.py
 
-This is a Python script, also re-written based on Douglas Day's work, that performs a
-scan of any Google Docs that were linked in JIRA over the last 24 hours. Essentially 
-it runs a JQL query for all tickets modified in the last 24 hours, collects all GDrive 
-links from the text and comments of each JIRA ticket, and runs ankamali_hog against each
-document. It then collects the results and outputs them to New Relic Insights. You can use 
+This is a Python script, also re-written based on Douglas Day's work, that performs 2 scans: 
+1) It scans all JIRA tickets modified in the last 24 hours for secrets using gottingen_hog.
+2) Within those JIRA tickets it looks for GDrive links and scans those docs for secrets using anakmali_hog.
+It then collects the results and outputs them to New Relic Insights. You can use 
 the same installation method as above, substituting jira_secret_scanner for secret_scanner
 in each step.
 
@@ -89,6 +88,8 @@ INSIGHTS_INSERT_KEY - the New Relic Insights Insert API key for results
 INSIGHTS_ACCT_ID - the New Relic Insights account number for results
 DUROC_HOG_PATH - the path to the duroc hog binary (relative or absolute)
 
+You will also need to install the third party python library htmllistparse
+
 ## s3weblisting_secret_monitor.py
 
 This is a python script meant to perform a Rusty Hog scan for all binaries on a web server that uses the generic
@@ -101,3 +102,5 @@ DOWNLOAD_CONFIG_PATH - the path to the JSON config file, e.g. scripts/s3weblisti
 INSIGHTS_INSERT_KEY - the New Relic Insights Insert API key for results
 INSIGHTS_ACCT_ID - the New Relic Insights account number for results
 DUROC_HOG_PATH - the path to the duroc hog binary (relative or absolute)
+
+You will also need to install the third party python library htmllistparse

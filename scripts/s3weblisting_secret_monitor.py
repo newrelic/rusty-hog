@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
-# This is a simple script meant to retrieve the latest pypi package (provided through environment variables) and perform a
-# Rusty Hog scan on the contents of the download. It will then post the results to Insights.
+# This is a simple script meant to retrieve all files from a web server with an HTML-fronted S3 bucket and scan
+# the files for secrets using duroc_hog. It will then post the results to Insights.
 
 import os
 import gzip

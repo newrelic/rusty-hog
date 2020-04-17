@@ -1,3 +1,25 @@
+# This is a Python script, re-written based on Douglas Day's work, that performs a scan
+# of the last 24 hours of commits for an entire GitHub Enterprise instance. It outputs
+# the results to the New Relic Insights product which allows you to create alerts and
+# visualizations based on the scanning results. It was designed to be run on an Amazon Linux
+# EC2 instance on a nightly basis. You can install it using the following commands:
+#
+# ```shell script
+# cd ~
+# mkdir rusty-hog
+# wget https://github.com/newrelic/rusty-hog/releases/download/v1.0.4/rustyhogs-musl_darwin_1.0.4.zip
+# unzip rustyhogs-musl_darwin_1.0.4.zip -d rusty_hog_1.0.4
+# cd rusty_hog_1.0.4
+# sudo cp ghe_secret_monitor.service /etc/systemd/system
+# sudo vi ghe_secret_monitor.timer # modify each <redacted for git> field
+# sudo cp ghe_secret_monitor.timer /etc/systemd/system
+# sudo systemctl daemon-reload
+# sudo systemctl enable ghe_secret_monitor
+# ```
+#
+# You can then perform a one-time execution of secret_scanner with the command
+# `sudo service ghe_secret_monitor start` and examine the results in /var/log/messages
+
 from datetime import datetime, timedelta
 from github import Github, GithubException
 from multiprocessing import Pool
