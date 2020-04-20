@@ -25,7 +25,7 @@ sudo systemctl daemon-reload
 sudo systemctl enable ghe_secret_monitor
 ```
 
-You can then perform a one-time execution of secret_scanner with the command 
+You can then perform a one-time execution of secret_monitor with the command 
 `sudo service ghe_secret_monitor start` and examine the results in /var/log/messages
 
 ## jira_secret_monitor.py
@@ -34,7 +34,7 @@ This is a Python script, also re-written based on Douglas Day's work, that perfo
 1) It scans all JIRA tickets modified in the last 24 hours for secrets using gottingen_hog.
 2) Within those JIRA tickets it looks for GDrive links and scans those docs for secrets using anakmali_hog.
 It then collects the results and outputs them to New Relic Insights. You can use 
-the same installation method as above, substituting jira_secret_scanner for secret_scanner
+the same installation method as above, substituting jira_secret_monitor for secret_monitor
 in each step.
 
 ## gh_org_scanner.py
@@ -53,7 +53,7 @@ blacklist of words. It outputs the results as output_filtered.csv
 
 This is a simple script meant to retrieve the latest pypi package (provided through environment variables) and perform a
 Rusty Hog scan on the contents of the download. It will then post the results to Insights.  You can use 
-the same installation method as above, substituting pypi_secret_monitor for secret_scanner
+the same installation method as above, substituting pypi_secret_monitor for secret_monitor
 in each step.
 
 You will need to supply 4 environment variables to it:
@@ -66,7 +66,7 @@ DUROC_HOG_PATH - the path to the duroc hog binary (relative or absolute)
 
 Based on pypi_secret_monitor, this is a simple script meant to retrieve the latest rubygem package (provided through 
 environment variables) and perform a Rusty Hog scan on the contents of the download. It will then post the results to 
-Insights. You can use the same installation method as above, substituting rubygem_secret_monitor for secret_scanner
+Insights. You can use the same installation method as above, substituting rubygem_secret_monitor for secret_monitor
 in each step.
 
 You will need to supply 4 environment variables to it:

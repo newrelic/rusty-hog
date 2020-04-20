@@ -73,7 +73,7 @@ for issue in issues:
     # hit the JIRA API to retrieve the comments for each issue
     url = f"{JIRA_URL}rest/api/2/issue/{issue['key']}/comment"
     r = requests.get(url, auth=(JIRA_USERNAME, JIRA_PASSWORD))
-    comments = r.json()['comments']
+    comments = r.json().get('comments', [])
     for comment in comments:
         # find any google doc links in the comment and add them to our list (links)
         matches = gdoc_re.findall(comment['body'])

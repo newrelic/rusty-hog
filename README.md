@@ -239,8 +239,8 @@ Keep in mind that when you submit your pull request, you'll need to sign the CLA
     - [ ] Multi-threading
     - [ ] Better context detection and false positive filtering (GitHound, machine learning)
     - [ ] Use Rusoto instead of s3-rust
-    - [ ] Add JIRA scanner
-    - [ ] Add file-system & archive scanner
+    - [x] Add JIRA scanner
+    - [x] Add file-system & archive scanner
     - [ ] Use Rust features to reduce compilation dependencies?
 
 - 1.2: Integration with larger scripts and UIs

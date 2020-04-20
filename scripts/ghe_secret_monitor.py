@@ -17,7 +17,7 @@
 # sudo systemctl enable ghe_secret_monitor
 # ```
 #
-# You can then perform a one-time execution of secret_scanner with the command
+# You can then perform a one-time execution of secret_monitor with the command
 # `sudo service ghe_secret_monitor start` and examine the results in /var/log/messages
 
 from datetime import datetime, timedelta

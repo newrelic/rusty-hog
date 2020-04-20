@@ -145,11 +145,22 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
 
     let json_results = get_issue_json(client, auth_headers, &full_url);
 
-    let description = json_results
-        .get("fields").unwrap()
-        .get("description").unwrap()
-        .as_str().unwrap()
-        .as_bytes();
+    let fields = json_results.get("fields").unwrap();
+
+    let description = match fields.get("description") {
+        Some(d) => match d.as_str() {
+            Some(e) => e.as_bytes(),
+            None => {
+                info!("The JIRA ticket description was set to null!");
+                "".as_bytes()
+            }
+        }
+        None => {
+            info!("The JIRA ticket description was not present!");
+            "".as_bytes()
+        }
+    };
+
 
     // find secrets in issue body
     let mut secrets = get_findings(&secret_scanner, base_url, issue_id,  description, String::from("Issue Description"));
