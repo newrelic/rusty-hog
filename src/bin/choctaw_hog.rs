@@ -1,5 +1,6 @@
 //! Git secret scanner in Rust (the original TruffleHog replacement)
 //!
+//!
 //! # Usage
 //! ```
 //!     choctaw_hog [FLAGS] [OPTIONS] <GITPATH>
@@ -7,6 +8,7 @@
 //!FLAGS:
 //!        --caseinsensitive    Sets the case insensitive flag for all regexes
 //!        --entropy            Enables entropy scanning
+//!        --match_entropy      Enable entropy for each pattern match
 //!        --prettyprint        Outputs the JSON in human readable format
 //!    -v, --verbose            Sets the level of debugging information
 //!    -h, --help               Prints help information
@@ -14,6 +16,7 @@
 //!
 //!OPTIONS:
 //!        --recent_days <RECENTDAYS>       Filters commits to the last number of days (branch agnostic)
+//!        --match_entropy_threshold <MATCH_ENTROPY_THRESHOLD>    Threshold for match entropy (4.5 by default)
 //!        --httpspass <HTTPSPASS>          Takes a password for HTTPS-based authentication
 //!        --httpsuser <HTTPSUSER>          Takes a username for HTTPS-based authentication
 //!    -o, --outputfile <OUTPUT>            Sets the path to write the scanner results to (stdout by default)
@@ -43,8 +46,12 @@ use simple_error::SimpleError;
 use std::str;
 use tempdir::TempDir;
 
-use rusty_hogs::git_scanning::GitScanner;
+use rusty_hogs::git_scanning::{GitScanner, MatchEntropy};
 use rusty_hogs::{SecretScanner, SecretScannerBuilder};
+
+const MATCH_ENTROPY_MIN_WORD_LEN: usize = 5;
+const MATCH_ENTROPY_MAX_WORD_LEN: usize = 40;
+const MATCH_ENTROPY_DEFAULT_THRESHOLD: f32 = 4.5;
 
 /// Main entry function that uses the [clap crate](https://docs.rs/clap/2.33.0/clap/)
 fn main() {
@@ -56,6 +63,8 @@ fn main() {
         (@arg GITPATH: +required "Sets the path (or URL) of the Git repo to scan. SSH links must include username (git@)")
         (@arg VERBOSE: -v --verbose ... "Sets the level of debugging information")
         (@arg ENTROPY: --entropy ... "Enables entropy scanning")
+        (@arg MATCH_ENTROPY: --match_entropy ... "Enable entropy for each pattern match")
+        (@arg MATCH_ENTROPY_THRESHOLD: --match_entropy_threshold +takes_value "Threshold for match entropy (4.5 by default)")
         (@arg CASE: --caseinsensitive "Sets the case insensitive flag for all regexes")
         (@arg OUTPUT: -o --outputfile +takes_value "Sets the path to write the scanner results to (stdout by default)")
         (@arg PRETTYPRINT: --prettyprint "Outputs the JSON in human readable format")
@@ -93,6 +102,25 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
         Ok(d) => { if d == 0 { None } else { Some(d) } },
         Err(_e) => None
     };
+    let match_entropy_enabled = arg_matches.is_present("MATCH_ENTROPY");
+    let match_entropy: Option<MatchEntropy> =  match value_t!(arg_matches.value_of("MATCH_ENTROPY_THRESHOLD"), f32) {
+        Ok(t) => if match_entropy_enabled {
+            Some(MatchEntropy{
+                threshold: t,
+                min_word_len: MATCH_ENTROPY_MIN_WORD_LEN,
+                max_word_len: MATCH_ENTROPY_MAX_WORD_LEN,
+            })} else {
+                None
+            }
+        Err(_e) => if match_entropy_enabled {
+            Some(MatchEntropy{
+                threshold: MATCH_ENTROPY_DEFAULT_THRESHOLD,
+                min_word_len: MATCH_ENTROPY_MIN_WORD_LEN,
+                max_word_len: MATCH_ENTROPY_MAX_WORD_LEN,
+            })} else {
+                None
+            }
+    };
 
     // Get Git objects
     let dest_dir = TempDir::new("rusty_hogs").unwrap();
@@ -108,7 +136,7 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
         httpsuser,
         httpspass,
     );
-    let findings = git_scanner.perform_scan(None, since_commit, until_commit, scan_entropy, recent_days);
+    let findings = git_scanner.perform_scan(None, since_commit, until_commit, scan_entropy, recent_days, match_entropy);
 
     // Output the results
     info!("Found {} secrets", findings.len());

@@ -78,6 +78,14 @@ pub struct GitFinding {
     pub parent_commit_hash: String
 }
 
+/// Keeps some details related to match entropy
+#[derive(Serialize,Deserialize, Debug, PartialEq, Clone, Default)]
+pub struct MatchEntropy {
+    pub threshold: f32,
+    pub min_word_len: usize,
+    pub max_word_len: usize,
+}
+
 /// enum used by init_git_repo to communicate the type of git repo specified by the supplied URL
 pub enum GitScheme {
     Localpath,
@@ -115,6 +123,7 @@ impl GitScanner {
         until_commit: Option<&str>,
         scan_entropy: bool,
         recent_days: Option<u32>,
+        match_entropy: Option<MatchEntropy>,
     ) -> HashSet<GitFinding> {
         let repo_option = self.repo.as_ref(); //borrowing magic here!
         let repo = repo_option.unwrap();
@@ -215,29 +224,38 @@ impl GitScanner {
                         );
                     }
                     if !secrets.is_empty() && !self.secret_scanner.is_whitelisted(reason, &secrets){
-                        findings.insert(GitFinding {
-                            commit_hash: commit.id().to_string(),
-                            commit: commit.message().unwrap().to_string(),
-                            diff: ASCII
-                                .decode(&new_line, DecoderTrap::Ignore)
-                                .unwrap_or_else(|_| "<STRING DECODE ERROR>".parse().unwrap()),
-                            date: NaiveDateTime::from_timestamp(commit.time().seconds(), 0)
-                                .to_string(),
-                            strings_found: secrets.clone(),
-                            path: delta
-                                .new_file()
-                                .path()
-                                .unwrap()
-                                .to_str()
-                                .unwrap()
-                                .to_string(),
-                            reason: reason.clone(),
-                            old_file_id: old_file_id.to_string(),
-                            new_file_id: new_file_id.to_string(),
-                            old_line_num,
-                            new_line_num,
-                            parent_commit_hash: parent_commit_hash.clone()
-                        });
+                        let create_finding = match &match_entropy {
+                            Some(me) => {
+                                let (_, entropy) = SecretScanner::find_word_with_max_entropy(new_line, me.min_word_len, me.max_word_len);
+                                entropy > me.threshold  
+                            }
+                            None => true
+                        };
+                        if create_finding {
+                            findings.insert(GitFinding {
+                                commit_hash: commit.id().to_string(),
+                                commit: commit.message().unwrap().to_string(),
+                                diff: ASCII
+                                    .decode(&new_line, DecoderTrap::Ignore)
+                                    .unwrap_or_else(|_| "<STRING DECODE ERROR>".parse().unwrap()),
+                                date: NaiveDateTime::from_timestamp(commit.time().seconds(), 0)
+                                    .to_string(),
+                                strings_found: secrets.clone(),
+                                path: delta
+                                    .new_file()
+                                    .path()
+                                    .unwrap()
+                                    .to_str()
+                                    .unwrap()
+                                    .to_string(),
+                                reason: reason.clone(),
+                                old_file_id: old_file_id.to_string(),
+                                new_file_id: new_file_id.to_string(),
+                                old_line_num,
+                                new_line_num,
+                                parent_commit_hash: parent_commit_hash.clone()
+                            });
+                        }
                     }
                 }
 
@@ -265,7 +283,7 @@ impl GitScanner {
                             new_file_id: new_file_id.to_string(),
                             old_line_num,
                             new_line_num,
-                            parent_commit_hash: parent_commit_hash.clone()
+                            parent_commit_hash: parent_commit_hash.clone(),
                         });
                     }
                 }

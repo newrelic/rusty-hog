@@ -539,6 +539,23 @@ impl SecretScanner {
         entropy
     }
 
+    /// Compute the Shannon entropy for a byte array
+    fn calc_shannon_entropy(bytes: &[u8]) -> f32 {
+        let mut entropy = 0.0;
+        let mut counts: HashMap<u8, i32> = HashMap::new();
+
+        for &b in bytes {
+            counts.insert(b, counts.get(&b).unwrap_or(&0) + 1);
+        }
+
+        for &count in counts.values() {
+            let p: f32 = (count as f32) / (bytes.len() as f32);
+            entropy -= p * p.log(2.0);
+        }
+
+        entropy
+    }
+
     /// Scan a byte array for arbitrary hex sequences and base64 sequences. Will return a list of
     /// matches for those sequences with a high amount of entropy, potentially indicating a
     /// private key.
@@ -577,6 +594,35 @@ impl SecretScanner {
         output.append(&mut b64_words);
         output.append(&mut hex_words);
         output
+    }
+
+    /// Truncate a slice to the max_len, or returns the original slice when is shorter than that
+    fn truncate_slice(word :&[u8], max_len: usize) -> &[u8] {
+        if word.len() > max_len {
+            return &word[ .. max_len]
+        }
+        word
+    }
+
+    /// Find the word with the maximum entropy in a byte array. It will filter out all words with the length
+    /// smaller than min_word_len. In addition, it will truncate the lengthy words to max_word_len. Will return 
+    /// the word with the maximum entropy.
+    pub fn find_word_with_max_entropy(line :&[u8], min_word_len: usize, max_word_len: usize) -> (&str, f32) {
+        let words: Vec<&[u8]> = line.split(|x| (*x as char) == ' ').collect();
+        let words_entropy: Vec<(&[u8], f32)> = words
+            .iter()
+            .filter(|word| (word.len() >= min_word_len))
+            .map(|word| (*word, Self::calc_shannon_entropy(Self::truncate_slice(&word, max_word_len))))
+            .collect();
+        let mut max_entropy: f32 = 0.0;
+        let mut max_word: &[u8] = &[];
+        for &(word, entropy) in &words_entropy {
+            if entropy > max_entropy {
+                max_entropy = entropy;
+                max_word = word;
+            }
+        }
+        (str::from_utf8(max_word).unwrap(), max_entropy)
     }
 
     /// Helper function that takes a HashSet of serializable structs and outputs them as JSON
