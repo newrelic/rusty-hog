@@ -33,7 +33,7 @@ extern crate chrono;
 extern crate encoding;
 
 use clap::ArgMatches;
-use log::{self, debug, info};
+use log::{self, debug, info, error};
 use serde::{Deserialize, Serialize};
 use simple_error::SimpleError;
 use std::fs::File;
@@ -82,7 +82,7 @@ fn main() {
         .get_matches();
     match run(&matches) {
         Ok(()) => {}
-        Err(e) => panic!("error: {}", e),
+        Err(e) => error!( "Error running command: {}", e)
     }
 }
 
@@ -117,9 +117,10 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     }
 
     info!("Found {} secrets", output.len());
-    secret_scanner.output_findings(&output);
-
-    Ok(())
+    match secret_scanner.output_findings(&output) {
+        Ok(_) => Ok(()),
+        Err(err) => Err(SimpleError::with("failed to output findings", SimpleError::new(err.to_string())))
+    }
 }
 
 fn scan_dir(

@@ -28,7 +28,7 @@ extern crate hyper_rustls;
 
 use std::io::Read;
 use std::collections::{HashSet, BTreeMap};
-use log::{self, debug, info};
+use log::{self, debug, info, error};
 use std::iter::FromIterator;
 use clap::ArgMatches;
 use regex::bytes::Matches;
@@ -80,7 +80,7 @@ fn main() {
         .get_matches();
     match run(&matches) {
         Ok(()) => {}
-        Err(e) => panic!("error: {}", e),
+        Err(e) => error!( "Error running command: {}", e)
     }
 }
 
@@ -194,9 +194,10 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     // combine and output the results
     let findings: HashSet<JiraFinding> = HashSet::from_iter(secrets.into_iter());
     info!("Found {} secrets", findings.len());
-    secret_scanner.output_findings(&findings);
-
-    Ok(())
+    match secret_scanner.output_findings(&findings) {
+        Ok(_) => Ok(()),
+        Err(err) => Err(SimpleError::with("failed to output findings", SimpleError::new(err.to_string())))
+    }
 }
 
 /// Uses a hyper::client object to perform a GET on the full_url and return parsed serde JSON data

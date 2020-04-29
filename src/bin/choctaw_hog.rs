@@ -38,7 +38,7 @@ extern crate chrono;
 extern crate encoding;
 
 use clap::ArgMatches;
-use log::{self, info};
+use log::{self, info, error};
 use simple_error::SimpleError;
 use std::str;
 use tempdir::TempDir;
@@ -70,7 +70,7 @@ fn main() {
     .get_matches();
     match run(&matches) {
         Ok(()) => {}
-        Err(e) => panic!("error: {}", e),
+        Err(e) => error!( "Error running command: {}", e)
     }
 }
 
@@ -111,7 +111,8 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
 
     // Output the results
     info!("Found {} secrets", findings.len());
-    git_scanner.secret_scanner.output_findings(&findings);
-
-    Ok(())
+    match git_scanner.secret_scanner.output_findings(&findings) {
+        Ok(_) => Ok(()),
+        Err(err) => Err(SimpleError::with("failed to output findings", SimpleError::new(err.to_string())))
+    }
 }
