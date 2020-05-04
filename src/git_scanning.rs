@@ -38,8 +38,8 @@
 //! let gs = GitScanner::new();
 //!
 //! let mut gs = gs.init_git_repo(".", Path::new("."), None, None, None, None);
-//! let findings: HashSet<GitFinding> = gs.perform_scan(None, None, Some("8013160e"), false, None);
-//! assert_eq!(findings.len(), 45);
+//! let findings: HashSet<GitFinding> = gs.perform_scan(None, Some("7e8c52a"), Some("8013160e"), false, None, None);
+//! assert_eq!(findings.len(), 31);
 //! ```
 
 use crate::SecretScanner;
