@@ -66,6 +66,7 @@ fn main() {
         (@arg HTTPSUSER: --httpsuser +takes_value "Takes a username for HTTPS-based authentication")
         (@arg HTTPSPASS: --httpspass +takes_value "Takes a password for HTTPS-based authentication")
         (@arg RECENTDAYS: --recent_days +takes_value conflicts_with[SINCECOMMIT] "Filters commits to the last number of days (branch agnostic)")
+        (@arg WHITELIST: -w --whitelist +takes_value "Sets a custom whitelist JSON file")
     )
     .get_matches();
     match run(&matches) {
