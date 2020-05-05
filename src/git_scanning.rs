@@ -214,7 +214,7 @@ impl GitScanner {
                                 .unwrap_or_else(|_| "<STRING DECODE ERROR>".parse().unwrap()),
                         );
                     }
-                    if !secrets.is_empty() {
+                    if !secrets.is_empty() && !self.secret_scanner.is_whitelisted(reason, &secrets){
                         findings.insert(GitFinding {
                             commit_hash: commit.id().to_string(),
                             commit: commit.message().unwrap().to_string(),
