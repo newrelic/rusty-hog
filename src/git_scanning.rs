@@ -38,7 +38,7 @@
 //! let gs = GitScanner::new();
 //!
 //! let mut gs = gs.init_git_repo(".", Path::new("."), None, None, None, None);
-//! let findings: HashSet<GitFinding> = gs.perform_scan(None, Some("7e8c52a"), Some("8013160e"), false, None, None);
+//! let findings: HashSet<GitFinding> = gs.perform_scan(None, Some("7e8c52a"), Some("8013160e"), false, None);
 //! assert_eq!(findings.len(), 31);
 //! ```
 
@@ -78,14 +78,6 @@ pub struct GitFinding {
     pub parent_commit_hash: String
 }
 
-/// Keeps some details related to match entropy
-#[derive(Serialize,Deserialize, Debug, PartialEq, Clone, Default)]
-pub struct MatchEntropy {
-    pub threshold: f32,
-    pub min_word_len: usize,
-    pub max_word_len: usize,
-}
-
 /// enum used by init_git_repo to communicate the type of git repo specified by the supplied URL
 pub enum GitScheme {
     Localpath,
@@ -123,7 +115,6 @@ impl GitScanner {
         until_commit: Option<&str>,
         scan_entropy: bool,
         recent_days: Option<u32>,
-        match_entropy: Option<MatchEntropy>,
     ) -> HashSet<GitFinding> {
         let repo_option = self.repo.as_ref(); //borrowing magic here!
         let repo = repo_option.unwrap();
@@ -224,13 +215,7 @@ impl GitScanner {
                         );
                     }
                     if !secrets.is_empty() && !self.secret_scanner.is_whitelisted(reason, &secrets){
-                        let create_finding = match &match_entropy {
-                            Some(me) => {
-                                let (_, entropy) = SecretScanner::find_word_with_max_entropy(new_line, me.min_word_len, me.max_word_len);
-                                entropy > me.threshold  
-                            }
-                            None => true
-                        };
+                        let create_finding = self.secret_scanner.check_entropy(reason, new_line);
                         if create_finding {
                             findings.insert(GitFinding {
                                 commit_hash: commit.id().to_string(),

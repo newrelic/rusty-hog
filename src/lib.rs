@@ -69,12 +69,16 @@ pub mod aws_scanning;
 pub mod git_scanning;
 pub mod google_scanning;
 
+#[macro_use]
+extern crate clap;
+
 use clap::ArgMatches;
 use hex;
 use log::{self, error, info};
 use regex::bytes::{Matches, Regex, RegexBuilder};
 use serde::Serialize;
 use serde_json::{Map,  Value};
+use serde_derive::Deserialize;
 use simple_error::SimpleError;
 use simple_logger::init_with_level;
 use std::collections::{BTreeMap, HashMap, HashSet};
@@ -85,7 +89,6 @@ use std::iter::FromIterator;
 use std::{fmt, fs, str};
 use std::path::Path;
 use anyhow::Result;
-
 
 // Regex in progress:   "Basic Auth": "basic(_auth)?([\\s[[:punct:]]]{1,4}[[[:word:]][[:punct:]]]{8,64}[\\s[[:punct:]]]?){1,2}",
 
@@ -222,6 +225,10 @@ const STANDARD_ENCODE: &[u8; 64] = &[
     47,  // input 63 (0x3F) => '/' (0x2F)
 ];
 
+const DEFAULT_ENTROPY_THRESHOLD: f32 = 4.5;
+const ENTROPY_MIN_WORD_LEN: usize = 5;
+const ENTROPY_MAX_WORD_LEN: usize = 40;
+
 /// Contains helper functions and the map of regular expressions that are used to find secrets
 ///
 /// The main object that provides the "secret scanning" functionality. The `regex_map` field
@@ -234,10 +241,25 @@ const STANDARD_ENCODE: &[u8; 64] = &[
 ///
 #[derive(Debug, Clone)]
 pub struct SecretScanner {
-    pub regex_map: BTreeMap<String, Regex>,
+    pub regex_map: BTreeMap<String, EntropyRegex>,
     pub whitelist_map: BTreeMap<String, BTreeMap<String, bool>>,
     pub pretty_print: bool,
     pub output_path: Option<String>,
+    pub entropy_min_word_len: usize,
+    pub entropy_max_word_len: usize,
+}
+
+#[derive(Debug, Clone)]
+pub struct EntropyRegex {
+    pub pattern: Regex,
+    pub entropy: Option<f32>,
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(untagged)]
+pub enum PatternEntropy {
+    Pattern (String),
+    Entropy {pattern: String, entropy: Option<bool>, threshold: Option<String>},
 }
 
 /// Used to instantiate the `SecretScanner` object with user-supplied options
@@ -269,7 +291,7 @@ pub struct SecretScanner {
 /// assert_eq!(ss.regex_map.len(), 1);
 /// ```
 ///
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct SecretScannerBuilder {
     pub case_insensitive: bool,
     pub regex_json_str: Option<String>,
@@ -277,6 +299,9 @@ pub struct SecretScannerBuilder {
     pub pretty_print: bool,
     pub output_path: Option<String>,
     pub whitelist_json_path: Option<String>,
+    pub default_entropy_threshold: f32,
+    pub entropy_min_word_len: usize,
+    pub entropy_max_word_len: usize,
 }
 
 impl SecretScannerBuilder {
@@ -289,11 +314,14 @@ impl SecretScannerBuilder {
             pretty_print: false,
             output_path: None,
             whitelist_json_path: None,
+            default_entropy_threshold: DEFAULT_ENTROPY_THRESHOLD,
+            entropy_min_word_len: ENTROPY_MIN_WORD_LEN,
+            entropy_max_word_len: ENTROPY_MAX_WORD_LEN,
         }
     }
 
     /// Configure multiple values using the clap library's `ArgMatches` object.
-    /// This function looks for a "CASE" flag and "REGEX", "WHITELIST" values.
+    /// This function looks for a "CASE" flag and "REGEX", "WHITELIST", "DEFAULT_ENTROPY_THRESHOLD" values.
     pub fn conf_argm(mut self, arg_matches: &ArgMatches) -> Self {
         self.case_insensitive = arg_matches.is_present("CASE");
         self.regex_json_path = match arg_matches.value_of("REGEX") {
@@ -308,6 +336,10 @@ impl SecretScannerBuilder {
         self.whitelist_json_path = match arg_matches.value_of("WHITELIST") {
             Some(s) => Some(String::from(s)),
             None => None,
+        };
+        self.default_entropy_threshold = match value_t!(arg_matches.value_of("DEFAULT_ENTROPY_THRESHOLD"), f32) {
+            Ok(t) => t,
+            Err(_) => DEFAULT_ENTROPY_THRESHOLD,
         };
         self
     }
@@ -349,16 +381,34 @@ impl SecretScannerBuilder {
         self
     }
 
+    /// Set default entropy threshold for patterns which enables entropy but do not define a threshold
+    pub fn set_default_entropy_threshold(mut self, threshold: f32) -> Self {
+        self.default_entropy_threshold = threshold;
+        self
+    }
+
+    /// Set min word length for entropy calcuation
+    pub fn set_entropy_min_word_len(mut self, min_word_len: usize) -> Self {
+        self.entropy_min_word_len = min_word_len;
+        self
+    }
+
+    /// Set max word length for entropy calculation
+    pub fn set_entropy_max_word_len(mut self, max_word_len: usize) -> Self{
+        self.entropy_max_word_len = max_word_len;
+        self
+    }
+
     /// Returns the configured `SecretScanner` object used to perform regex scanning
     pub fn build(&self) -> SecretScanner {
-        let json_obj: Result<Map<String, Value>, SimpleError> = match &self.regex_json_path {
-            Some(p) => Self::build_json_from_file(&p),
+        let json_obj: Result<BTreeMap<String, PatternEntropy>, SimpleError> = match &self.regex_json_path {
+            Some(p) => Self::build_json_from_file(&Path::new(p)),
             _ => match &self.regex_json_str {
                 Some(s) => Self::build_json_from_str(&s),
                 _ => Self::build_json_from_str(DEFAULT_REGEX_JSON),
             },
         };
-        let json_obj: Map<String, Value> = match json_obj {
+        let json_obj: BTreeMap<String, PatternEntropy> = match json_obj {
             Ok(x) => x,
             Err(e) => {
                 error!(
@@ -368,7 +418,7 @@ impl SecretScannerBuilder {
                 Self::build_json_from_str(DEFAULT_REGEX_JSON).unwrap()
             }
         };
-        let regex_map = Self::build_regex_objects(json_obj, self.case_insensitive);
+        let regex_map = Self::build_regex_objects(json_obj, self.case_insensitive, self.default_entropy_threshold);
         let output_path = match &self.output_path {
             Some(s) => Some(s.clone()),
             None => None,
@@ -392,13 +442,14 @@ impl SecretScannerBuilder {
             pretty_print: self.pretty_print,
             output_path,
             whitelist_map: whitelist_map,
+            entropy_min_word_len: self.entropy_min_word_len,
+            entropy_max_word_len: self.entropy_max_word_len,
         }
     }
 
-    /// Helper function to parse a JSON file path to `Result<Map<String, Value>, SimpleError>` where
-    /// `Value` is a [serde_json Value](https://docs.serde.rs/serde_json/value/enum.Value.html)
-    /// object. This has the side-effect of reading the file-system.
-    fn build_json_from_file(filename: &str) -> Result<Map<String, Value>, SimpleError> {
+    /// Helper function to parse a JSON file path to `Result<BTreeMap<String, Pattern>, SimpleError>`.
+    /// This has the side-effect of reading the file-system.
+    fn build_json_from_file(filename: &Path) -> Result<BTreeMap<String, PatternEntropy>, SimpleError> {
         // Get regexes from JSON
         info!("Attempting to read JSON regex file from {:?}", filename);
         let regexes_filein = File::open(filename);
@@ -414,46 +465,70 @@ impl SecretScannerBuilder {
         }
     }
 
-    /// Helper function to parse a JSON string to `Result<Map<String, Value>, SimpleError>` where
-    /// `Value` is a [serde_json Value](https://docs.serde.rs/serde_json/value/enum.Value.html)
-    /// object.
-    pub fn build_json_from_str(incoming_str: &str) -> Result<Map<String, Value>, SimpleError> {
+    /// Helper function to parse a JSON string to `Result<BTreeMap<String, Pattern>, SimpleError>` 
+    pub fn build_json_from_str(incoming_str: &str) -> Result<BTreeMap<String, PatternEntropy>, SimpleError> {
         info!("Attempting to parse JSON regex file from provided string...");
-        match serde_json::from_str(incoming_str) {
-            Ok(m) => Ok(m),
-            Err(e) => Err(SimpleError::with("Failed to parse regex JSON", e)),
-        }
+       let content: Map<String, Value> = match serde_json::from_str(incoming_str) {
+            Ok(m) => m,
+            Err(e) =>  return Err(SimpleError::with("Failed to parse regex JSON", e)),
+        };
+
+       content
+           .into_iter()
+           .map(|x| {
+               let v: PatternEntropy = match serde_json::from_value(x.1) {
+                   Ok(p) => p,
+                   Err(e) => return Err(SimpleError::with("Failed to parse the regex pattern from JSON", e)),
+               };
+               Ok((x.0, v))
+           })
+           .collect()
     }
 
-    /// Helper function to convert the `Map<String, Value>` generated in `build_json_from...`
+    /// Helper function to convert the `BTreeMap<String, Pattern>` generated in `build_json_from...`
     /// to `BTreeMap<String, Regex>` where the key is our "reason" and Regex is a
     /// [regex::bytes::Regex](https://docs.rs/regex/1.3.3/regex/bytes/struct.Regex.html) object.
     fn build_regex_objects(
-        json_obj: Map<String, Value>,
+        json_obj: BTreeMap<String, PatternEntropy>,
         case_insensitive: bool,
-    ) -> BTreeMap<String, Regex> {
-        let regex_map: BTreeMap<String, String> = json_obj
+        default_entropy_threshold: f32,
+    ) -> BTreeMap<String, EntropyRegex> {
+        json_obj
             .into_iter()
-            .map(|x| (x.0, String::from(x.1.as_str().unwrap())))
-            .collect();
-
-        regex_map
-            .into_iter()
-            .map(|x| {
-                let mut regex_builder = RegexBuilder::new(&x.1);
-                regex_builder.size_limit(10_000_000);
-                if case_insensitive {
-                    regex_builder.case_insensitive(true);
-                };
-                (x.0, regex_builder.build())
+            .map(|(k, pattern)| match pattern {
+                PatternEntropy::Pattern(p) => {
+                    let mut regex_builder = RegexBuilder::new(&p);
+                    regex_builder.size_limit(10_000_000);
+                    if case_insensitive {
+                        regex_builder.case_insensitive(true);
+                    };
+                    (k, EntropyRegex{
+                        pattern: regex_builder.build().expect(format!("Error parsing regex string: {:?}", p).as_str()),
+                        entropy: None,
+                    })
+                },
+                PatternEntropy::Entropy {pattern, entropy, threshold} => {
+                    let mut regex_builder = RegexBuilder::new(&pattern);
+                    regex_builder.size_limit(10_000_000);
+                    if case_insensitive {
+                        regex_builder.case_insensitive(true);
+                    };
+                    let entropy = match entropy {
+                        Some(e) if e => {
+                            match threshold {
+                                Some(t) => Some(t.parse::<f32>().unwrap_or(default_entropy_threshold)),
+                                None => Some(default_entropy_threshold),
+                            }
+                        },
+                        Some(_) => None,
+                        None => None,
+                    };
+                    (k, EntropyRegex{
+                        pattern: regex_builder.build().expect(format!("Error parsing regex string: {:?}", pattern).as_str()),
+                        entropy: entropy,
+                    })
+                },
             })
-            .inspect(|(_, x)| {
-                if let Err(ref e) = x {
-                    error!("Error parsing regex string: {:?}", e)
-                }
-            })
-            .filter(|(_, x)| x.is_ok())
-            .map(|(k, v)| (k, v.unwrap()))
             .collect()
     }
 
@@ -508,7 +583,7 @@ impl SecretScanner {
         self.regex_map
             .iter()
             .map(|x| {
-                let matches = x.1.find_iter(line);
+                let matches = x.1.pattern.find_iter(line);
                 (x.0, matches)
             })
             .collect()
@@ -606,23 +681,38 @@ impl SecretScanner {
 
     /// Find the word with the maximum entropy in a byte array. It will filter out all words with the length
     /// smaller than min_word_len. In addition, it will truncate the lengthy words to max_word_len. Will return 
-    /// the word with the maximum entropy.
-    pub fn find_word_with_max_entropy(line :&[u8], min_word_len: usize, max_word_len: usize) -> (&str, f32) {
+    /// the maximum entropy.
+    fn find_max_entropy(&self, line :&[u8]) -> f32 {
         let words: Vec<&[u8]> = line.split(|x| (*x as char) == ' ').collect();
         let words_entropy: Vec<(&[u8], f32)> = words
             .iter()
-            .filter(|word| (word.len() >= min_word_len))
-            .map(|word| (*word, Self::calc_shannon_entropy(Self::truncate_slice(&word, max_word_len))))
+            .filter(|word| (word.len() >= self.entropy_min_word_len))
+            .map(|word| (*word, Self::calc_shannon_entropy(Self::truncate_slice(&word, self.entropy_max_word_len))))
             .collect();
         let mut max_entropy: f32 = 0.0;
-        let mut max_word: &[u8] = &[];
-        for &(word, entropy) in &words_entropy {
+        for &(_, entropy) in &words_entropy {
             if entropy > max_entropy {
                 max_entropy = entropy;
-                max_word = word;
             }
         }
-        (str::from_utf8(max_word).unwrap(), max_entropy)
+        max_entropy
+    }
+
+    /// Checks the entropy of a text for a given pattern defined into the regex_map. If the entropy is greater than the
+    /// predefined entropy threshold return true, otherwise false. Always returns true for patterns without entropy threshold
+    /// and skip the entropy calculation.
+    pub fn check_entropy(&self, pattern: &str, text: &[u8]) -> bool {
+        if let Some(entry) = self.regex_map.get(pattern) {
+            match entry.entropy {
+                Some(entropy_threshold) => {
+                    let max_entropy = self.find_max_entropy(text);
+                    max_entropy > entropy_threshold
+                },
+                None => true,
+            }
+        } else {
+            false
+        }
     }
 
     /// Helper function that takes a HashSet of serializable structs and outputs them as JSON
@@ -678,7 +768,7 @@ impl PartialEq for SecretScanner {
             .iter()
             .map(|(k, v)| match other.regex_map.get(k) {
                 None => false,
-                Some(r) => r.as_str() == v.as_str(),
+                Some(r) => r.pattern.as_str() == v.pattern.as_str(),
             })
             .all(|x| x)
             && self.regex_map.keys().eq(other.regex_map.keys())
@@ -699,7 +789,7 @@ impl Hash for SecretScanner {
     fn hash<H: Hasher>(&self, state: &mut H) {
         for (k,v) in &self.regex_map {
             k.hash(state);
-            v.as_str().hash(state);
+            v.pattern.as_str().hash(state);
         };
         if self.pretty_print {
             "prettyprintyes".hash(state)
@@ -731,6 +821,100 @@ mod tests {
     use super::*;
     use tempfile::NamedTempFile;
     use std::io::Write;
+
+    #[test]
+    fn can_parse_json_from_str() -> Result<(), String> {
+        let builder = SecretScannerBuilder::build_json_from_str(r#"
+        {
+            "Pattern name 1": "test",
+            "Pattern name 2": {
+                "pattern": "test"
+            },
+            "Pattern name 3": {
+                "pattern": "test",
+                "entropy": true
+            },
+            "Pattern name 4": {
+                "pattern": "test",
+                "entropy": true,
+                "threshold": "4.5"
+            }
+        }
+        "#);
+        if let Err(m) = builder {
+            return Err(format!{"failed pasing valid json from str: {}", m});
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn can_parse_json_from_file() -> Result<(), String> {
+        let mut file = NamedTempFile::new().unwrap();
+        let json = r#"
+        {
+            "Pattern name 1": "test",
+            "Pattern name 2": {
+                "pattern": "test"
+            },
+            "Pattern name 3": {
+                "pattern": "test",
+                "entropy": true
+            },
+            "Pattern name 4": {
+                "pattern": "test",
+                "entropy": true,
+                "threshold": "4.5"
+            }
+        }
+        "#;
+        file.write(json.as_bytes()).unwrap();
+
+        if let Err(m) = SecretScannerBuilder::build_json_from_file(file.path()) {
+            return Err(format!("failed parsing valid json from file: {}", m));
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn can_build_secret_scanner_with_various_entropy_options() {
+        let json = r#"
+        {
+            "Pattern1": "test",
+            "Pattern2": {
+                "pattern": "test"
+            },
+            "Pattern3": {
+                "pattern": "test",
+                "entropy": false
+            },
+            "Pattern4": {
+                "pattern": "test",
+                "entropy": true
+            },
+            "Pattern5": {
+                "pattern": "test",
+                "entropy": true,
+                "threshold": "4.5"
+            }
+        }
+        "#;
+
+        let builder = SecretScannerBuilder::new();
+        let scanner = builder
+            .set_json_str(&json)
+            .set_default_entropy_threshold(2.0)
+            .build();
+        let p1 = scanner.regex_map.get("Pattern1").unwrap();
+        assert_eq!(p1.entropy, None);
+        let p2 = scanner.regex_map.get("Pattern2").unwrap();
+        assert_eq!(p2.entropy, None);
+        let p3 = scanner.regex_map.get("Pattern3").unwrap();
+        assert_eq!(p3.entropy, None);
+        let p4 = scanner.regex_map.get("Pattern4").unwrap();
+        assert_eq!(p4.entropy, Some(2.0));
+        let p5 = scanner.regex_map.get("Pattern5").unwrap();
+        assert_eq!(p5.entropy, Some(4.5));
+    }
 
     #[test]
     fn can_parse_whitelist_from_file() -> Result<(), String> {
