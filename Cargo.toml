@@ -46,3 +46,5 @@ zip = "0.5"
 tar = "0.4.26"
 flate2 = "1.0.14"
 anyhow = "1.0"
+tempfile = "^3.1"
+
