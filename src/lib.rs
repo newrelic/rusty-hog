@@ -84,6 +84,8 @@ use std::io::BufReader;
 use std::iter::FromIterator;
 use std::{fmt, fs, str};
 use std::path::Path;
+use anyhow::Result;
+
 
 // Regex in progress:   "Basic Auth": "basic(_auth)?([\\s[[:punct:]]]{1,4}[[[:word:]][[:punct:]]]{8,64}[\\s[[:punct:]]]?){1,2}",
 
@@ -579,17 +581,18 @@ impl SecretScanner {
 
     /// Helper function that takes a HashSet of serializable structs and outputs them as JSON
     /// Side effect: May write to the file-system based on `self.output_path`
-    pub fn output_findings<T: Serialize + Eq + Hash>(&self, findings: &HashSet<T>) {
+    pub fn output_findings<T: Serialize + Eq + Hash>(&self, findings: &HashSet<T>) -> anyhow::Result<()> {
         let mut json_text: Vec<u8> = Vec::new();
         if self.pretty_print {
-            json_text.append(serde_json::ser::to_vec_pretty(findings).unwrap().as_mut());
+            json_text.append(serde_json::ser::to_vec_pretty(findings)?.as_mut());
         } else {
-            json_text.append(serde_json::ser::to_vec(findings).unwrap().as_mut());
+            json_text.append(serde_json::ser::to_vec(findings)?.as_mut());
         }
         match &self.output_path {
-            Some(op) => fs::write(op, json_text).unwrap(),
-            None => println!("{}", str::from_utf8(json_text.as_ref()).unwrap()),
+            Some(op) => fs::write(op, json_text)?,
+            None => println!("{}", str::from_utf8(json_text.as_ref())?),
         };
+        Ok(())
     }
 
     /// Checks if any of the provided tokens is whitelisted

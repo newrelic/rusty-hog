@@ -64,7 +64,7 @@ fn main() {
         .get_matches();
     match run(&matches) {
         Ok(()) => {}
-        Err(e) => panic!("error: {}", e),
+        Err(e) => error!( "Error running command: {}", e)
     }
 }
 
@@ -160,7 +160,8 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     // Output the results
     let findings: HashSet<S3Finding> = HashSet::from_iter(findings.into_iter());
     info!("Found {} secrets", findings.len());
-    s3scanner.secret_scanner.output_findings(&findings);
-
-    Ok(())
+    match s3scanner.secret_scanner.output_findings(&findings) {
+        Ok(_) => Ok(()),
+        Err(err) => Err(SimpleError::with("failed to output findings", SimpleError::new(err.to_string())))
+    }
 }
