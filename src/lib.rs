@@ -259,7 +259,7 @@ pub struct EntropyRegex {
 #[serde(untagged)]
 pub enum PatternEntropy {
     Pattern (String),
-    Entropy {pattern: String, entropy: Option<bool>, threshold: Option<String>},
+    Entropy {pattern: String, entropy_filter: Option<bool>, threshold: Option<String>},
 }
 
 /// Used to instantiate the `SecretScanner` object with user-supplied options
@@ -507,13 +507,13 @@ impl SecretScannerBuilder {
                         entropy: None,
                     })
                 },
-                PatternEntropy::Entropy {pattern, entropy, threshold} => {
+                PatternEntropy::Entropy {pattern, entropy_filter, threshold} => {
                     let mut regex_builder = RegexBuilder::new(&pattern);
                     regex_builder.size_limit(10_000_000);
                     if case_insensitive {
                         regex_builder.case_insensitive(true);
                     };
-                    let entropy = match entropy {
+                    let entropy = match entropy_filter {
                         Some(e) if e => {
                             match threshold {
                                 Some(t) => Some(t.parse::<f32>().unwrap_or(default_entropy_threshold)),
@@ -832,11 +832,11 @@ mod tests {
             },
             "Pattern name 3": {
                 "pattern": "test",
-                "entropy": true
+                "entropy_filter": true
             },
             "Pattern name 4": {
                 "pattern": "test",
-                "entropy": true,
+                "entropy_filter": true,
                 "threshold": "4.5"
             }
         }
@@ -858,11 +858,11 @@ mod tests {
             },
             "Pattern name 3": {
                 "pattern": "test",
-                "entropy": true
+                "entropy_filter": true
             },
             "Pattern name 4": {
                 "pattern": "test",
-                "entropy": true,
+                "entropy_filter": true,
                 "threshold": "4.5"
             }
         }
@@ -885,15 +885,15 @@ mod tests {
             },
             "Pattern3": {
                 "pattern": "test",
-                "entropy": false
+                "entropy_filter": false
             },
             "Pattern4": {
                 "pattern": "test",
-                "entropy": true
+                "entropy_filter": true
             },
             "Pattern5": {
                 "pattern": "test",
-                "entropy": true,
+                "entropy_filter": true,
                 "threshold": "4.5"
             }
         }
