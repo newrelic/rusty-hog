@@ -18,7 +18,7 @@ path = "src/lib.rs"
 
 [dependencies]
 git2 = "0.10"
-serde = { version = "1.0", features = ["derive"] }
+serde = "1.0"
 serde_json = "1.0"
 serde_derive = "^1"
 clap = "2"
@@ -47,4 +47,3 @@ tar = "0.4.26"
 flate2 = "1.0.14"
 anyhow = "1.0"
 tempfile = "^3.1"
-

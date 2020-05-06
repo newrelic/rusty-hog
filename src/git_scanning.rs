@@ -38,8 +38,8 @@
 //! let gs = GitScanner::new();
 //!
 //! let mut gs = gs.init_git_repo(".", Path::new("."), None, None, None, None);
-//! let findings: HashSet<GitFinding> = gs.perform_scan(None, None, Some("8013160e"), false, None);
-//! assert_eq!(findings.len(), 45);
+//! let findings: HashSet<GitFinding> = gs.perform_scan(None, Some("7e8c52a"), Some("8013160e"), false, None);
+//! assert_eq!(findings.len(), 31);
 //! ```
 
 use crate::SecretScanner;
@@ -215,29 +215,32 @@ impl GitScanner {
                         );
                     }
                     if !secrets.is_empty() && !self.secret_scanner.is_whitelisted(reason, &secrets){
-                        findings.insert(GitFinding {
-                            commit_hash: commit.id().to_string(),
-                            commit: commit.message().unwrap().to_string(),
-                            diff: ASCII
-                                .decode(&new_line, DecoderTrap::Ignore)
-                                .unwrap_or_else(|_| "<STRING DECODE ERROR>".parse().unwrap()),
-                            date: NaiveDateTime::from_timestamp(commit.time().seconds(), 0)
-                                .to_string(),
-                            strings_found: secrets.clone(),
-                            path: delta
-                                .new_file()
-                                .path()
-                                .unwrap()
-                                .to_str()
-                                .unwrap()
-                                .to_string(),
-                            reason: reason.clone(),
-                            old_file_id: old_file_id.to_string(),
-                            new_file_id: new_file_id.to_string(),
-                            old_line_num,
-                            new_line_num,
-                            parent_commit_hash: parent_commit_hash.clone()
-                        });
+                        let create_finding = self.secret_scanner.check_entropy(reason, new_line);
+                        if create_finding {
+                            findings.insert(GitFinding {
+                                commit_hash: commit.id().to_string(),
+                                commit: commit.message().unwrap().to_string(),
+                                diff: ASCII
+                                    .decode(&new_line, DecoderTrap::Ignore)
+                                    .unwrap_or_else(|_| "<STRING DECODE ERROR>".parse().unwrap()),
+                                date: NaiveDateTime::from_timestamp(commit.time().seconds(), 0)
+                                    .to_string(),
+                                strings_found: secrets.clone(),
+                                path: delta
+                                    .new_file()
+                                    .path()
+                                    .unwrap()
+                                    .to_str()
+                                    .unwrap()
+                                    .to_string(),
+                                reason: reason.clone(),
+                                old_file_id: old_file_id.to_string(),
+                                new_file_id: new_file_id.to_string(),
+                                old_line_num,
+                                new_line_num,
+                                parent_commit_hash: parent_commit_hash.clone()
+                            });
+                        }
                     }
                 }
 
@@ -265,7 +268,7 @@ impl GitScanner {
                             new_file_id: new_file_id.to_string(),
                             old_line_num,
                             new_line_num,
-                            parent_commit_hash: parent_commit_hash.clone()
+                            parent_commit_hash: parent_commit_hash.clone(),
                         });
                     }
                 }

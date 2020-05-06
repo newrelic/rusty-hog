@@ -210,7 +210,7 @@ fn get_issue_json(client: Client, auth_headers: Headers, full_url: &str) -> Map<
     if resp.status != StatusCode::Ok {
         panic!("Request to {} failed with code {}: {}", full_url, resp.status, response_body)
     }
-    let json_results = rusty_hogs::SecretScannerBuilder::build_json_from_str(&response_body).unwrap();
+    let json_results = serde_json::from_str(&response_body).unwrap();
     debug!("Response JSON: \n{:?}", json_results);
     json_results
 }

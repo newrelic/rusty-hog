@@ -1,5 +1,6 @@
 //! Git secret scanner in Rust (the original TruffleHog replacement)
 //!
+//!
 //! # Usage
 //! ```
 //!     choctaw_hog [FLAGS] [OPTIONS] <GITPATH>
@@ -7,6 +8,7 @@
 //!FLAGS:
 //!        --caseinsensitive    Sets the case insensitive flag for all regexes
 //!        --entropy            Enables entropy scanning
+//!        --match_entropy      Enable entropy for each pattern match
 //!        --prettyprint        Outputs the JSON in human readable format
 //!    -v, --verbose            Sets the level of debugging information
 //!    -h, --help               Prints help information
@@ -14,6 +16,7 @@
 //!
 //!OPTIONS:
 //!        --recent_days <RECENTDAYS>       Filters commits to the last number of days (branch agnostic)
+//!        --match_entropy_threshold <MATCH_ENTROPY_THRESHOLD>    Threshold for match entropy (4.5 by default)
 //!        --httpspass <HTTPSPASS>          Takes a password for HTTPS-based authentication
 //!        --httpsuser <HTTPSUSER>          Takes a username for HTTPS-based authentication
 //!    -o, --outputfile <OUTPUT>            Sets the path to write the scanner results to (stdout by default)
@@ -43,7 +46,7 @@ use simple_error::SimpleError;
 use std::str;
 use tempdir::TempDir;
 
-use rusty_hogs::git_scanning::GitScanner;
+use rusty_hogs::git_scanning::{GitScanner};
 use rusty_hogs::{SecretScanner, SecretScannerBuilder};
 
 /// Main entry function that uses the [clap crate](https://docs.rs/clap/2.33.0/clap/)
@@ -56,6 +59,7 @@ fn main() {
         (@arg GITPATH: +required "Sets the path (or URL) of the Git repo to scan. SSH links must include username (git@)")
         (@arg VERBOSE: -v --verbose ... "Sets the level of debugging information")
         (@arg ENTROPY: --entropy ... "Enables entropy scanning")
+        (@arg DEFAULT_ENTROPY_THRESHOLD: --default_entropy_threshold +takes_value "Default entropy threshold (4.5 by default)")
         (@arg CASE: --caseinsensitive "Sets the case insensitive flag for all regexes")
         (@arg OUTPUT: -o --outputfile +takes_value "Sets the path to write the scanner results to (stdout by default)")
         (@arg PRETTYPRINT: --prettyprint "Outputs the JSON in human readable format")
@@ -108,7 +112,7 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
         httpsuser,
         httpspass,
     );
-    let findings = git_scanner.perform_scan(None, since_commit, until_commit, scan_entropy, recent_days);
+    let findings = git_scanner.perform_scan(None, since_commit, until_commit, scan_entropy, recent_days) ;
 
     // Output the results
     info!("Found {} secrets", findings.len());
