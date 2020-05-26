@@ -595,26 +595,8 @@ impl SecretScanner {
         hashset_string_in.is_subset(&HashSet::from_iter(STANDARD_ENCODE.iter()))
     }
 
-    // from https://docs.rs/crate/entropy/0.3.0/source/src/lib.rs
-    // modified to include the keyspace parameter since we're not calculating against all possible
-    // byte values
-    fn calc_entropy(bytes: &[u8], keyspace: i32) -> f32 {
-        let mut entropy = 0.0;
-        let mut counts: HashMap<u8, i32> = HashMap::new();
 
-        for &b in bytes {
-            counts.insert(b, counts.get(&b).unwrap_or(&0) + 1);
-        }
-
-        for &count in counts.values() {
-            let p: f32 = (count as f32) / (keyspace as f32);
-            entropy -= p * p.log(2.0);
-        }
-        //println!("{:?} {}", String::from_utf8(Vec::from(bytes)), entropy);
-        entropy
-    }
-
-    /// Compute the Shannon entropy for a byte array
+    /// Compute the Shannon entropy for a byte array (from https://docs.rs/crate/entropy/0.3.0/source/src/lib.rs)
     fn calc_shannon_entropy(bytes: &[u8]) -> f32 {
         let mut entropy = 0.0;
         let mut counts: HashMap<u8, i32> = HashMap::new();
@@ -655,14 +637,14 @@ impl SecretScanner {
         let mut b64_words: Vec<String> = words
             .iter()
             .filter(|word| word.len() >= 20 && Self::is_base64_string(word))
-            .filter(|word| Self::calc_entropy(word, 64) > 4.5)
+            .filter(|word| Self::calc_shannon_entropy(word) > 4.5)
             .map(|word| str::from_utf8(word).unwrap().to_string())
             .collect();
         let mut hex_words: Vec<String> = words
             .iter() // there must be a better way
             .filter(|word| (word.len() >= 20) && (word.iter().all(u8::is_ascii_hexdigit)))
             .filter_map(|&x| hex::decode(x).ok())
-            .filter(|word| Self::calc_entropy(word, 255) > (3_f32))
+            .filter(|word| Self::calc_shannon_entropy(word) > 4.5)
             .map(hex::encode)
             .collect();
         let mut output: Vec<String> = Vec::new();
