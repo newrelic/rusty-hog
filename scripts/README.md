@@ -15,9 +15,9 @@ EC2 instance on a nightly basis. You can install it using the following commands
 ```shell script
 cd ~
 mkdir rusty-hog
-wget https://github.com/newrelic/rusty-hog/releases/download/v1.0.4/rustyhogs-musl_darwin_1.0.4.zip
-unzip rustyhogs-musl_darwin_1.0.4.zip -d rusty_hog_1.0.4
-cd rusty_hog_1.0.4
+wget https://github.com/newrelic/rusty-hog/releases/download/v1.0.5/rustyhogs-musl_darwin_1.0.5.zip
+unzip rustyhogs-musl_darwin_1.0.5.zip -d rusty_hog_1.0.5
+cd rusty_hog_1.0.5
 sudo cp ghe_secret_monitor.service /etc/systemd/system
 sudo vi ghe_secret_monitor.timer # modify each <redacted for git> field
 sudo cp ghe_secret_monitor.timer /etc/systemd/system

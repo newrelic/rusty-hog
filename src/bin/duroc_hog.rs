@@ -66,7 +66,7 @@ const GZEXTENSIONS: &[&str] = &["gz", "tgz"];
 /// Main entry function that uses the [clap crate](https://docs.rs/clap/2.33.0/clap/)
 fn main() {
     let matches = clap_app!(duroc_hog =>
-        (version: "1.0.4")
+        (version: "1.0.5")
         (author: "Scott Cutler <scutler@newrelic.com>")
         (about: "File system secret scanner in Rust")
         (@arg REGEX: -r --regex +takes_value "Sets a custom regex JSON file")
