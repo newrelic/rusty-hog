@@ -35,7 +35,7 @@ in Python. Rusty Hog provides the following binaries:
 
 # Usage
 
-This project provides a set of scanners that useA regular expressions to try and detect the presence of sensitive
+This project provides a set of scanners that use regular expressions to try and detect the presence of sensitive
 information, such as API keys, passwords, and personal information. It includes a set of regular expressions by
 default, but also accepts a JSON object containing your custom regular expressions.
 
