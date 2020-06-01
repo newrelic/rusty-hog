@@ -16,6 +16,7 @@ in Python. Rusty Hog provides the following binaries:
 - [Usage](#usage)
 	- [How to install](#how-to-install)
 	- [How to build](#how-to-build)
+	- [How to build on Windows](#how-to-build-on-Windows)
 	- [Anakamali Hog (GDoc Scanner) usage](#anakamali-hog-gdoc-scanner-usage)
 	- [Berkshire Hog (S3 Scanner - CLI) usage](#berkshire-hog-s3-scanner-cli-usage)
 	- [Berkshire Hog (S3 Scanner - Lambda) usage](#berkshire-hog-s3-scanner-lambda-usage)
@@ -62,6 +63,23 @@ cross build --release --target x86_64-unknown-linux-musl
 cp target/x86_64-unknown-linux-musl/release/berkshire_hog bootstrap
 zip -j berkshire_lambda.zip bootstrap
 ```
+
+## How to build on Windows
+You will need to compile static OpenSSL binaries and tell Rust/Cargo where to find them:
+```
+mkdir \Tools
+cd \Tools
+git clone https://github.com/Microsoft/vcpkg.git
+cd vcpkg
+.\bootstrap-vcpkg.bat
+.\vcpkg.exe install openssl:x64-windows-static
+
+$env:OPENSSL_DIR = 'C:\Tools\vcpkg\installed\x64-windows-static'
+$env:OPENSSL_STATIC = 'Yes'
+[System.Environment]::SetEnvironmentVariable('OPENSSL_DIR', $env:OPENSSL_DIR, [System.EnvironmentVariableTarget]::User)
+[System.Environment]::SetEnvironmentVariable('OPENSSL_STATIC', $env:OPENSSL_STATIC, [System.EnvironmentVariableTarget]::User)
+```
+You can now follow the main build instructions listed above.
 
 ## Anakamali Hog (GDoc Scanner) usage
 ```
