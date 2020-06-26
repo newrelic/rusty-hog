@@ -149,6 +149,7 @@ const DEFAULT_REGEX_JSON: &str = r##"
   "New Relic Insights Insert Key (new format)": "(?i)NRII-[A-Za-z0-9-_]{32}",
   "New Relic Insights Query Key (new format)": "(?i)NRIQ-[A-Za-z0-9-_]{32}",
   "New Relic Synthetics Private Location Key (new format)": "(?i)NRSP-[a-z]{2}[0-9]{2}[a-f0-9]{31}",
+  "Git Repository": "(?i)(?:git|ssh|https?|git@[-\\w.]+):(\/\/)?(.*?)(\\.git)(\/?|\\#[-\\d\\w._]+?)$",
   "Email address": "(?i)(?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|\"(?:[\\x01-\\x08\\x0b\\x0c\\x0e-\\x1f\\x21\\x23-\\x5b\\x5d-\\x7f]|\\\\[\\x01-\\x09\\x0b\\x0c\\x0e-\\x7f])*\")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\\[(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?|[a-z0-9-]*[a-z0-9]:(?:[\\x01-\\x08\\x0b\\x0c\\x0e-\\x1f\\x21-\\x5a\\x53-\\x7f]|\\\\[\\x01-\\x09\\x0b\\x0c\\x0e-\\x7f])+)\\])",
   "New Relic Account IDs in URL": "(newrelic\\.com/)?accounts/\\d{1,10}/",
   "Account ID": "(?i)account[\\s[[:punct:]]]?id[\\s[[:punct:]]]{1,4}\\b[\\d]{1,10}\\b",
@@ -919,5 +920,12 @@ mod tests {
         }
 
         Ok(())
+    }
+
+    #[test]
+    fn can_identify_a_git_repository() {
+        let ss = SecretScannerBuilder::new().build();
+        let matches_map = ss.matches(b"my git repo is git@github.com:username/rusty-hog.git");
+        assert!(matches_map.contains_key(&String::from("Git Repository")));
     }
 }
