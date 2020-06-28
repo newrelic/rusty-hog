@@ -96,6 +96,7 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     // let scan_entropy = arg_matches.is_present("ENTROPY");
     let recursive = arg_matches.is_present("RECURSIVE");
     let fspath = Path::new(arg_matches.value_of("FSPATH").unwrap());
+    let output_file = Path::new(arg_matches.value_of("OUTPUT").unwrap_or(""));
     let unzip: bool = arg_matches.is_present("UNZIP");
 
     debug!("fspath: {:?}", fspath);
@@ -110,7 +111,7 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     let mut output: HashSet<FileFinding> = HashSet::new();
 
     if Path::is_dir(fspath) {
-        output.extend(scan_dir(fspath, &secret_scanner, recursive, unzip));
+        output.extend(scan_dir(fspath, output_file, &secret_scanner, recursive, unzip));
     } else {
         let f = File::open(fspath).unwrap();
         output.extend(scan_file(fspath, &secret_scanner, f, "", unzip));
@@ -125,42 +126,60 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
 
 fn scan_dir(
     fspath: &Path,
+    output_file: &Path,
     ss: &SecretScanner,
     recursive: bool,
     unzip: bool,
 ) -> HashSet<FileFinding> {
     let mut output: HashSet<FileFinding> = HashSet::new();
-    if recursive {
-        for entry in WalkDir::new(fspath).into_iter().filter_map(|e| e.ok()) {
-            if entry.file_type().is_file() {
-                let f = File::open(entry.path()).unwrap();
-                let mut inner_findings = scan_file(entry.path(), &ss, f, "", unzip);
-                for d in inner_findings.drain() {
-                    output.insert(d);
-                }
-            }
-        }
+
+    let dir_scan_func = if recursive {
+        recursive_dir_scan
     } else {
-        let dir_contents: Vec<PathBuf> = fspath
+        flat_dir_scan
+    };
+
+    dir_scan_func(fspath, Path::new(output_file), |file_path: &Path| {
+        let f = File::open(file_path).unwrap();
+        let mut inner_findings = scan_file(file_path, &ss, f, "", unzip);
+        for d in inner_findings.drain() {
+            output.insert(d);
+        }
+    });
+
+    output
+}
+
+fn recursive_dir_scan<C>(
+    fspath: &Path,
+    output_file: &Path,
+    mut closure: C
+) where C: FnMut(&Path) {
+    for entry in WalkDir::new(fspath).into_iter().filter_map(|e| e.ok()) {
+        if entry.file_type().is_file() && entry.path() != output_file {
+            closure(&entry.path());
+        }
+    }
+}
+
+fn flat_dir_scan<C>(
+    fspath: &Path,
+    output_file: &Path,
+    mut closure: C
+) where C: FnMut(&Path) {
+    let dir_contents: Vec<PathBuf> = fspath
             .read_dir()
             .expect("read_dir call failed")
             .filter_map(|e| e.ok())
             .filter(|e| e.file_type().unwrap().is_file())
             .map(|e| e.path())
+            .filter(|e| e != output_file)
             .collect();
-        debug!("dir_contents: {:?}", dir_contents);
-        for file_path in dir_contents {
-            let path = file_path.clone();
-            let f = File::open(file_path).unwrap();
-            let mut inner_findings = scan_file(&path, &ss, f, "", unzip);
-            for d in inner_findings.drain() {
-                info!("FileFinding: {:?}", d);
-                output.insert(d);
-            }
-            debug!("inner findings: {:?}", inner_findings);
-        }
+    debug!("dir_contents: {:?}", dir_contents);
+
+    for file_path in dir_contents {
+        closure(&file_path);
     }
-    output
 }
 
 fn scan_file<R: Read + io::Seek>(
@@ -287,4 +306,61 @@ fn scan_bytes(input: Vec<u8>, ss: &SecretScanner, path: String) -> HashSet<FileF
         }
     }
     findings
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Result;
+    use std::process::Output;
+    use std::io::Write;
+    use tempfile::TempDir;
+    use escargot::CargoBuild;
+
+    fn run_command_in_dir(dir: &TempDir, command: &str, args: &[&str]) -> Result<Output> {
+        let dir_path = dir.path().to_str().unwrap();
+        let binary = CargoBuild::new()
+            .bin(command)
+            .run()
+            .unwrap();
+
+        binary.command()
+            .current_dir(dir_path)
+            .args(args)
+            .output()
+    }
+
+    fn write_temp_file(dir: &TempDir, filename: &str, contents: &str) {
+        let file_path = dir.path().join(filename);
+        let mut tmp_file = File::create(&file_path).unwrap();
+        writeln!(tmp_file, "{}", contents).unwrap();
+    }
+
+    fn read_temp_file(dir: &TempDir, filename: &str) -> String {
+        let mut contents = String::new();
+        let file_path = dir.path().join(filename);
+        let mut file_handle = File::open(&file_path).unwrap();
+        file_handle.read_to_string(&mut contents).unwrap();
+        contents
+    }
+
+    #[test]
+    fn does_not_scan_output_file() {
+        let temp_dir = TempDir::new().unwrap();
+
+        write_temp_file(&temp_dir, "insecure-file.txt", "My email is username@mail.com");
+
+        let cmd_args = ["-o", "./output_file.txt", "."];
+
+        run_command_in_dir(&temp_dir, "duroc_hog", &cmd_args).unwrap();
+
+        run_command_in_dir(&temp_dir, "duroc_hog", &cmd_args).unwrap();
+
+        let text = read_temp_file(&temp_dir, "output_file.txt");
+
+        println!("{}", text);
+
+        assert!(text.contains("\"path\":\"./insecure-file.txt\""));
+        assert!(!text.contains("output_file.txt"));
+    }
 }
