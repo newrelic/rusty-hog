@@ -15,6 +15,7 @@
 //!    -V, --version            Prints version information
 //!
 //!OPTIONS:
+//!    -w, --whitelist <WHITELIST>          Sets a custom whitelist JSON file
 //!        --recent_days <RECENTDAYS>       Filters commits to the last number of days (branch agnostic)
 //!        --match_entropy_threshold <MATCH_ENTROPY_THRESHOLD>    Threshold for match entropy (4.5 by default)
 //!        --httpspass <HTTPSPASS>          Takes a password for HTTPS-based authentication
@@ -52,7 +53,7 @@ use rusty_hogs::{SecretScanner, SecretScannerBuilder};
 /// Main entry function that uses the [clap crate](https://docs.rs/clap/2.33.0/clap/)
 fn main() {
     let matches = clap_app!(choctaw_hog =>
-        (version: "1.0.5")
+        (version: "1.1.7")
         (author: "Scott Cutler <scutler@newrelic.com>")
         (about: "Git secret scanner in Rust")
         (@arg REGEX: -r --regex +takes_value "Sets a custom regex JSON file")
