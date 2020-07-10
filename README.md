@@ -210,19 +210,23 @@ ARGS:
 ## Regex JSON file format
 
 The regex option on scanners allows users to provide a path to their own JSON file of regular
-expressions that match senistive material. Any provided file currently will replace, not append to, the default regular expressions provided by SecretScanner. The expected format of the file is a single json object. 
+expressions that match sensitive material. Any provided file currently will replace, not append to, the default 
+regular expressions provided by SecretScanner. The expected format of the file is a single json object. 
 
-The keys should be names for the type of secret each regex entry will detect, as the keys will be used for the reason properties outputed by the scanner.
+The keys should be names for the type of secret each regex entry will detect, as the keys will be used for the reason 
+properties output by the scanner.
 
-Each value should be a valid regular expression that should match the type of secret described by its coorisponding key.
+Each value should be a string containing a valid [https://docs.rs/regex/1.3.9/regex/#syntax](regular expression for Rust) 
+that should match the type of secret described by its corresponding key.
 
-As of version 1.0.4, the value of each key can be an object containing 
+As of version 1.0.4, the Rusty Hog engine also supports objects as values for each secret. 
+The object can contain all of the following:
 
-- a pattern property with the matching regex expression
-- an entropy property with a boolean value to enable entropy scanning for this information
-- a threshold property to customize the entropy tolerance on a scale of 0 - 8. 
+- a pattern property with the matching regex expression (mandatory)
+- an entropy property with a boolean value to enable entropy scanning for this information (mandatory)
+- a threshold property to customize the entropy tolerance on a scale of 0 - 8 (optional)
 
-The higher the threshold, the more entropy allowed in matching, the farther a match can be from the exact regex pattern.
+The higher the threshold, the more entropy is required in the secret to consider it a match.
 
 An example of this format is here:
 
