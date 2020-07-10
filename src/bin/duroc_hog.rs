@@ -15,6 +15,7 @@
 //!    -V, --version            Prints version information
 //!
 //!OPTIONS:
+//!    -w, --whitelist <WHITELIST>          Sets a custom whitelist JSON file
 //!    -o, --outputfile <OUTPUT>            Sets the path to write the scanner results to (stdout by default)
 //!    -r, --regex <REGEX>                  Sets a custom regex JSON file, defaults to built-in
 
@@ -46,6 +47,7 @@ use encoding::all::ASCII;
 use encoding::{DecoderTrap, Encoding};
 use rusty_hogs::{SecretScanner, SecretScannerBuilder};
 use std::collections::HashSet;
+use path_clean::PathClean;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, Clone, Default)]
 /// `serde_json` object that represents a single found secret - finding
@@ -66,7 +68,7 @@ const GZEXTENSIONS: &[&str] = &["gz", "tgz"];
 /// Main entry function that uses the [clap crate](https://docs.rs/clap/2.33.0/clap/)
 fn main() {
     let matches = clap_app!(duroc_hog =>
-        (version: "1.0.5")
+        (version: "1.1.7")
         (author: "Scott Cutler <scutler@newrelic.com>")
         (about: "File system secret scanner in Rust")
         (@arg REGEX: -r --regex +takes_value "Sets a custom regex JSON file")
@@ -78,6 +80,7 @@ fn main() {
         (@arg CASE: --caseinsensitive "Sets the case insensitive flag for all regexes")
         (@arg OUTPUT: -o --outputfile +takes_value "Sets the path to write the scanner results to (stdout by default)")
         (@arg PRETTYPRINT: --prettyprint "Outputs the JSON in human readable format")
+        (@arg WHITELIST: -w --whitelist +takes_value "Sets a custom whitelist JSON file")
     )
         .get_matches();
     match run(&matches) {
@@ -96,6 +99,7 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     // let scan_entropy = arg_matches.is_present("ENTROPY");
     let recursive = arg_matches.is_present("RECURSIVE");
     let fspath = Path::new(arg_matches.value_of("FSPATH").unwrap());
+    let output_file = Path::new(arg_matches.value_of("OUTPUT").unwrap_or(""));
     let unzip: bool = arg_matches.is_present("UNZIP");
 
     debug!("fspath: {:?}", fspath);
@@ -110,7 +114,7 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     let mut output: HashSet<FileFinding> = HashSet::new();
 
     if Path::is_dir(fspath) {
-        output.extend(scan_dir(fspath, &secret_scanner, recursive, unzip));
+        output.extend(scan_dir(fspath, output_file, &secret_scanner, recursive, unzip));
     } else {
         let f = File::open(fspath).unwrap();
         output.extend(scan_file(fspath, &secret_scanner, f, "", unzip));
@@ -125,42 +129,53 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
 
 fn scan_dir(
     fspath: &Path,
+    output_file: &Path,
     ss: &SecretScanner,
     recursive: bool,
     unzip: bool,
 ) -> HashSet<FileFinding> {
     let mut output: HashSet<FileFinding> = HashSet::new();
-    if recursive {
-        for entry in WalkDir::new(fspath).into_iter().filter_map(|e| e.ok()) {
-            if entry.file_type().is_file() {
-                let f = File::open(entry.path()).unwrap();
-                let mut inner_findings = scan_file(entry.path(), &ss, f, "", unzip);
-                for d in inner_findings.drain() {
-                    output.insert(d);
-                }
-            }
+
+    let scanning_closure = |file_path: &Path| {
+        let f = File::open(file_path).unwrap();
+        let mut inner_findings = scan_file(file_path, &ss, f, "", unzip);
+        for d in inner_findings.drain() {
+            output.insert(d);
         }
+    };
+
+    if recursive {
+        recursive_dir_scan(fspath, Path::new(output_file), scanning_closure)
     } else {
-        let dir_contents: Vec<PathBuf> = fspath
+        flat_dir_scan(fspath, Path::new(output_file), scanning_closure)
+    };
+
+    output
+}
+
+fn recursive_dir_scan<C>(fspath: &Path, output_file: &Path, mut closure: C) where C: FnMut(&Path) {
+    for entry in WalkDir::new(fspath).into_iter().filter_map(|e| e.ok()) {
+        if entry.file_type().is_file() && &PathBuf::from(entry.path()).clean() != output_file {
+            closure(&entry.path());
+        }
+    }
+}
+
+fn flat_dir_scan<C>(fspath: &Path, output_file: &Path, mut closure: C) where C: FnMut(&Path) {
+    let dir_contents: Vec<PathBuf> = fspath
             .read_dir()
             .expect("read_dir call failed")
             .filter_map(|e| e.ok())
             .filter(|e| e.file_type().unwrap().is_file())
             .map(|e| e.path())
+            .inspect(|e| debug!("clean path: {:?}, output_file: {:?}", &e.clean(), output_file))
+            .filter(|e| &e.clean() != output_file)
             .collect();
-        debug!("dir_contents: {:?}", dir_contents);
-        for file_path in dir_contents {
-            let path = file_path.clone();
-            let f = File::open(file_path).unwrap();
-            let mut inner_findings = scan_file(&path, &ss, f, "", unzip);
-            for d in inner_findings.drain() {
-                info!("FileFinding: {:?}", d);
-                output.insert(d);
-            }
-            debug!("inner findings: {:?}", inner_findings);
-        }
+    debug!("dir_contents: {:?}", dir_contents);
+
+    for file_path in dir_contents {
+        closure(&file_path);
     }
-    output
 }
 
 fn scan_file<R: Read + io::Seek>(
@@ -198,7 +213,9 @@ fn scan_file<R: Read + io::Seek>(
             );
             for d in inner_findings.drain() {
                 info!("FileFinding: {:?}", d);
-                findings.insert(d);
+                if !&ss.is_whitelisted(d.reason.as_str(), &(d.strings_found)) {
+                    findings.insert(d);
+                }
             }
         }
         findings
@@ -220,7 +237,9 @@ fn scan_file<R: Read + io::Seek>(
             );
             for d in inner_findings.drain() {
                 info!("FileFinding: {:?}", d);
-                findings.insert(d);
+                if !&ss.is_whitelisted(d.reason.as_str(), &(d.strings_found)) {
+                    findings.insert(d);
+                }
             }
         }
         findings
@@ -245,7 +264,9 @@ fn scan_file<R: Read + io::Seek>(
         );
         for d in inner_findings.drain() {
             info!("FileFinding: {:?}", d);
-            findings.insert(d);
+            if !&ss.is_whitelisted(d.reason.as_str(), &(d.strings_found)) {
+                findings.insert(d);
+            }
         }
         findings
     } else {
@@ -272,7 +293,7 @@ fn scan_bytes(input: Vec<u8>, ss: &SecretScanner, path: String) -> HashSet<FileF
                     .unwrap_or_else(|_| "<STRING DECODE ERROR>".parse().unwrap());
                 strings_found.push(result);
             }
-            if !strings_found.is_empty() {
+            if !strings_found.is_empty() && !ss.is_whitelisted(r.as_str(), &strings_found) {
                 let new_line_string = ASCII
                     .decode(&new_line, DecoderTrap::Ignore)
                     .unwrap_or_else(|_| "<STRING DECODE ERROR>".parse().unwrap());
@@ -287,4 +308,83 @@ fn scan_bytes(input: Vec<u8>, ss: &SecretScanner, path: String) -> HashSet<FileF
         }
     }
     findings
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Result;
+    use std::process::Output;
+    use std::io::Write;
+    use tempfile::{NamedTempFile, TempDir};
+    use escargot::CargoBuild;
+
+    fn run_command_in_dir(dir: &TempDir, command: &str, args: &[&str]) -> Result<Output> {
+        let dir_path = dir.path().to_str().unwrap();
+        let binary = CargoBuild::new()
+            .bin(command)
+            .run()
+            .unwrap();
+
+        binary.command()
+            .current_dir(dir_path)
+            .args(args)
+            .output()
+    }
+
+    fn write_temp_file(dir: &TempDir, filename: &str, contents: &str) {
+        let file_path = dir.path().join(filename);
+        let mut tmp_file = File::create(&file_path).unwrap();
+        write!(tmp_file, "{}", contents).unwrap();
+    }
+
+    fn read_temp_file(dir: &TempDir, filename: &str) -> String {
+        let mut contents = String::new();
+        let file_path = dir.path().join(filename);
+        let mut file_handle = File::open(&file_path).unwrap();
+        file_handle.read_to_string(&mut contents).unwrap();
+        contents
+    }
+
+    #[test]
+    fn does_not_scan_output_file() {
+        let temp_dir = TempDir::new().unwrap();
+
+        write_temp_file(&temp_dir, "insecure-file.txt", "My email is username@mail.com");
+
+        let cmd_args = ["-o", "output_file.txt", "."];
+
+        run_command_in_dir(&temp_dir, "duroc_hog", &cmd_args).unwrap();
+
+        run_command_in_dir(&temp_dir, "duroc_hog", &cmd_args).unwrap();
+
+        let text = read_temp_file(&temp_dir, "output_file.txt");
+
+        println!("{}", text);
+
+        assert!(text.contains("\"path\":\"./insecure-file.txt\""));
+        assert!(!text.contains("output_file.txt"));
+    }
+
+    #[test]
+    fn whitelist_json_file_prevents_output() {
+        let temp_dir = TempDir::new().unwrap();
+        let mut whitelist_temp_file = NamedTempFile::new().unwrap();
+        let json = r#"
+        {
+            "Email address": [
+                "username@mail.com"
+            ]
+        }
+        "#;
+        write!(whitelist_temp_file, "{}", json).unwrap();
+        write_temp_file(&temp_dir, "insecure-file.txt", "My email is username@mail.com");
+
+        let cmd_args = ["--whitelist", whitelist_temp_file.path().to_str().unwrap(), "."];
+
+        let output = run_command_in_dir(&temp_dir, "duroc_hog", &cmd_args).unwrap();
+
+        assert_eq!("[]\n", str::from_utf8(&output.stdout).unwrap());
+
+    }
 }
