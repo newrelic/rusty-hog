@@ -47,7 +47,7 @@ use encoding::all::ASCII;
 use encoding::{DecoderTrap, Encoding};
 use rusty_hogs::{SecretScanner, SecretScannerBuilder};
 use std::collections::HashSet;
-use path_clean::{clean, PathClean};
+use path_clean::PathClean;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, Clone, Default)]
 /// `serde_json` object that represents a single found secret - finding
