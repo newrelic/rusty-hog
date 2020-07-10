@@ -352,7 +352,7 @@ mod tests {
 
         write_temp_file(&temp_dir, "insecure-file.txt", "My email is username@mail.com");
 
-        let cmd_args = ["-o", "./output_file.txt", "."];
+        let cmd_args = ["-o", "output_file.txt", "."];
 
         run_command_in_dir(&temp_dir, "duroc_hog", &cmd_args).unwrap();
 
