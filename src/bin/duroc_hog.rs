@@ -47,6 +47,7 @@ use encoding::all::ASCII;
 use encoding::{DecoderTrap, Encoding};
 use rusty_hogs::{SecretScanner, SecretScannerBuilder};
 use std::collections::HashSet;
+use path_clean::{clean, PathClean};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, Clone, Default)]
 /// `serde_json` object that represents a single found secret - finding
@@ -135,47 +136,40 @@ fn scan_dir(
 ) -> HashSet<FileFinding> {
     let mut output: HashSet<FileFinding> = HashSet::new();
 
-    let dir_scan_func = if recursive {
-        recursive_dir_scan
-    } else {
-        flat_dir_scan
-    };
-
-    dir_scan_func(fspath, Path::new(output_file), |file_path: &Path| {
+    let scanning_closure = |file_path: &Path| {
         let f = File::open(file_path).unwrap();
         let mut inner_findings = scan_file(file_path, &ss, f, "", unzip);
         for d in inner_findings.drain() {
             output.insert(d);
         }
-    });
+    };
+
+    if recursive {
+        recursive_dir_scan(fspath, Path::new(output_file), scanning_closure)
+    } else {
+        flat_dir_scan(fspath, Path::new(output_file), scanning_closure)
+    };
 
     output
 }
 
-fn recursive_dir_scan<C>(
-    fspath: &Path,
-    output_file: &Path,
-    mut closure: C
-) where C: FnMut(&Path) {
+fn recursive_dir_scan<C>(fspath: &Path, output_file: &Path, mut closure: C) where C: FnMut(&Path) {
     for entry in WalkDir::new(fspath).into_iter().filter_map(|e| e.ok()) {
-        if entry.file_type().is_file() && entry.path() != output_file {
+        if entry.file_type().is_file() && &PathBuf::from(entry.path()).clean() != output_file {
             closure(&entry.path());
         }
     }
 }
 
-fn flat_dir_scan<C>(
-    fspath: &Path,
-    output_file: &Path,
-    mut closure: C
-) where C: FnMut(&Path) {
+fn flat_dir_scan<C>(fspath: &Path, output_file: &Path, mut closure: C) where C: FnMut(&Path) {
     let dir_contents: Vec<PathBuf> = fspath
             .read_dir()
             .expect("read_dir call failed")
             .filter_map(|e| e.ok())
             .filter(|e| e.file_type().unwrap().is_file())
             .map(|e| e.path())
-            .filter(|e| e != output_file)
+            .inspect(|e| debug!("clean path: {:?}, output_file: {:?}", &e.clean(), output_file))
+            .filter(|e| &e.clean() != output_file)
             .collect();
     debug!("dir_contents: {:?}", dir_contents);
 

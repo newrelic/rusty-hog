@@ -47,6 +47,7 @@ tar = "0.4.26"
 flate2 = "1.0.14"
 anyhow = "1.0"
 tempfile = "^3.1"
+path-clean = "0.1.0"
 
 [dev-dependencies]
 escargot = "0.5.0"
