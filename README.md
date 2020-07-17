@@ -6,6 +6,7 @@ in Python. Rusty Hog provides the following binaries:
 * Berkshire Hog: Scans for secrets in an S3 bucket.
 * Choctaw Hog: Scans for secrets in a Git repository.
 * Duroc Hog: Scans for secrets in a directory, file, and archive.
+* Essex Hog: Scans for secrets in a Confluence wiki page.
 * Gottingen Hog: Scans for secrets in a JIRA issue.
 
 ## Table of contents
@@ -47,8 +48,8 @@ Download and unzip the [latest ZIP](https://github.com/newrelic/rusty-hog/releas
 on the releases tab. Then, run each binary with `-h` to see the usage.
 
 ```shell script
-wget https://github.com/newrelic/rusty-hog/releases/download/v1.0.5/rustyhogs-musl_darwin_1.0.5.zip
-unzip rustyhogs-musl_darwin_1.0.5.zip
+wget https://github.com/newrelic/rusty-hog/releases/download/v1.0.5/rustyhogs-musl_darwin_1.0.6.zip
+unzip rustyhogs-musl_darwin_1.0.6.zip
 darwin_releases/choctaw_hog -h
 ```
 
@@ -161,15 +162,17 @@ FLAGS:
     -V, --version            Prints version information
 
 OPTIONS:
-    -o, --outputfile <OUTPUT>            Sets the path to write the scanner results to (stdout by default)
-        --regex <REGEX>                  Sets a custom regex JSON file
-        --since_commit <SINCECOMMIT>     Filters commits based on date committed (branch agnostic)
-        --until_commit <SINCECOMMIT>     Filters commits based on date committed (branch agnostic)
-        --sshkeypath <SSHKEYPATH>        Takes a path to a private SSH key for git authentication; defaults to ssh-agent
-        --sshkeyphrase <SSHKEYPHRASE>    Takes a passphrase to a private SSH key for git authentication; defaults to
-                                         none
-        --httpsuser <HTTPSUSER>          Takes a username for HTTPS-based authentication
-        --httpspass <HTTPSPASS>          Takes a password for HTTPS-based authentication
+        --default_entropy_threshold <DEFAULT_ENTROPY_THRESHOLD>    Default entropy threshold (4.5 by default)
+        --httpspass <HTTPSPASS>                                    Takes a password for HTTPS-based authentication
+        --httpsuser <HTTPSUSER>                                    Takes a username for HTTPS-based authentication
+    -o, --outputfile <OUTPUT>                                      Sets the path to write the scanner results to (stdout by default)
+        --recent_days <RECENTDAYS>                                 Filters commits to the last number of days (branch agnostic)
+    -r, --regex <REGEX>                                            Sets a custom regex JSON file
+        --since_commit <SINCECOMMIT>                               Filters commits based on date committed (branch agnostic)
+        --sshkeypath <SSHKEYPATH>                                  Takes a path to a private SSH key for git authentication, defaults to ssh-agent
+        --sshkeyphrase <SSHKEYPHRASE>                              Takes a passphrase to a private SSH key for git authentication, defaults to none
+        --until_commit <UNTILCOMMIT>                               Filters commits based on date committed (branch agnostic)
+    -w, --whitelist <WHITELIST>                                    Sets a custom whitelist JSON file
 
 ARGS:
     <GITPATH>    Sets the path (or URL) of the Git repo to scan. SSH links must include username (git@)
@@ -177,8 +180,6 @@ ARGS:
 
 ## Duroc Hog (file system scanner) usage
 ```
-File system secret scanner in Rust
-
 USAGE:
     duroc_hog [FLAGS] [OPTIONS] <FSPATH>
 
@@ -192,11 +193,37 @@ FLAGS:
     -V, --version            Prints version information
 
 OPTIONS:
-    -o, --outputfile <OUTPUT>    Sets the path to write the scanner results to (stdout by default)
-    -r, --regex <REGEX>          Sets a custom regex JSON file
+    -o, --outputfile <OUTPUT>      Sets the path to write the scanner results to (stdout by default)
+    -r, --regex <REGEX>            Sets a custom regex JSON file
+    -w, --whitelist <WHITELIST>    Sets a custom whitelist JSON file
 
 ARGS:
     <FSPATH>    Sets the path of the directory or file to scan.
+```
+
+## Essex Hog (Confluence scanner) usage
+```
+USAGE:
+    essex_hog [FLAGS] [OPTIONS] <PAGEID> <URL>
+
+FLAGS:
+        --caseinsensitive    Sets the case insensitive flag for all regexes
+        --entropy            Enables entropy scanning
+        --prettyprint        Outputs the JSON in human readable format
+    -v, --verbose            Sets the level of debugging information
+    -h, --help               Prints help information
+    -V, --version            Prints version information
+
+OPTIONS:
+        --authtoken <BEARERTOKEN>    Confluence basic auth bearer token (instead of user & pass)
+    -o, --outputfile <OUTPUT>        Sets the path to write the scanner results to (stdout by default)
+        --password <PASSWORD>        Confluence password (crafts basic auth header)
+        --regex <REGEX>              Sets a custom regex JSON file
+        --username <USERNAME>        Confluence username (crafts basic auth header)
+
+ARGS:
+    <PAGEID>    The ID (e.g. 1234) of the confluence page you want to scan
+    <URL>       Base URL of Confluence instance (e.g. https://newrelic.atlassian.net/)
 ```
 
 ## Gottingen Hog (JIRA scanner) usage

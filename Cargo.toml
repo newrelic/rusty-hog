@@ -1,6 +1,6 @@
 [package]
 name = "rusty_hogs"
-version = "1.1.7"
+version = "1.0.6"
 authors = ["Scott Cutler <scutler@newrelic.com>"]
 edition = "2018"
 description = "This project provides a set of scanners that will use regular expressions to try and detect the presence of sensitive information such as API keys, passwords, and personal information. It includes a set of regular expressions by default, but will also accept a JSON object containing your custom regular expressions."
