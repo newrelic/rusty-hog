@@ -149,7 +149,7 @@ const DEFAULT_REGEX_JSON: &str = r##"
   "New Relic Insights Insert Key (new format)": "(?i)NRII-[A-Za-z0-9-_]{32}",
   "New Relic Insights Query Key (new format)": "(?i)NRIQ-[A-Za-z0-9-_]{32}",
   "New Relic Synthetics Private Location Key (new format)": "(?i)NRSP-[a-z]{2}[0-9]{2}[a-f0-9]{31}",
-  "Email address": "(?i)\\b(?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*)@[a-z0-9][a-z0-9-]+\\.(com|de|cn|net|uk|org|info|nl|eu|ru)([\\W&&[^:]]|\\A|\\z)",
+  "Email address": "(?i)\\b(?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*)@[a-z0-9][a-z0-9-]+\\.(com|de|cn|net|uk|org|info|nl|eu|ru)([\\W&&[^:/]]|\\A|\\z)",
   "New Relic Account IDs in URL": "(newrelic\\.com/)?accounts/\\d{1,10}/",
   "Account ID": "(?i)account[\\s[[:punct:]]]?id[\\s[[:punct:]]]{1,4}\\b[\\d]{1,10}\\b",
   "Salary Information": "(?i)(salary|commission|compensation|pay)([\\s[[:punct:]]](amount|target))?[\\s[[:punct:]]]{1,4}\\d+"
@@ -815,6 +815,7 @@ mod tests {
             git@github.com:newrelic/rusty-hog.git
             scp user@host:file.txt .
             https://user@host/secured/file
+            https://user@host.com/secured/file
             <text>@<text>
         "#).into_bytes();
         let mut findings: Vec<(&String, String)> = Vec::new();
