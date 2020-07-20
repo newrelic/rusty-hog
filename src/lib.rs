@@ -122,7 +122,7 @@ const DEFAULT_REGEX_JSON: &str = r##"
   "Heroku API Key": "[h|H][e|E][r|R][o|O][k|K][u|U][\\s[[:punct:]]]{1,4}[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}",
   "MailChimp API Key": "[0-9a-f]{32}-us[0-9]{1,2}",
   "Mailgun API Key": "(?i)key-[0-9a-zA-Z]{32}",
-  "Credentials in absolute URL": "(?i)((https?|ftp)://)(([a-z0-9$_\\.\\+!\\*'\\(\\),;\\?&=-]|%[0-9a-f]{2})+(:([a-z0-9$_\\.\\+!\\*'\\(\\),;\\?&=-]|%[0-9a-f]{2})+)?@)((([a-z0-9]\\.|[a-z0-9][a-z0-9-]*[a-z0-9]\\.)*[a-z][a-z0-9-]*[a-z0-9]|((\\d|[1-9]\\d|1\\d{2}|2[0-4][0-9]|25[0-5])\\.){3}(\\d|[1-9]\\d|1\\d{2}|2[0-4][0-9]|25[0-5]))(:\\d+)?)(((/+([a-z0-9$_\\.\\+!\\*'\\(\\),;:@&=-]|%[0-9a-f]{2})*)*(\\?([a-z0-9$_\\.\\+!\\*'\\(\\),;:@&=-]|%[0-9a-f]{2})*)?)?)?",
+  "Credentials in absolute URL": "(?i)((https?|ftp)://)(([a-z0-9$_\\.\\+!\\*'\\(\\),;\\?&=-]|%[0-9a-f]{2})+(:([a-z0-9$_\\.\\+!\\*'\\(\\),;\\?&=-]|%[0-9a-f]{2})+)@)((([a-z0-9]\\.|[a-z0-9][a-z0-9-]*[a-z0-9]\\.)*[a-z][a-z0-9-]*[a-z0-9]|((\\d|[1-9]\\d|1\\d{2}|2[0-4][0-9]|25[0-5])\\.){3}(\\d|[1-9]\\d|1\\d{2}|2[0-4][0-9]|25[0-5]))(:\\d+)?)(((/+([a-z0-9$_\\.\\+!\\*'\\(\\),;:@&=-]|%[0-9a-f]{2})*)*(\\?([a-z0-9$_\\.\\+!\\*'\\(\\),;:@&=-]|%[0-9a-f]{2})*)?)?)?",
   "PayPal Braintree Access Token": "(?i)access_token\\$production\\$[0-9a-z]{16}\\$[0-9a-f]{32}",
   "Picatic API Key": "(?i)sk_live_[0-9a-z]{32}",
   "Slack Webhook": "(?i)https://hooks.slack.com/services/T[a-zA-Z0-9_]{8}/B[a-zA-Z0-9_]{8}/[a-zA-Z0-9_]{24}",
@@ -149,7 +149,7 @@ const DEFAULT_REGEX_JSON: &str = r##"
   "New Relic Insights Insert Key (new format)": "(?i)NRII-[A-Za-z0-9-_]{32}",
   "New Relic Insights Query Key (new format)": "(?i)NRIQ-[A-Za-z0-9-_]{32}",
   "New Relic Synthetics Private Location Key (new format)": "(?i)NRSP-[a-z]{2}[0-9]{2}[a-f0-9]{31}",
-  "Email address": "(?i)(?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|\"(?:[\\x01-\\x08\\x0b\\x0c\\x0e-\\x1f\\x21\\x23-\\x5b\\x5d-\\x7f]|\\\\[\\x01-\\x09\\x0b\\x0c\\x0e-\\x7f])*\")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\\[(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?|[a-z0-9-]*[a-z0-9]:(?:[\\x01-\\x08\\x0b\\x0c\\x0e-\\x1f\\x21-\\x5a\\x53-\\x7f]|\\\\[\\x01-\\x09\\x0b\\x0c\\x0e-\\x7f])+)\\])",
+  "Email address": "(?i)\\b(?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*)@[a-z0-9][a-z0-9-]+\\.(com|de|cn|net|uk|org|info|nl|eu|ru)([\\W&&[^:]]|\\A|\\z)",
   "New Relic Account IDs in URL": "(newrelic\\.com/)?accounts/\\d{1,10}/",
   "Account ID": "(?i)account[\\s[[:punct:]]]?id[\\s[[:punct:]]]{1,4}\\b[\\d]{1,10}\\b",
   "Salary Information": "(?i)(salary|commission|compensation|pay)([\\s[[:punct:]]](amount|target))?[\\s[[:punct:]]]{1,4}\\d+"
@@ -803,6 +803,53 @@ mod tests {
     use super::*;
     use tempfile::NamedTempFile;
     use std::io::Write;
+    use encoding::all::ASCII;
+    use encoding::{DecoderTrap, Encoding};
+
+    #[test]
+    fn email_address_regex_test() {
+        let ssb = SecretScannerBuilder::new();
+        let ss = ssb.build();
+        let test_string = String::from(r#"
+            anactualemail@gmail.com
+            git@github.com:newrelic/rusty-hog.git
+            scp user@host:file.txt .
+            https://user@host/secured/file
+            <text>@<text>
+        "#).into_bytes();
+        let mut findings: Vec<(&String, String)> = Vec::new();
+        // Main loop - split the data based on newlines, then run get_matches() on each line,
+        // then make a list of findings in output
+        let lines = test_string.split(|&x| (x as char) == '\n');
+        for (_index, new_line) in lines.enumerate() {
+            let results = ss.matches(new_line);
+            for (r, matches) in results {
+                let mut strings_found: Vec<String> = Vec::new();
+                for m in matches {
+                    let result = ASCII
+                        .decode(&new_line[m.start()..m.end()], DecoderTrap::Ignore)
+                        .unwrap_or_else(|_| "<STRING DECODE ERROR>".parse().unwrap());
+                    strings_found.push(result);
+                }
+                if !strings_found.is_empty() {
+                    let new_line_string = ASCII
+                        .decode(&new_line, DecoderTrap::Ignore)
+                        .unwrap_or_else(|_| "<STRING DECODE ERROR>".parse().unwrap());
+                    findings.push((r, new_line_string));
+                }
+            }
+        }
+        // if findings.len() != 1 {
+            for f in &findings {
+                println!("{} {}", f.0, f.1);
+            }
+        // }
+        assert_eq!(findings.len(), 1);
+        let f = findings.pop().unwrap();
+        assert_eq!(f.0, "Email address");
+        assert_eq!(f.1, "            anactualemail@gmail.com");
+    }
+
 
     #[test]
     fn can_parse_json_from_str() -> Result<(), String> {
