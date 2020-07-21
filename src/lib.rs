@@ -941,6 +941,16 @@ mod tests {
     use encoding::{DecoderTrap, Encoding};
 
     #[test]
+    fn test_check_entropy() {
+        let ssb = SecretScannerBuilder::new();
+        let ss = ssb.build();
+        let output = ss.check_entropy("Generic Secret", "secret: ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefg".as_bytes());
+        assert!(output);
+        let output2 = ss.check_entropy("Generic Secret", "secret: AAAAAAAAABBBBBBBBBBBBCCCCCCCCCCCC".as_bytes());
+        assert!(!output2);
+    }
+
+    #[test]
     fn generic_secret_regex_test() {
         let ssb = SecretScannerBuilder::new();
         let ss = ssb.build();

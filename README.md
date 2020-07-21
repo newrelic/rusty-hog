@@ -268,7 +268,7 @@ As of version 1.0.7, the Rusty Hog engine also supports objects as values for ea
 The object can contain all of the following:
 
 - a pattern property with the matching regex expression (mandatory)
-- an entropy property with a boolean value to enable entropy scanning for this information (mandatory)
+- an entropy_filter property with a boolean value to enable entropy scanning for this information (mandatory)
 - a threshold property to customize the entropy tolerance on a scale of 0 - 1 (optional, will adjust for old 1-8 format, default 0.6)
 - a keyspace property to indicate how many possible values are in the key, e.g. 16 for hex, 64 for base64, 128 for ASCII (optional, default 128)
 - a make_ascii_lowercase property to indicate whether Rust should perform .make_ascii_lowercase() on the key before calculating entropy (optional, default false)
@@ -279,10 +279,17 @@ An example of this format is here:
 
 ```json
 {
+    "Generic Secret": {
+        "pattern": "(?i)secret[\\s[[:punct:]]]{1,4}[0-9a-zA-Z-_]{16,64}[\\s[[:punct:]]]?",
+        "entropy_filter": true,
+        "threshold": "0.6"
+    },
     "Slack Token": { 
         "pattern": "(xox[p|b|o|a]-[0-9]{12}-[0-9]{12}-[0-9]{12}-[a-z0-9]{32})",
         "entropy_filter": true,
-        "threshold": "0.8"
+        "threshold": "0.6",
+        "keyspace": "36",
+        "make_ascii_lowercase": true
     },
     "Google API Key": {
         "pattern": "AIza[0-9A-Za-z\\-_]{35}",
