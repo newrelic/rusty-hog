@@ -39,7 +39,7 @@
 //!
 //! let mut gs = gs.init_git_repo(".", Path::new("."), None, None, None, None);
 //! let findings: HashSet<GitFinding> = gs.perform_scan(None, Some("7e8c52a"), Some("8013160e"), false, None);
-//! assert_eq!(findings.len(), 27);
+//! assert_eq!(findings.len(), 19);
 //! ```
 
 use crate::SecretScanner;
@@ -57,6 +57,7 @@ use std::path::Path;
 use std::{str, fmt};
 use url::{ParseError, Url};
 use std::hash::{Hash, Hasher};
+use regex::bytes::Match;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, Clone, Default)]
 /// `serde_json` object that represents a single found secret - finding
@@ -196,7 +197,7 @@ impl GitScanner {
             diff.print(DiffFormat::Patch, |delta, _hunk, line| {
                 if line.origin() == 'F' || line.origin() == 'H' { return true };
                 let new_line = line.content();
-                let matches_map: BTreeMap<&String, Matches> = self.secret_scanner.matches(new_line);
+                let matches_map: BTreeMap<&String, Vec<Match>> = self.secret_scanner.matches_entropy_filtered(new_line);
                 let old_file_id = delta.old_file().id();
                 let new_file_id = delta.new_file().id();
                 let old_line_num = line.old_lineno().unwrap_or_else(|| 0);

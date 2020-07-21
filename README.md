@@ -264,12 +264,14 @@ properties output by the scanner.
 Each value should be a string containing a valid [https://docs.rs/regex/1.3.9/regex/#syntax](regular expression for Rust) 
 that should match the type of secret described by its corresponding key.
 
-As of version 1.0.4, the Rusty Hog engine also supports objects as values for each secret. 
+As of version 1.0.7, the Rusty Hog engine also supports objects as values for each secret. 
 The object can contain all of the following:
 
 - a pattern property with the matching regex expression (mandatory)
 - an entropy property with a boolean value to enable entropy scanning for this information (mandatory)
-- a threshold property to customize the entropy tolerance on a scale of 0 - 8 (optional)
+- a threshold property to customize the entropy tolerance on a scale of 0 - 1 (optional, will adjust for old 1-8 format, default 0.6)
+- a keyspace property to indicate how many possible values are in the key, e.g. 16 for hex, 64 for base64, 128 for ASCII (optional, default 128)
+- a make_ascii_lowercase property to indicate whether Rust should perform .make_ascii_lowercase() on the key before calculating entropy (optional, default false)
 
 The higher the threshold, the more entropy is required in the secret to consider it a match.
 
@@ -279,12 +281,12 @@ An example of this format is here:
 {
     "Slack Token": { 
         "pattern": "(xox[p|b|o|a]-[0-9]{12}-[0-9]{12}-[0-9]{12}-[a-z0-9]{32})",
-        "entropy": true,
-        "threshold": "4.5"
+        "entropy_filter": true,
+        "threshold": "0.8"
     },
     "Google API Key": {
         "pattern": "AIza[0-9A-Za-z\\-_]{35}",
-        "entropy": true
+        "entropy_filter": true
     },
     "PGP private key block": "-----BEGIN PGP PRIVATE KEY BLOCK-----"
 }
