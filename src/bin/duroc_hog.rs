@@ -73,7 +73,7 @@ fn main() {
         (about: "File system secret scanner in Rust")
         (@arg REGEX: -r --regex +takes_value "Sets a custom regex JSON file")
         (@arg FSPATH: +required "Sets the path of the directory or file to scan.")
-        (@arg RECURSIVE: --recursive "Scans all subdirectories underneath the supplied path")
+        (@arg NORECURSIVE: --norecursive "Disable recursive scanning of all subdirectories underneath the supplied path")
         (@arg VERBOSE: -v --verbose ... "Sets the level of debugging information")
         // (@arg ENTROPY: --entropy ... "Enables entropy scanning")
         (@arg UNZIP: -z --unzip "Recursively scans archives (ZIP and TAR) in memory (dangerous)")
@@ -97,7 +97,7 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     // Initialize some more variables
     let secret_scanner = SecretScannerBuilder::new().conf_argm(arg_matches).build();
     // let scan_entropy = arg_matches.is_present("ENTROPY");
-    let recursive = arg_matches.is_present("RECURSIVE");
+    let recursive = !arg_matches.is_present("NORECURSIVE");
     let fspath = Path::new(arg_matches.value_of("FSPATH").unwrap());
     let output_file = Path::new(arg_matches.value_of("OUTPUT").unwrap_or(""));
     let unzip: bool = arg_matches.is_present("UNZIP");
