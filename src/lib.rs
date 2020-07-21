@@ -105,12 +105,23 @@ const DEFAULT_REGEX_JSON: &str = r##"
   "Facebook Access Token": "EAACEdEose0cBA[0-9A-Za-z]+",
   "Facebook OAuth": "(?i)facebook[\\s[[:punct:]]]{1,4}[0-9a-f]{32}[\\s[[:punct:]]]?",
   "GitHub": "(?i)(github|access[[:punct:]]token)[\\s[[:punct:]]]{1,4}[0-9a-zA-Z]{35,40}",
-  "Generic API Key": "(?i)(api|access)[\\s[[:punct:]]]?key[\\s[[:punct:]]]{1,4}[0-9a-zA-Z\\-_]{16,64}[\\s[[:punct:]]]?",
-  "Generic Account API Key": "(?i)account[\\s[[:punct:]]]?api[\\s[[:punct:]]]{1,4}[0-9a-zA-Z\\-_]{16,64}[\\s[[:punct:]]]?",
+  "Generic API Key": {
+    "pattern": "(?i)(api|access)[\\s[[:punct:]]]?key[\\s[[:punct:]]]{1,4}[0-9a-zA-Z\\-_]{16,64}[\\s[[:punct:]]]?",
+    "entropy_filter": true,
+    "threshold": "0.6",
+    "keyspace": "guess"
+  },
+  "Generic Account API Key": {
+    "pattern": "(?i)account[\\s[[:punct:]]]?api[\\s[[:punct:]]]{1,4}[0-9a-zA-Z\\-_]{16,64}[\\s[[:punct:]]]?",
+    "entropy_filter": true,
+    "threshold": "0.6",
+    "keyspace": "guess"
+  },
   "Generic Secret": {
     "pattern": "(?i)secret[\\s[[:punct:]]]{1,4}[0-9a-zA-Z-_]{16,64}[\\s[[:punct:]]]?",
     "entropy_filter": true,
-    "threshold": "0.6"
+    "threshold": "0.6",
+    "keyspace": "guess"
   },
   "Google API Key": "AIza[0-9A-Za-z\\-_]{35}",
   "Google Cloud Platform API Key": "AIza[0-9A-Za-z\\-_]{35}",
@@ -162,7 +173,7 @@ const DEFAULT_REGEX_JSON: &str = r##"
 
 // from https://docs.rs/crate/base64/0.11.0/source/src/tables.rs
 // copied because the value itself was private in the base64 crate
-const STANDARD_ENCODE: &[u8; 64] = &[
+const B64_ENCODE: &[u8; 64] = &[
     65,  // input 0 (0x0) => 'A' (0x41)
     66,  // input 1 (0x1) => 'B' (0x42)
     67,  // input 2 (0x2) => 'C' (0x43)
@@ -229,6 +240,42 @@ const STANDARD_ENCODE: &[u8; 64] = &[
     47,  // input 63 (0x3F) => '/' (0x2F)
 ];
 
+const HEX_ENCODE: &[u8; 22] = &[
+    65,  // 'A' (0x41)
+    66,  // 'B' (0x42)
+    67,  // 'C' (0x43)
+    68,  // 'D' (0x44)
+    69,  // 'E' (0x45)
+    70,  // 'F' (0x46)
+    97,  // 'a' (0x61)
+    98,  // 'b' (0x62)
+    99,  // 'c' (0x63)
+    100, // 'd' (0x64)
+    101, // 'e' (0x65)
+    102, // 'f' (0x66)
+    48,  // '0' (0x30)
+    49,  // '1' (0x31)
+    50,  // '2' (0x32)
+    51,  // '3' (0x33)
+    52,  // '4' (0x34)
+    53,  // '5' (0x35)
+    54,  // '6' (0x36)
+    55,  // '7' (0x37)
+    56,  // '8' (0x38)
+    57,  // '9' (0x39)
+];
+
+const WORD_SPLIT: &[u8; 8] = &[
+    32,  // ' '
+    34,  // '"'
+    39,  // "'"
+    40,  // '('
+    41,  // ')'
+    58,  // ':'
+    61,  // '='
+    96   // '`'
+];
+
 const DEFAULT_ENTROPY_THRESHOLD: f32 = 0.6;
 const ENTROPY_MIN_WORD_LEN: usize = 5;
 const ENTROPY_MAX_WORD_LEN: usize = 40;
@@ -257,7 +304,7 @@ pub struct SecretScanner {
 pub struct EntropyRegex {
     pub pattern: Regex,
     pub entropy_threshold: Option<f32>,
-    pub keyspace: u32,
+    pub keyspace: Option<u32>,
     pub make_ascii_lowercase: bool
 }
 
@@ -268,7 +315,7 @@ pub enum PatternEntropy {
     Entropy { pattern: String,
               entropy_filter: Option<bool>,
               threshold: Option<String>,
-              keyspace: Option<u32>,
+              keyspace: Option<String>,
               make_ascii_lowercase: Option<bool>
     }
 
@@ -517,7 +564,7 @@ impl SecretScannerBuilder {
                     (k, EntropyRegex{
                         pattern: regex_builder.build().expect(format!("Error parsing regex string: {:?}", p).as_str()),
                         entropy_threshold: None,
-                        keyspace: 128,
+                        keyspace: None,
                         make_ascii_lowercase: false
                     })
                 },
@@ -537,9 +584,12 @@ impl SecretScannerBuilder {
                         Some(_) => None,
                         None => None,
                     };
-                    let keyspace_processed = match keyspace {
-                        Some(e) => e,
-                        None => 128
+                    let keyspace_processed: Option<u32> = match keyspace {
+                        Some(e) => match e.parse::<u32>() {
+                            Ok(n) => Some(n),
+                            _ => None
+                        },
+                        None => None
                     };
                     let make_ascii_lowercase_processed = match make_ascii_lowercase {
                         Some(b) => b,
@@ -628,17 +678,34 @@ impl SecretScanner {
     /// Helper function to determine whether a byte array only contains valid Base64 characters.
     fn is_base64_string(string_in: &[u8]) -> bool {
         let hashset_string_in: HashSet<&u8> = HashSet::from_iter(string_in.iter());
-        hashset_string_in.is_subset(&HashSet::from_iter(STANDARD_ENCODE.iter()))
+        hashset_string_in.is_subset(&HashSet::from_iter(B64_ENCODE.iter()))
+    }
+
+    /// Helper function to determine whether a byte array only contains valid hex characters.
+    fn is_hex_string(string_in: &[u8]) -> bool {
+        let hashset_string_in: HashSet<&u8> = HashSet::from_iter(string_in.iter());
+        hashset_string_in.is_subset(&HashSet::from_iter(HEX_ENCODE.iter()))
     }
 
 
     /// Compute the Shannon entropy for a byte array (from https://docs.rs/crate/entropy/0.3.0/source/src/lib.rs)
-    fn calc_shannon_entropy(bytes: &[u8]) -> f32 {
+    fn calc_shannon_entropy(bytes: &[u8], make_ascii_lowercase: bool) -> f32 {
         let mut entropy = 0.0;
         let mut counts: HashMap<u8, i32> = HashMap::new();
 
-        for &b in bytes {
-            counts.insert(b, counts.get(&b).unwrap_or(&0) + 1);
+        // there may be better ways to make this code shorter, but this method prevents byte copies
+        // if make_ascii_lowercase is set to false
+        if make_ascii_lowercase {
+            for &b in bytes {
+                let mut c = b.clone();
+                c.make_ascii_lowercase();
+                counts.insert(c, counts.get(&c).unwrap_or(&0) + 1);
+            }
+        }
+        else {
+            for &b in bytes {
+                counts.insert(b, counts.get(&b).unwrap_or(&0) + 1);
+            }
         }
 
         for &count in counts.values() {
@@ -649,19 +716,29 @@ impl SecretScanner {
         entropy
     }
 
+    fn guess_keyspace(bytes: &[u8]) -> (u32, bool) {
+        if SecretScanner::is_base64_string(bytes) { return (64, false) };
+        if SecretScanner::is_hex_string(bytes) { return (16, true) };
+        (128, false)
+    }
+
     /// Because the Shannon entropy number alone does not have context of the keyspace, we use this
     /// function to determine the amount of entropy present in a string as a value between 0-1.
     /// See https://stats.stackexchange.com/questions/281093/shannon-entropy-metric-entropy-and-relative-entropy
-    fn calc_normalized_entropy(bytes: &[u8], keyspace: f32) -> f32 {
-        let raw_entropy = SecretScanner::calc_shannon_entropy(bytes);
-        return raw_entropy / (keyspace.log2())
+    fn calc_normalized_entropy(bytes: &[u8], keyspace: Option<u32>, make_ascii_lowercase: bool) -> f32 {
+        let (processed_keyspace, processed_lowercase): (u32, bool) = match keyspace {
+            Some(n) => (n, make_ascii_lowercase),
+            None => SecretScanner::guess_keyspace(bytes)
+        };
+        let raw_entropy = SecretScanner::calc_shannon_entropy(bytes, processed_lowercase);
+        return raw_entropy / ((processed_keyspace as f32).log2())
     }
 
     /// Scan a byte array for arbitrary hex sequences and base64 sequences. Will return a list of
     /// matches for those sequences with a high amount of entropy, potentially indicating a
     /// private key.
     pub fn entropy_findings(line: &[u8]) -> Vec<String> {
-        let words: Vec<&[u8]> = line.split(|x| (*x as char) == ' ').collect();
+        let words: Vec<&[u8]> = line.split(|x| WORD_SPLIT.contains(x)).collect();
         let words: Vec<&[u8]> = words
             .into_iter()
             .map(|x| {
@@ -681,14 +758,14 @@ impl SecretScanner {
         let mut b64_words: Vec<String> = words
             .iter()
             .filter(|word| word.len() >= 20 && Self::is_base64_string(word))
-            .filter(|word| Self::calc_shannon_entropy(word) > 4.5)
+            .filter(|word| Self::calc_normalized_entropy(word, Some(64), false) > 0.6)
             .map(|word| str::from_utf8(word).unwrap().to_string())
             .collect();
         let mut hex_words: Vec<String> = words
             .iter() // there must be a better way
             .filter(|word| (word.len() >= 20) && (word.iter().all(u8::is_ascii_hexdigit)))
             .filter_map(|&x| hex::decode(x).ok())
-            .filter(|word| Self::calc_shannon_entropy(word) > 4.5)
+            .filter(|word| Self::calc_normalized_entropy(word, Some(16), true) > 0.6)
             .map(hex::encode)
             .collect();
         let mut output: Vec<String> = Vec::new();
@@ -708,22 +785,16 @@ impl SecretScanner {
     /// Find the word with the maximum entropy in a byte array. It will filter out all words with the length
     /// smaller than min_word_len. In addition, it will truncate the lengthy words to max_word_len. Will return 
     /// the maximum entropy.
-    fn find_max_entropy(&self, line: &[u8], keyspace: u32, make_ascii_lowercase: bool) -> f32 {
-        let mut new_line: Vec<u8> = Vec::new();
-        let words: Vec<&[u8]> = match make_ascii_lowercase {
-            true => {
-                new_line.copy_from_slice(line);
-                new_line.make_ascii_lowercase();
-                new_line.split(|x| (*x as char) == ' ').collect()
-            },
-            false => line.split(|x| (*x as char) == ' ').collect()
-        };
+    fn find_max_entropy(&self, line: &[u8], keyspace: Option<u32>, make_ascii_lowercase: bool) -> f32 {
+        let words: Vec<&[u8]> = line.split(|x| WORD_SPLIT.contains(x)).collect();
+        // println!("words: {:?}", words);
         let words_entropy: Vec<(&[u8], f32)> = words
             .iter()
             .filter(|word| (word.len() >= self.entropy_min_word_len))
-            .map(|word| (*word, Self::calc_normalized_entropy(Self::truncate_slice(&word, self.entropy_max_word_len), keyspace as f32)))
+            .map(|word| (*word, Self::calc_normalized_entropy(Self::truncate_slice(&word, self.entropy_max_word_len), keyspace, make_ascii_lowercase)))
             .collect();
         let mut max_entropy: f32 = 0.0;
+        // println!("{:?}", words_entropy);
         for &(_, entropy) in &words_entropy {
             if entropy > max_entropy {
                 max_entropy = entropy;
@@ -748,6 +819,7 @@ impl SecretScanner {
                     } else {
                         entropy_threshold
                     };
+                    // println!("find_max_entropy({:?})", text);
                     let max_entropy = self.find_max_entropy(text, entry.keyspace, entry.make_ascii_lowercase);
                     max_entropy > entropy_threshold_corrected
                 },
@@ -905,7 +977,7 @@ mod tests {
             println!("{} {}", f.0, f.1);
         }
         // }
-        assert_eq!(findings.len(), 1);
+        assert_eq!(findings.len(), 3);
     }
 
     #[test]
@@ -925,7 +997,7 @@ mod tests {
         // then make a list of findings in output
         let lines = test_string.split(|&x| (x as char) == '\n');
         for (_index, new_line) in lines.enumerate() {
-            let results = ss.matches(new_line);
+            let results = ss.matches_entropy_filtered(new_line);
             for (r, matches) in results {
                 let mut strings_found: Vec<String> = Vec::new();
                 for m in matches {

@@ -32,7 +32,7 @@ use std::collections::{HashSet, BTreeMap};
 use log::{self, debug, info, error};
 use std::iter::FromIterator;
 use clap::ArgMatches;
-use regex::bytes::Matches;
+use regex::bytes::{Match};
 use simple_error::SimpleError;
 use encoding::DecoderTrap;
 use encoding::all::ASCII;
@@ -214,7 +214,7 @@ fn get_findings(secret_scanner: &SecretScanner, issue_id: &str, content: &[u8], 
     let lines = content.split(|&x| (x as char) == '\n');
     let mut secrets: Vec<ConfluenceFinding> = Vec::new();
     for new_line in lines {
-        let matches_map: BTreeMap<&String, Matches> = secret_scanner.matches(new_line);
+        let matches_map: BTreeMap<&String, Vec<Match>> = secret_scanner.matches_entropy_filtered(new_line);
         for (reason, match_iterator) in matches_map {
             let mut secrets_for_reason: HashSet<String> = HashSet::new();
             for matchobj in match_iterator {

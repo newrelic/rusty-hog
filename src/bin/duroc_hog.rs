@@ -284,7 +284,7 @@ fn scan_bytes(input: Vec<u8>, ss: &SecretScanner, path: String) -> HashSet<FileF
     // then make a list of findings in output
     let lines = input.split(|&x| (x as char) == '\n');
     for (index, new_line) in lines.enumerate() {
-        let results = ss.matches(new_line);
+        let results = ss.matches_entropy_filtered(new_line);
         for (r, matches) in results {
             let mut strings_found: Vec<String> = Vec::new();
             for m in matches {

@@ -50,7 +50,6 @@ use encoding::{DecoderTrap, Encoding};
 use git2::{Commit, DiffFormat, Tree};
 use git2::{DiffOptions, Repository, Time};
 use log::{self, info};
-use regex::bytes::Matches;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashSet};
 use std::path::Path;

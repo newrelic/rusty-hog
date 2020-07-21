@@ -111,7 +111,7 @@ impl S3Scanner {
         // then make a list of findings in output
         let lines = data.split(|&x| (x as char) == '\n');
         for new_line in lines {
-            let results = self.secret_scanner.matches(new_line);
+            let results = self.secret_scanner.matches_entropy_filtered(new_line);
             for (r, matches) in results {
                 let mut strings_found: Vec<String> = Vec::new();
                 for m in matches {
