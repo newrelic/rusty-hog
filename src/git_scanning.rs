@@ -38,11 +38,11 @@
 //! let gs = GitScanner::new();
 //!
 //! let mut gs = gs.init_git_repo(".", Path::new("."), None, None, None, None);
-//! let findings: HashSet<GitFinding> = gs.perform_scan(None, Some("7e8c52a"), Some("8013160e"), false, None);
-//! assert_eq!(findings.len(), 19);
+//! let findings: HashSet<GitFinding> = gs.perform_scan(None, Some("7e8c52a"), Some("8013160e"), None);
+//! assert_eq!(findings.len(), 18);
 //! ```
 
-use crate::SecretScanner;
+use crate::{SecretScanner, RustyHogMatch};
 use chrono::NaiveDateTime;
 use chrono::Utc;
 use encoding::all::ASCII;
@@ -56,7 +56,6 @@ use std::path::Path;
 use std::{str, fmt};
 use url::{ParseError, Url};
 use std::hash::{Hash, Hasher};
-use regex::bytes::Match;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, Clone, Default)]
 /// `serde_json` object that represents a single found secret - finding
@@ -113,7 +112,6 @@ impl GitScanner {
         glob: Option<&str>,
         since_commit: Option<&str>,
         until_commit: Option<&str>,
-        scan_entropy: bool,
         recent_days: Option<u32>,
     ) -> HashSet<GitFinding> {
         let repo_option = self.repo.as_ref(); //borrowing magic here!
@@ -196,7 +194,7 @@ impl GitScanner {
             diff.print(DiffFormat::Patch, |delta, _hunk, line| {
                 if line.origin() == 'F' || line.origin() == 'H' { return true };
                 let new_line = line.content();
-                let matches_map: BTreeMap<&String, Vec<Match>> = self.secret_scanner.matches_entropy_filtered(new_line);
+                let matches_map: BTreeMap<String, Vec<RustyHogMatch>> = self.secret_scanner.matches_entropy(new_line);
                 let old_file_id = delta.old_file().id();
                 let new_file_id = delta.new_file().id();
                 let old_line_num = line.old_lineno().unwrap_or_else(|| 0);
@@ -214,8 +212,8 @@ impl GitScanner {
                                 .unwrap_or_else(|_| "<STRING DECODE ERROR>".parse().unwrap()),
                         );
                     }
-                    if !secrets.is_empty() && !self.secret_scanner.is_whitelisted(reason, &secrets){
-                        let create_finding = self.secret_scanner.check_entropy(reason, new_line);
+                    if !secrets.is_empty() && !self.secret_scanner.is_whitelisted(&reason, &secrets){
+                        let create_finding = self.secret_scanner.check_entropy(&reason, new_line);
                         if create_finding {
                             findings.insert(GitFinding {
                                 commit_hash: commit.id().to_string(),
@@ -241,35 +239,6 @@ impl GitScanner {
                                 parent_commit_hash: parent_commit_hash.clone()
                             });
                         }
-                    }
-                }
-
-                if scan_entropy {
-                    let ef = SecretScanner::entropy_findings(new_line);
-                    if !ef.is_empty() {
-                        findings.insert(GitFinding {
-                            commit: commit.message().unwrap().to_string(),
-                            commit_hash: commit.id().to_string(),
-                            diff: ASCII
-                                .decode(&new_line, DecoderTrap::Ignore)
-                                .unwrap_or_else(|_| "<STRING DECODE ERROR>".parse().unwrap()),
-                            date: NaiveDateTime::from_timestamp(commit.time().seconds(), 0)
-                                .to_string(),
-                            strings_found: ef,
-                            path: delta
-                                .new_file()
-                                .path()
-                                .unwrap()
-                                .to_str()
-                                .unwrap()
-                                .to_string(),
-                            reason: "Entropy".to_string(),
-                            old_file_id: old_file_id.to_string(),
-                            new_file_id: new_file_id.to_string(),
-                            old_line_num,
-                            new_line_num,
-                            parent_commit_hash: parent_commit_hash.clone(),
-                        });
                     }
                 }
                 true

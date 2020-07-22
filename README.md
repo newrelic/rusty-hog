@@ -421,7 +421,7 @@ Keep in mind that when you submit your pull request, you'll need to sign the CLA
 ## Feature Roadmap
 - 1.0.7:
     - [ ] Replace whitelist with allowlist
-    - [ ] Improve email regex to stop extraneous matches (https://github.com/newrelic/rusty-hog/issues/11)
+    - [x] Improve email regex to stop extraneous matches (https://github.com/newrelic/rusty-hog/issues/11)
     - [ ] Add documentation around DockerHub and Docker usage
     - [ ] Perform at-compile-time inclusion of the default ruleset which can sit in an external JSON file
     

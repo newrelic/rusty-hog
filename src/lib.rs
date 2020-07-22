@@ -74,7 +74,7 @@ extern crate clap;
 
 use clap::ArgMatches;
 use hex;
-use log::{self, error, info};
+use log::{self, error, info, debug};
 use regex::bytes::{Matches, Regex, RegexBuilder, Match};
 use serde::Serialize;
 use serde_json::{Map,  Value};
@@ -89,6 +89,7 @@ use std::iter::FromIterator;
 use std::{fmt, fs, str};
 use std::path::Path;
 use anyhow::Result;
+use std::ops::{Range};
 
 // Regex in progress:   "Basic Auth": "basic(_auth)?([\\s[[:punct:]]]{1,4}[[[:word:]][[:punct:]]]{8,64}[\\s[[:punct:]]]?){1,2}",
 
@@ -298,6 +299,7 @@ pub struct SecretScanner {
     pub output_path: Option<String>,
     pub entropy_min_word_len: usize,
     pub entropy_max_word_len: usize,
+    pub add_entropy_findings: bool
 }
 
 #[derive(Debug, Clone)]
@@ -306,6 +308,14 @@ pub struct EntropyRegex {
     pub entropy_threshold: Option<f32>,
     pub keyspace: Option<u32>,
     pub make_ascii_lowercase: bool
+}
+
+/// We have to redefine this from regex::bytes because it's struct it has no public constructor
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub struct RustyHogMatch<'t> {
+    text: &'t [u8],
+    start: usize,
+    end: usize,
 }
 
 #[derive(Deserialize, Debug)]
@@ -361,6 +371,46 @@ pub struct SecretScannerBuilder {
     pub default_entropy_threshold: f32,
     pub entropy_min_word_len: usize,
     pub entropy_max_word_len: usize,
+    pub add_entropy_findings: bool
+}
+
+impl<'t> RustyHogMatch<'t> {
+    /// Returns the starting byte offset of the match in the haystack.
+    #[inline]
+    pub fn start(&self) -> usize {
+        self.start
+    }
+
+    /// Returns the ending byte offset of the match in the haystack.
+    #[inline]
+    pub fn end(&self) -> usize {
+        self.end
+    }
+
+    /// Returns the range over the starting and ending byte offsets of the
+    /// match in the haystack.
+    #[inline]
+    pub fn range(&self) -> Range<usize> {
+        self.start..self.end
+    }
+
+    /// Returns the matched text.
+    #[inline]
+    pub fn as_str(&self) -> &'t [u8] {
+        &self.text[self.range()]
+    }
+
+    /// Creates a new match from the given haystack and byte offsets.
+    #[inline]
+    fn new(haystack: &'t [u8], start: usize, end: usize) -> RustyHogMatch<'t> {
+        RustyHogMatch { text: haystack, start: start, end: end }
+    }
+}
+
+impl<'t> From<Match<'t>> for RustyHogMatch<'t> {
+    fn from(m: Match<'t>) -> RustyHogMatch<'t> {
+        RustyHogMatch::new(m.as_bytes(), m.start(), m.end())
+    }
 }
 
 impl SecretScannerBuilder {
@@ -376,6 +426,7 @@ impl SecretScannerBuilder {
             default_entropy_threshold: DEFAULT_ENTROPY_THRESHOLD,
             entropy_min_word_len: ENTROPY_MIN_WORD_LEN,
             entropy_max_word_len: ENTROPY_MAX_WORD_LEN,
+            add_entropy_findings: false
         }
     }
 
@@ -400,6 +451,7 @@ impl SecretScannerBuilder {
             Ok(t) => t,
             Err(_) => DEFAULT_ENTROPY_THRESHOLD,
         };
+        self.add_entropy_findings = arg_matches.is_present("ENTROPY");
         self
     }
 
@@ -503,6 +555,7 @@ impl SecretScannerBuilder {
             whitelist_map: whitelist_map,
             entropy_min_word_len: self.entropy_min_word_len,
             entropy_max_word_len: self.entropy_max_word_len,
+            add_entropy_findings: self.add_entropy_findings
         }
     }
 
@@ -663,16 +716,25 @@ impl SecretScanner {
             .collect()
     }
 
-    pub fn matches_entropy_filtered<'a, 'b: 'a>(&'a self, line: &'b [u8]) -> BTreeMap<&'a String, Vec<Match>> {
-        self.regex_map
+    pub fn matches_entropy<'a, 'b: 'a>(&'a self, line: &'b [u8]) -> BTreeMap<String, Vec<RustyHogMatch>> {
+        //let key: String = String::from("Entropy");
+        let mut output: BTreeMap<String, Vec<RustyHogMatch>> = self.regex_map
             .iter()
             .map(|x| {
                 let matches = x.1.pattern.find_iter(line);
-                let matches_filtered: Vec<Match> = matches.filter(|m| self.check_entropy(x.0, &line[m.start()..m.end()])).collect();
-                (x.0, matches_filtered)
+                let matches_filtered: Vec<RustyHogMatch> = matches
+                    .filter(|m| self.check_entropy(x.0, &line[m.start()..m.end()]))
+                    .map(|m| RustyHogMatch::from(m))
+                    .inspect(|x| debug!("RustyHogMatch: {:?}", x))
+                    .collect();
+                (x.0.clone(), matches_filtered)
             })
             .filter(|x| !x.1.is_empty())
-            .collect()
+            .collect();
+        if self.add_entropy_findings {
+            output.insert(String::from("Entropy"), SecretScanner::entropy_findings(line));
+        }
+        output
     }
 
     /// Helper function to determine whether a byte array only contains valid Base64 characters.
@@ -737,7 +799,7 @@ impl SecretScanner {
     /// Scan a byte array for arbitrary hex sequences and base64 sequences. Will return a list of
     /// matches for those sequences with a high amount of entropy, potentially indicating a
     /// private key.
-    pub fn entropy_findings(line: &[u8]) -> Vec<String> {
+    pub fn entropy_findings(line: &[u8]) -> Vec<RustyHogMatch> {
         let words: Vec<&[u8]> = line.split(|x| WORD_SPLIT.contains(x)).collect();
         let words: Vec<&[u8]> = words
             .into_iter()
@@ -755,22 +817,39 @@ impl SecretScanner {
                     .as_bytes()
             })
             .collect();
-        let mut b64_words: Vec<String> = words
+        let b64_words: Vec<String> = words
             .iter()
-            .filter(|word| word.len() >= 20 && Self::is_base64_string(word))
+            .filter(|word| word.len() >= 16 && Self::is_base64_string(word))
             .filter(|word| Self::calc_normalized_entropy(word, Some(64), false) > 0.6)
             .map(|word| str::from_utf8(word).unwrap().to_string())
             .collect();
-        let mut hex_words: Vec<String> = words
+        let hex_words: Vec<String> = words
             .iter() // there must be a better way
-            .filter(|word| (word.len() >= 20) && (word.iter().all(u8::is_ascii_hexdigit)))
+            .filter(|word| (word.len() >= 16) && (word.iter().all(u8::is_ascii_hexdigit)))
             .filter_map(|&x| hex::decode(x).ok())
-            .filter(|word| Self::calc_normalized_entropy(word, Some(16), true) > 0.6)
+            .filter(|word| Self::calc_normalized_entropy(word, Some(255), true) > 0.6)
             .map(hex::encode)
             .collect();
-        let mut output: Vec<String> = Vec::new();
-        output.append(&mut b64_words);
-        output.append(&mut hex_words);
+        //dedup first to prevent some strings from getting detected twice
+        let mut output_hashset: HashSet<String> = HashSet::new();
+        for word in b64_words {
+            output_hashset.insert(word);
+        }
+        for word in hex_words {
+            output_hashset.insert(word);
+        }
+        let mut output = Vec::new();
+        for word in output_hashset {
+            // There should be a better way to do this. This seems expensive
+            let vec_line = String::from_utf8(Vec::from(line)).unwrap_or(String::from(""));
+            let index = vec_line.find(&word).unwrap_or(0);
+            if index > line.len() {
+                error!("index error");
+            }
+            // THIS IS BROKEN
+            let m: RustyHogMatch = RustyHogMatch { text: line, start: index, end: index + word.len() };
+            output.push(m);
+        }
         output
     }
 
@@ -941,6 +1020,33 @@ mod tests {
     use encoding::{DecoderTrap, Encoding};
 
     #[test]
+    fn test_entropy_findings() {
+        let test_string = String::from(r#"
+            secret: ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefg
+            another_secret = "1dd06c1162b44890b97ad27849f1c1ef"
+            secret:aea7f86653514d94b86cc33a5bad1659
+            not_so_secret_but_has_the_word_secret_and_is_long
+        "#).into_bytes();
+        let output = SecretScanner::entropy_findings(test_string.as_slice());
+        println!("{:?}", output);
+        assert_eq!(output.len(), 3);
+    }
+
+    #[test]
+    fn test_truncate_slice() {
+        let output = SecretScanner::truncate_slice("secret: ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefg".as_bytes(), 10);
+        assert_eq!(output, "secret: AB".as_bytes())
+    }
+
+    #[test]
+    fn test_find_max_entropy() {
+        let ssb = SecretScannerBuilder::new();
+        let ss = ssb.build();
+        let output = ss.find_max_entropy("secret: ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefg".as_bytes(), Some(128), false);
+        assert_eq!(output, 0.72062784);
+    }
+
+    #[test]
     fn test_check_entropy() {
         let ssb = SecretScannerBuilder::new();
         let ss = ssb.build();
@@ -960,12 +1066,12 @@ mod tests {
             secret:aea7f86653514d94b86cc33a5bad1659
             not_so_secret_but_has_the_word_secret_and_is_long
         "#).into_bytes();
-        let mut findings: Vec<(&String, String)> = Vec::new();
+        let mut findings: Vec<(String, String)> = Vec::new();
         // Main loop - split the data based on newlines, then run get_matches() on each line,
         // then make a list of findings in output
         let lines = test_string.split(|&x| (x as char) == '\n');
         for (_index, new_line) in lines.enumerate() {
-            let results = ss.matches_entropy_filtered(new_line);
+            let results = ss.matches_entropy(new_line);
             for (r, matches) in results {
                 let mut strings_found: Vec<String> = Vec::new();
                 for m in matches {
@@ -1002,12 +1108,12 @@ mod tests {
             https://user@host.com/secured/file
             <text>@<text>
         "#).into_bytes();
-        let mut findings: Vec<(&String, String)> = Vec::new();
+        let mut findings: Vec<(String, String)> = Vec::new();
         // Main loop - split the data based on newlines, then run get_matches() on each line,
         // then make a list of findings in output
         let lines = test_string.split(|&x| (x as char) == '\n');
         for (_index, new_line) in lines.enumerate() {
-            let results = ss.matches_entropy_filtered(new_line);
+            let results = ss.matches_entropy(new_line);
             for (r, matches) in results {
                 let mut strings_found: Vec<String> = Vec::new();
                 for m in matches {

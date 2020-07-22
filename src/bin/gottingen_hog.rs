@@ -31,12 +31,11 @@ use std::collections::{HashSet, BTreeMap};
 use log::{self, debug, info, error};
 use std::iter::FromIterator;
 use clap::ArgMatches;
-use regex::bytes::{Match};
 use simple_error::SimpleError;
 use encoding::DecoderTrap;
 use encoding::all::ASCII;
 use encoding::types::Encoding;
-use rusty_hogs::SecretScanner;
+use rusty_hogs::{SecretScanner, RustyHogMatch};
 use url::Url;
 use hyper::Client;
 use hyper::net::HttpsConnector;
@@ -226,7 +225,7 @@ fn get_findings(secret_scanner: &SecretScanner, base_url: &str, issue_id: &str, 
     let mut secrets: Vec<JiraFinding> = Vec::new();
     let web_link = format!("{}browse/{}", base_url, issue_id);
     for new_line in lines {
-        let matches_map: BTreeMap<&String, Vec<Match>> = secret_scanner.matches_entropy_filtered(new_line);
+        let matches_map: BTreeMap<String, Vec<RustyHogMatch>> = secret_scanner.matches_entropy(new_line);
         for (reason, match_iterator) in matches_map {
             let mut secrets_for_reason: HashSet<String> = HashSet::new();
             for matchobj in match_iterator {

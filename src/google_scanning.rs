@@ -65,7 +65,7 @@
 //! let gdriveinfo = GDriveFileInfo::new("gdrive_file_id", &hub).unwrap();
 //!
 //! // Do the scan
-//! let findings = gdrive_scanner.perform_scan(&gdriveinfo, &hub, false);
+//! let findings = gdrive_scanner.perform_scan(&gdriveinfo, &hub);
 //! gdrive_scanner.secret_scanner.output_findings(&findings);
 //! ```
 //!
@@ -246,7 +246,6 @@ impl GDriveScanner {
             Client,
             Authenticator<DefaultAuthenticatorDelegate, DiskTokenStorage, Client>,
         >,
-        scan_entropy: bool,
     ) -> HashSet<GDriveFinding> {
         // download an export of the file, split on new lines, store in lines
         let buffer = Self::gdrive_file_contents(gdrivefile, hub).unwrap();
@@ -255,7 +254,7 @@ impl GDriveScanner {
         // main loop - search each line for secrets, output a list of GDriveFinding objects
         let mut findings: HashSet<GDriveFinding> = HashSet::new();
         for new_line in lines {
-            let matches_map = self.secret_scanner.matches_entropy_filtered(&new_line);
+            let matches_map = self.secret_scanner.matches_entropy(&new_line);
             for (reason, match_iterator) in matches_map {
                 let mut secrets: Vec<String> = Vec::new();
                 for matchobj in match_iterator {
@@ -276,23 +275,6 @@ impl GDriveScanner {
                         date: gdrivefile.modified_time.clone(),
                         strings_found: secrets.clone(),
                         reason: reason.clone(),
-                        g_drive_id: gdrivefile.file_id.to_string(),
-                        path: gdrivefile.path.clone(),
-                        web_link: gdrivefile.web_link.clone(),
-                    });
-                }
-            }
-
-            if scan_entropy {
-                let ef = SecretScanner::entropy_findings(new_line);
-                if !ef.is_empty() {
-                    findings.insert(GDriveFinding {
-                        diff: ASCII
-                            .decode(&new_line, DecoderTrap::Ignore)
-                            .unwrap_or_else(|_| "<STRING DECODE ERROR>".parse().unwrap()),
-                        date: gdrivefile.modified_time.clone(),
-                        strings_found: ef,
-                        reason: "Entropy".parse().unwrap(),
                         g_drive_id: gdrivefile.file_id.to_string(),
                         path: gdrivefile.path.clone(),
                         web_link: gdrivefile.web_link.clone(),

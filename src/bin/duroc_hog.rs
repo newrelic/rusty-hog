@@ -75,7 +75,7 @@ fn main() {
         (@arg FSPATH: +required "Sets the path of the directory or file to scan.")
         (@arg NORECURSIVE: --norecursive "Disable recursive scanning of all subdirectories underneath the supplied path")
         (@arg VERBOSE: -v --verbose ... "Sets the level of debugging information")
-        // (@arg ENTROPY: --entropy ... "Enables entropy scanning")
+        (@arg ENTROPY: --entropy ... "Enables entropy scanning")
         (@arg UNZIP: -z --unzip "Recursively scans archives (ZIP and TAR) in memory (dangerous)")
         (@arg CASE: --caseinsensitive "Sets the case insensitive flag for all regexes")
         (@arg OUTPUT: -o --outputfile +takes_value "Sets the path to write the scanner results to (stdout by default)")
@@ -284,7 +284,7 @@ fn scan_bytes(input: Vec<u8>, ss: &SecretScanner, path: String) -> HashSet<FileF
     // then make a list of findings in output
     let lines = input.split(|&x| (x as char) == '\n');
     for (index, new_line) in lines.enumerate() {
-        let results = ss.matches_entropy_filtered(new_line);
+        let results = ss.matches_entropy(new_line);
         for (r, matches) in results {
             let mut strings_found: Vec<String> = Vec::new();
             for m in matches {

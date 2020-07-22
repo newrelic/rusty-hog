@@ -78,7 +78,6 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
         .value_of("OAUTHTOKENFILE")
         .unwrap_or_else(|| "temp_token");
     let file_id = arg_matches.value_of("GDRIVEID").unwrap();
-    let scan_entropy = arg_matches.is_present("ENTROPY");
     let secret_scanner = SecretScannerBuilder::new().conf_argm(arg_matches).build();
     let gdrive_scanner = GDriveScanner::new_from_scanner(secret_scanner);
 
@@ -106,7 +105,7 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     let gdriveinfo = GDriveFileInfo::new(file_id, &hub).unwrap();
 
     // Do the scan
-    let findings = gdrive_scanner.perform_scan(&gdriveinfo, &hub, scan_entropy);
+    let findings = gdrive_scanner.perform_scan(&gdriveinfo, &hub);
     info!("Found {} secrets", findings.len());
     match gdrive_scanner.secret_scanner.output_findings(&findings) {
         Ok(_) => Ok(()),

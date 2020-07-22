@@ -93,7 +93,6 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     let httpspass = arg_matches.value_of("HTTPSPASS");
     let since_commit = arg_matches.value_of("SINCECOMMIT");
     let until_commit = arg_matches.value_of("UNTILCOMMIT");
-    let scan_entropy = arg_matches.is_present("ENTROPY");
     let recent_days: Option<u32> = match value_t!(arg_matches.value_of("RECENTDAYS"), u32) {
         Ok(d) => { if d == 0 { None } else { Some(d) } },
         Err(_e) => None
@@ -113,7 +112,7 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
         httpsuser,
         httpspass,
     );
-    let findings = git_scanner.perform_scan(None, since_commit, until_commit, scan_entropy, recent_days) ;
+    let findings = git_scanner.perform_scan(None, since_commit, until_commit, recent_days) ;
 
     // Output the results
     info!("Found {} secrets", findings.len());
