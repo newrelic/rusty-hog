@@ -15,6 +15,7 @@
 //!    -V, --version            Prints version information
 //!
 //!OPTIONS:
+//!        --default_entropy_threshold <DEFAULT_ENTROPY_THRESHOLD>    Default entropy threshold (0.6 by default)
 //!    -w, --whitelist <WHITELIST>          Sets a custom whitelist JSON file
 //!    -o, --outputfile <OUTPUT>            Sets the path to write the scanner results to (stdout by default)
 //!    -r, --regex <REGEX>                  Sets a custom regex JSON file, defaults to built-in
@@ -76,6 +77,7 @@ fn main() {
         (@arg NORECURSIVE: --norecursive "Disable recursive scanning of all subdirectories underneath the supplied path")
         (@arg VERBOSE: -v --verbose ... "Sets the level of debugging information")
         (@arg ENTROPY: --entropy ... "Enables entropy scanning")
+        (@arg DEFAULT_ENTROPY_THRESHOLD: --default_entropy_threshold +takes_value "Default entropy threshold (0.6 by default)")
         (@arg UNZIP: -z --unzip "Recursively scans archives (ZIP and TAR) in memory (dangerous)")
         (@arg CASE: --caseinsensitive "Sets the case insensitive flag for all regexes")
         (@arg OUTPUT: -o --outputfile +takes_value "Sets the path to write the scanner results to (stdout by default)")

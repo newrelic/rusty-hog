@@ -53,7 +53,7 @@
 use crate::SecretScanner;
 use encoding::all::ASCII;
 use encoding::{DecoderTrap, Encoding};
-use log::{self, trace};
+use log::{self, trace, error};
 use s3::bucket::Bucket;
 use serde_derive::{Deserialize, Serialize};
 use simple_error::SimpleError;
@@ -115,6 +115,9 @@ impl S3Scanner {
             for (r, matches) in results {
                 let mut strings_found: Vec<String> = Vec::new();
                 for m in matches {
+                    if m.end() > new_line.len() || m.start() > m.end() {
+                        error!("index error: {:?} {:?}", new_line, m);
+                    }
                     let result = ASCII
                         .decode(&new_line[m.start()..m.end()], DecoderTrap::Ignore)
                         .unwrap_or_else(|_| "<STRING DECODE ERROR>".parse().unwrap());

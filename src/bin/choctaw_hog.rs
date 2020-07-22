@@ -17,15 +17,14 @@
 //!OPTIONS:
 //!    -w, --whitelist <WHITELIST>          Sets a custom whitelist JSON file
 //!        --recent_days <RECENTDAYS>       Filters commits to the last number of days (branch agnostic)
-//!        --match_entropy_threshold <MATCH_ENTROPY_THRESHOLD>    Threshold for match entropy (4.5 by default)
+//!        --default_entropy_threshold <DEFAULT_ENTROPY_THRESHOLD>    Default entropy threshold (0.6 by default)
 //!        --httpspass <HTTPSPASS>          Takes a password for HTTPS-based authentication
 //!        --httpsuser <HTTPSUSER>          Takes a username for HTTPS-based authentication
 //!    -o, --outputfile <OUTPUT>            Sets the path to write the scanner results to (stdout by default)
 //!    -r, --regex <REGEX>                  Sets a custom regex JSON file, defaults to built-in
 //!        --since_commit <SINCECOMMIT>     Filters commits based on date committed (branch agnostic)
 //!        --sshkeypath <SSHKEYPATH>        Takes a path to a private SSH key for git authentication, defaults to ssh-agent
-//!        --sshkeyphrase <SSHKEYPHRASE>    Takes a passphrase to a private SSH key for git authentication, defaults to
-//!                                         none
+//!        --sshkeyphrase <SSHKEYPHRASE>    Takes a passphrase to a private SSH key for git authentication, defaults to none
 //!        --until_commit <UNTILCOMMIT>     Filters commits based on date committed (branch agnostic)
 //!
 //!ARGS:
@@ -60,7 +59,7 @@ fn main() {
         (@arg GITPATH: +required "Sets the path (or URL) of the Git repo to scan. SSH links must include username (git@)")
         (@arg VERBOSE: -v --verbose ... "Sets the level of debugging information")
         (@arg ENTROPY: --entropy ... "Enables entropy scanning")
-        (@arg DEFAULT_ENTROPY_THRESHOLD: --default_entropy_threshold +takes_value "Default entropy threshold (4.5 by default)")
+        (@arg DEFAULT_ENTROPY_THRESHOLD: --default_entropy_threshold +takes_value "Default entropy threshold (0.6 by default)")
         (@arg CASE: --caseinsensitive "Sets the case insensitive flag for all regexes")
         (@arg OUTPUT: -o --outputfile +takes_value "Sets the path to write the scanner results to (stdout by default)")
         (@arg PRETTYPRINT: --prettyprint "Outputs the JSON in human readable format")
