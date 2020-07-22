@@ -218,7 +218,7 @@ const ENTROPY_MAX_WORD_LEN: usize = 40;
 #[derive(Debug, Clone)]
 pub struct SecretScanner {
     pub regex_map: BTreeMap<String, EntropyRegex>,
-    pub whitelist_map: BTreeMap<String, BTreeMap<String, bool>>,
+    pub allowlist_map: BTreeMap<String, BTreeMap<String, bool>>,
     pub pretty_print: bool,
     pub output_path: Option<String>,
     pub entropy_min_word_len: usize,
@@ -292,7 +292,7 @@ pub struct SecretScannerBuilder {
     pub regex_json_path: Option<String>,
     pub pretty_print: bool,
     pub output_path: Option<String>,
-    pub whitelist_json_path: Option<String>,
+    pub allowlist_json_path: Option<String>,
     pub default_entropy_threshold: f32,
     pub entropy_min_word_len: usize,
     pub entropy_max_word_len: usize,
@@ -347,7 +347,7 @@ impl SecretScannerBuilder {
             regex_json_path: None,
             pretty_print: false,
             output_path: None,
-            whitelist_json_path: None,
+            allowlist_json_path: None,
             default_entropy_threshold: DEFAULT_ENTROPY_THRESHOLD,
             entropy_min_word_len: ENTROPY_MIN_WORD_LEN,
             entropy_max_word_len: ENTROPY_MAX_WORD_LEN,
@@ -356,7 +356,7 @@ impl SecretScannerBuilder {
     }
 
     /// Configure multiple values using the clap library's `ArgMatches` object.
-    /// This function looks for a "CASE" flag and "REGEX", "WHITELIST", "DEFAULT_ENTROPY_THRESHOLD" values.
+    /// This function looks for a "CASE" flag and "REGEX", "ALLOWLIST", "DEFAULT_ENTROPY_THRESHOLD" values.
     pub fn conf_argm(mut self, arg_matches: &ArgMatches) -> Self {
         self.case_insensitive = arg_matches.is_present("CASE");
         self.regex_json_path = match arg_matches.value_of("REGEX") {
@@ -368,7 +368,7 @@ impl SecretScannerBuilder {
             Some(s) => Some(String::from(s)),
             None => None,
         };
-        self.whitelist_json_path = match arg_matches.value_of("WHITELIST") {
+        self.allowlist_json_path = match arg_matches.value_of("ALLOWLIST") {
             Some(s) => Some(String::from(s)),
             None => None,
         };
@@ -392,10 +392,10 @@ impl SecretScannerBuilder {
         self
     }
 
-    /// Supply a path to a JSON file on the system that contains whitelists with string
+    /// Supply a path to a JSON file on the system that contains allowlists with string
     /// tokens per regular expression
-    pub fn set_whitelist_json_path(mut self, whitelist_json_path: &str) -> Self {
-        self.whitelist_json_path = Some(String::from(whitelist_json_path));
+    pub fn set_allowlist_json_path(mut self, allowlist_json_path: &str) -> Self {
+        self.allowlist_json_path = Some(String::from(allowlist_json_path));
         self
     }
 
@@ -460,15 +460,15 @@ impl SecretScannerBuilder {
             None => None,
         };
 
-        let whitelist_map = match &self.whitelist_json_path {
-            Some(p) => Self::build_whitelist_from_file(Path::new(p)),
+        let allowlist_map = match &self.allowlist_json_path {
+            Some(p) => Self::build_allowlist_from_file(Path::new(p)),
             _ => Ok(BTreeMap::new()),
         };
-        let whitelist_map = match whitelist_map {
+        let allowlist_map = match allowlist_map {
             Ok(m) => m,
             Err(e) => {
                 error!(
-                    "Error parsing whitelist JSON object, using an empty whitelist map: {:?}", e
+                    "Error parsing allowlist JSON object, using an empty allowlist map: {:?}", e
                 );
                 BTreeMap::new()
             }
@@ -477,7 +477,7 @@ impl SecretScannerBuilder {
             regex_map,
             pretty_print: self.pretty_print,
             output_path,
-            whitelist_map: whitelist_map,
+            allowlist_map: allowlist_map,
             entropy_min_word_len: self.entropy_min_word_len,
             entropy_max_word_len: self.entropy_max_word_len,
             add_entropy_findings: self.add_entropy_findings,
@@ -585,20 +585,20 @@ impl SecretScannerBuilder {
             .collect()
     }
 
-    fn build_whitelist_from_file(filename: &Path) -> Result<BTreeMap<String, BTreeMap<String, bool>>, SimpleError> {
-        info!("Attempting to read JSON whitelist file from {:?}", filename);
+    fn build_allowlist_from_file(filename: &Path) -> Result<BTreeMap<String, BTreeMap<String, bool>>, SimpleError> {
+        info!("Attempting to read JSON allowlist file from {:?}", filename);
         let file = File::open(filename);
         let file = match file {
             Ok(f) => f,
-            Err(e) => return Err(SimpleError::with("Failed to open the JSON whitelist file", e)),
+            Err(e) => return Err(SimpleError::with("Failed to open the JSON allowlist file", e)),
         };
         let reader = BufReader::new(file);
-        info!("Attempting to parse JSON whitelist file {:?}", filename);
-        let whitelist: Map<String, Value> = match serde_json::from_reader(reader) {
+        info!("Attempting to parse JSON allowlist file {:?}", filename);
+        let allowlist: Map<String, Value> = match serde_json::from_reader(reader) {
             Ok(m) => Ok(m),
-            Err(e) => Err(SimpleError::with("Failed to parse whitelist JSON", e)),
+            Err(e) => Err(SimpleError::with("Failed to parse allowlist JSON", e)),
         }?;
-        whitelist
+        allowlist
             .into_iter()
             .map(|(p, list)| {
                 match list {
@@ -611,7 +611,7 @@ impl SecretScannerBuilder {
                         .collect();
                         Ok((p, l))
                     },
-                    _ => Err(SimpleError::new("Invalid whitelist JSON format")),
+                    _ => Err(SimpleError::new("Invalid allowlist JSON format")),
                 }
             })
             .collect()
@@ -867,11 +867,11 @@ impl SecretScanner {
         Ok(())
     }
 
-    /// Checks if any of the provided tokens is whitelisted
-    pub fn is_whitelisted(&self, pattern: &str, tokens: &Vec<String>) -> bool {
-        if let Some(whitelist) = self.whitelist_map.get(pattern) {
+    /// Checks if any of the provided tokens is allowlisted
+    pub fn is_allowlisted(&self, pattern: &str, tokens: &Vec<String>) -> bool {
+        if let Some(allowlist) = self.allowlist_map.get(pattern) {
             for token in tokens {
-                if let Some(_) = whitelist.get(token) {
+                if let Some(_) = allowlist.get(token) {
                     return true
                 }
             }
@@ -1179,7 +1179,7 @@ mod tests {
     }
 
     #[test]
-    fn can_parse_whitelist_from_file() -> Result<(), String> {
+    fn can_parse_allowlist_from_file() -> Result<(), String> {
         let mut file = NamedTempFile::new().unwrap();
         let json = r#"
         {
@@ -1194,8 +1194,8 @@ mod tests {
         "#;
         file.write(json.as_bytes()).unwrap();
 
-        if let Err(e) = SecretScannerBuilder::build_whitelist_from_file(file.path()) {
-            return Err(format!("failed parsing valid whitelist JSON file: {}", e));
+        if let Err(e) = SecretScannerBuilder::build_allowlist_from_file(file.path()) {
+            return Err(format!("failed parsing valid allowlist JSON file: {}", e));
         }
 
         Ok(())

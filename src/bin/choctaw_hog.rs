@@ -15,7 +15,7 @@
 //!    -V, --version            Prints version information
 //!
 //!OPTIONS:
-//!    -w, --whitelist <WHITELIST>          Sets a custom whitelist JSON file
+//!    -w, --allowlist <allowlist>          Sets a custom allowlist JSON file
 //!        --recent_days <RECENTDAYS>       Filters commits to the last number of days (branch agnostic)
 //!        --default_entropy_threshold <DEFAULT_ENTROPY_THRESHOLD>    Default entropy threshold (0.6 by default)
 //!        --httpspass <HTTPSPASS>          Takes a password for HTTPS-based authentication
@@ -70,7 +70,7 @@ fn main() {
         (@arg HTTPSUSER: --httpsuser +takes_value "Takes a username for HTTPS-based authentication")
         (@arg HTTPSPASS: --httpspass +takes_value "Takes a password for HTTPS-based authentication")
         (@arg RECENTDAYS: --recent_days +takes_value conflicts_with[SINCECOMMIT] "Filters commits to the last number of days (branch agnostic)")
-        (@arg WHITELIST: -w --whitelist +takes_value "Sets a custom whitelist JSON file")
+        (@arg ALLOWLIST: -w --allowlist +takes_value "Sets a custom allowlist JSON file")
     )
     .get_matches();
     match run(&matches) {

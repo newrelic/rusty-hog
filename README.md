@@ -25,7 +25,7 @@ in Python. Rusty Hog provides the following binaries:
 	- [Duroc Hog (file system scanner) usage](#duroc-hog-file-system-scanner-usage)
 	- [Gottingen Hog (JIRA scanner) usage](#gottingen-hog-jira-scanner-usage)
     - [Regex JSON file format](#regex-json-file-format)
-    - [Whitelist JSON file format](#whitelist-json-file-format)
+    - [Allowlist JSON file format](#allowlist-json-file-format)
 - [Project information](#project-information)
 	- [Open source license](#open-source-license)
 	- [Support](#support)
@@ -172,7 +172,7 @@ OPTIONS:
         --sshkeypath <SSHKEYPATH>                                  Takes a path to a private SSH key for git authentication, defaults to ssh-agent
         --sshkeyphrase <SSHKEYPHRASE>                              Takes a passphrase to a private SSH key for git authentication, defaults to none
         --until_commit <UNTILCOMMIT>                               Filters commits based on date committed (branch agnostic)
-    -w, --whitelist <WHITELIST>                                    Sets a custom whitelist JSON file
+    -w, --allowlist <ALLOWLIST>                                    Sets a custom ALLOWLIST JSON file
 
 ARGS:
     <GITPATH>    Sets the path (or URL) of the Git repo to scan. SSH links must include username (git@)
@@ -195,7 +195,7 @@ FLAGS:
 OPTIONS:
     -o, --outputfile <OUTPUT>      Sets the path to write the scanner results to (stdout by default)
     -r, --regex <REGEX>            Sets a custom regex JSON file
-    -w, --whitelist <WHITELIST>    Sets a custom whitelist JSON file
+    -w, --allowlist <ALLOWLIST>    Sets a custom allowlist JSON file
 
 ARGS:
     <FSPATH>    Sets the path of the directory or file to scan.
@@ -366,12 +366,12 @@ As of version 1.0.5, the current default regex JSON used is as follows:
 }
 ```
 
-## Whitelist JSON file format
+## Allowlist JSON file format
 
-Some of the scanners provide a whitelist feature. This allows you to specific a whitelist file that identifies exceptions
+Some of the scanners provide a allowlist feature. This allows you to specific a allowlist file that identifies exceptions
 to each regex pattern that should be excluded from the final output.
 
-The format for this whitelist file should be a single json object. Each key in the whitelist should match a key in the 
+The format for this allowlist file should be a single json object. Each key in the allowlist should match a key in the 
 regex json, and the value should be an array of strings that are exceptions for that regex pattern. For example:
 
 ```json
@@ -387,7 +387,7 @@ regex json, and the value should be an array of strings that are exceptions for 
 }
 ```
 
-Be aware that in these are strings, not regex expressions, and the keys for this whitelist have to a key in the regex json.
+Be aware that in these are strings, not regex expressions, and the keys for this allowlist have to a key in the regex json.
 Keys are case-sensitive.
 
 # Project information

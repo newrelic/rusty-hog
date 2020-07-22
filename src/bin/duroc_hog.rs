@@ -16,7 +16,7 @@
 //!
 //!OPTIONS:
 //!        --default_entropy_threshold <DEFAULT_ENTROPY_THRESHOLD>    Default entropy threshold (0.6 by default)
-//!    -w, --whitelist <WHITELIST>          Sets a custom whitelist JSON file
+//!    -w, --allowlist <ALLOWLIST>          Sets a custom allowlist JSON file
 //!    -o, --outputfile <OUTPUT>            Sets the path to write the scanner results to (stdout by default)
 //!    -r, --regex <REGEX>                  Sets a custom regex JSON file, defaults to built-in
 
@@ -82,7 +82,7 @@ fn main() {
         (@arg CASE: --caseinsensitive "Sets the case insensitive flag for all regexes")
         (@arg OUTPUT: -o --outputfile +takes_value "Sets the path to write the scanner results to (stdout by default)")
         (@arg PRETTYPRINT: --prettyprint "Outputs the JSON in human readable format")
-        (@arg WHITELIST: -w --whitelist +takes_value "Sets a custom whitelist JSON file")
+        (@arg ALLOWLIST: -w --allowlist +takes_value "Sets a custom allowlist JSON file")
     )
         .get_matches();
     match run(&matches) {
@@ -215,7 +215,7 @@ fn scan_file<R: Read + io::Seek>(
             );
             for d in inner_findings.drain() {
                 info!("FileFinding: {:?}", d);
-                if !&ss.is_whitelisted(d.reason.as_str(), &(d.strings_found)) {
+                if !&ss.is_allowlisted(d.reason.as_str(), &(d.strings_found)) {
                     findings.insert(d);
                 }
             }
@@ -239,7 +239,7 @@ fn scan_file<R: Read + io::Seek>(
             );
             for d in inner_findings.drain() {
                 info!("FileFinding: {:?}", d);
-                if !&ss.is_whitelisted(d.reason.as_str(), &(d.strings_found)) {
+                if !&ss.is_allowlisted(d.reason.as_str(), &(d.strings_found)) {
                     findings.insert(d);
                 }
             }
@@ -266,7 +266,7 @@ fn scan_file<R: Read + io::Seek>(
         );
         for d in inner_findings.drain() {
             info!("FileFinding: {:?}", d);
-            if !&ss.is_whitelisted(d.reason.as_str(), &(d.strings_found)) {
+            if !&ss.is_allowlisted(d.reason.as_str(), &(d.strings_found)) {
                 findings.insert(d);
             }
         }
@@ -295,7 +295,7 @@ fn scan_bytes(input: Vec<u8>, ss: &SecretScanner, path: String) -> HashSet<FileF
                     .unwrap_or_else(|_| "<STRING DECODE ERROR>".parse().unwrap());
                 strings_found.push(result);
             }
-            if !strings_found.is_empty() && !ss.is_whitelisted(r.as_str(), &strings_found) {
+            if !strings_found.is_empty() && !ss.is_allowlisted(r.as_str(), &strings_found) {
                 let new_line_string = ASCII
                     .decode(&new_line, DecoderTrap::Ignore)
                     .unwrap_or_else(|_| "<STRING DECODE ERROR>".parse().unwrap());
@@ -369,9 +369,9 @@ mod tests {
     }
 
     #[test]
-    fn whitelist_json_file_prevents_output() {
+    fn allowlist_json_file_prevents_output() {
         let temp_dir = TempDir::new().unwrap();
-        let mut whitelist_temp_file = NamedTempFile::new().unwrap();
+        let mut allowlist_temp_file = NamedTempFile::new().unwrap();
         let json = r#"
         {
             "Email address": [
@@ -379,10 +379,10 @@ mod tests {
             ]
         }
         "#;
-        write!(whitelist_temp_file, "{}", json).unwrap();
+        write!(allowlist_temp_file, "{}", json).unwrap();
         write_temp_file(&temp_dir, "insecure-file.txt", "My email is username@mail.com");
 
-        let cmd_args = ["--whitelist", whitelist_temp_file.path().to_str().unwrap(), "."];
+        let cmd_args = ["--allowlist", allowlist_temp_file.path().to_str().unwrap(), "."];
 
         let output = run_command_in_dir(&temp_dir, "duroc_hog", &cmd_args).unwrap();
 
