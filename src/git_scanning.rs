@@ -49,7 +49,7 @@ use encoding::all::ASCII;
 use encoding::{DecoderTrap, Encoding};
 use git2::{Commit, DiffFormat, Tree};
 use git2::{DiffOptions, Repository, Time};
-use log::{self, info};
+use log::{self, info, debug};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashSet};
 use std::path::Path;
@@ -130,7 +130,7 @@ impl GitScanner {
                     Err(e) => panic!("SINCECOMMIT value returned an error: {:?}", e),
                 };
                 let o = revspec.from().unwrap();
-                println!("{:?}", o.as_commit().unwrap());
+                // println!("{:?}", o.as_commit().unwrap());
                 o.as_commit().unwrap().time()
             }
             None =>  {
@@ -195,6 +195,9 @@ impl GitScanner {
                 if line.origin() == 'F' || line.origin() == 'H' { return true };
                 let new_line = line.content();
                 let matches_map: BTreeMap<String, Vec<RustyHogMatch>> = self.secret_scanner.matches_entropy(new_line);
+                if matches_map.contains_key("Entropy") {
+                    debug!("Entropy finding");
+                }
                 let old_file_id = delta.old_file().id();
                 let new_file_id = delta.new_file().id();
                 let old_line_num = line.old_lineno().unwrap_or_else(|| 0);

@@ -72,6 +72,7 @@ pub mod google_scanning;
 #[macro_use]
 extern crate clap;
 
+use base64;
 use clap::ArgMatches;
 use hex;
 use log::{self, error, info, debug};
@@ -299,7 +300,8 @@ pub struct SecretScanner {
     pub output_path: Option<String>,
     pub entropy_min_word_len: usize,
     pub entropy_max_word_len: usize,
-    pub add_entropy_findings: bool
+    pub add_entropy_findings: bool,
+    pub default_entropy_threshold: f32
 }
 
 #[derive(Debug, Clone)]
@@ -555,7 +557,8 @@ impl SecretScannerBuilder {
             whitelist_map: whitelist_map,
             entropy_min_word_len: self.entropy_min_word_len,
             entropy_max_word_len: self.entropy_max_word_len,
-            add_entropy_findings: self.add_entropy_findings
+            add_entropy_findings: self.add_entropy_findings,
+            default_entropy_threshold: self.default_entropy_threshold
         }
     }
 
@@ -732,8 +735,13 @@ impl SecretScanner {
             .filter(|x| !x.1.is_empty())
             .collect();
         if self.add_entropy_findings {
-            output.insert(String::from("Entropy"), SecretScanner::entropy_findings(line));
+            let entropy_findings = SecretScanner::entropy_findings(line, self.default_entropy_threshold);
+            if !entropy_findings.is_empty() {
+                output.insert(String::from("Entropy"), entropy_findings);
+                debug!("matches_entropy findings: {:?}", output);
+            }
         }
+        // debug!("matches_entropy findings: {:?}", output);
         output
     }
 
@@ -793,13 +801,16 @@ impl SecretScanner {
             None => SecretScanner::guess_keyspace(bytes)
         };
         let raw_entropy = SecretScanner::calc_shannon_entropy(bytes, processed_lowercase);
-        return raw_entropy / ((processed_keyspace as f32).log2())
+        let output = raw_entropy / ((processed_keyspace as f32).log2());
+        // println!("calc_normalized_entropy({:?},{:?},{:?}) -> {:?}", bytes, keyspace, make_ascii_lowercase, output);
+        output
     }
 
     /// Scan a byte array for arbitrary hex sequences and base64 sequences. Will return a list of
     /// matches for those sequences with a high amount of entropy, potentially indicating a
     /// private key.
-    pub fn entropy_findings(line: &[u8]) -> Vec<RustyHogMatch> {
+    pub fn entropy_findings(line: &[u8], entropy_threshold: f32) -> Vec<RustyHogMatch> {
+        // The efficency of this could likely be improved
         let words: Vec<&[u8]> = line.split(|x| WORD_SPLIT.contains(x)).collect();
         let words: Vec<&[u8]> = words
             .into_iter()
@@ -819,18 +830,23 @@ impl SecretScanner {
             .collect();
         let b64_words: Vec<String> = words
             .iter()
-            .filter(|word| word.len() >= 16 && Self::is_base64_string(word))
-            .filter(|word| Self::calc_normalized_entropy(word, Some(64), false) > 0.6)
-            .map(|word| str::from_utf8(word).unwrap().to_string())
+            .filter(|word| word.len() >= 20 && Self::is_base64_string(word))
+            .filter_map(|x| base64::decode(x).ok())
+            .filter(|word| Self::calc_normalized_entropy(word, Some(255), false) > entropy_threshold)
+            .map(|word| String::from(base64::encode(&word).as_str()))
             .collect();
         let hex_words: Vec<String> = words
             .iter() // there must be a better way
-            .filter(|word| (word.len() >= 16) && (word.iter().all(u8::is_ascii_hexdigit)))
+            .filter(|word| (word.len() >= 20) && (word.iter().all(u8::is_ascii_hexdigit)))
             .filter_map(|&x| hex::decode(x).ok())
-            .filter(|word| Self::calc_normalized_entropy(word, Some(255), true) > 0.6)
+            .filter(|word| Self::calc_normalized_entropy(word, Some(255), true) > entropy_threshold)
             .map(hex::encode)
             .collect();
         //dedup first to prevent some strings from getting detected twice
+        if b64_words.len() > 0 || hex_words.len() > 0 {
+            debug!("b64_words: {:?}", b64_words);
+            debug!("hex_words: {:?}", hex_words);
+        }
         let mut output_hashset: HashSet<String> = HashSet::new();
         for word in b64_words {
             output_hashset.insert(word);
@@ -845,10 +861,13 @@ impl SecretScanner {
             let index = vec_line.find(&word).unwrap_or(0);
             if index > line.len() {
                 error!("index error");
+            } else {
+                let m: RustyHogMatch = RustyHogMatch { text: line, start: index, end: index + word.len() };
+                output.push(m);
             }
-            // THIS IS BROKEN
-            let m: RustyHogMatch = RustyHogMatch { text: line, start: index, end: index + word.len() };
-            output.push(m);
+        }
+        if output.len() > 0 {
+            debug!("entropy_findings output: {:?}", output);
         }
         output
     }
@@ -905,8 +924,7 @@ impl SecretScanner {
                 None => true,
             }
         } else {
-            // occurs if the pattern is not found in regex_map
-            false
+            if pattern == "Entropy" { true } else { false }
         }
     }
 
@@ -1025,11 +1043,12 @@ mod tests {
             secret: ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefg
             another_secret = "1dd06c1162b44890b97ad27849f1c1ef"
             secret:aea7f86653514d94b86cc33a5bad1659
+            hex_bytes: 9a303808fabab57e8dfc88ed6b3a287ba47c8da7da7e7d622a8333d4c28f
             not_so_secret_but_has_the_word_secret_and_is_long
         "#).into_bytes();
-        let output = SecretScanner::entropy_findings(test_string.as_slice());
-        println!("{:?}", output);
-        assert_eq!(output.len(), 3);
+        let output = SecretScanner::entropy_findings(test_string.as_slice(), 0.6);
+        // println!("{:?}", output);
+        assert_eq!(output.len(), 1);
     }
 
     #[test]
