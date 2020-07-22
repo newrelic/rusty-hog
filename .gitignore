@@ -13,7 +13,7 @@ deps/
 exampleProject
 testData
 .DS_Store
-*.json
 bootstrap
 *.zip
 temp_token
+clientsecret.json
