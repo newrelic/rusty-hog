@@ -43,7 +43,7 @@ This project provides a set of scanners that use regular expressions to try and 
 information, such as API keys, passwords, and personal information. It includes a set of regular expressions by
 default, but also accepts a JSON object containing your custom regular expressions.
 
-## How to install
+## How to install using downloaded binaries
 Download and unzip the [latest ZIP](https://github.com/newrelic/rusty-hog/releases/)
 on the releases tab. Then, run each binary with `-h` to see the usage.
 
@@ -51,6 +51,15 @@ on the releases tab. Then, run each binary with `-h` to see the usage.
 wget https://github.com/newrelic/rusty-hog/releases/download/1.0.7/rustyhogs-musl_darwin_1.0.7.zip
 unzip rustyhogs-musl_darwin_1.0.7.zip
 darwin_releases/choctaw_hog -h
+```
+
+## How to run using DockerHub
+Rusty Hog Docker images can be found at the authors personal DockerHub page [here](https://hub.docker.com/u/wetfeet2000)
+A Docker Image is built for each Hog and for each release. So to use choctaw_hog you would run the following commands:
+
+```shell script
+docker pull wetfeet2000/choctaw_hog:1.0.7
+docker run -it --rm wetfeet2000/choctaw_hog:1.0.7 --help
 ```
 
 ## How to build

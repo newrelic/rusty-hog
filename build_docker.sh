@@ -1,3 +1,5 @@
+docker system prune -a
+cargo clean
 docker build --tag wetfeet2000/ankamali_hog:$1 --build-arg HOG=ankamali .
 docker push wetfeet2000/ankamali_hog:$1
 docker build --tag wetfeet2000/berkshire_hog:$1 --build-arg HOG=berkshire .
