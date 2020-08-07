@@ -77,6 +77,7 @@ fn main() {
         (@arg PASSWORD: --password +takes_value conflicts_with[AUTHTOKEN] "Jira password (crafts basic auth header)")
         (@arg BEARERTOKEN: --authtoken +takes_value conflicts_with[USERNAME PASSWORD] "Jira basic auth bearer token (instead of user & pass)")
         (@arg JIRAURL: --url +takes_value  "Base URL of JIRA instance (e.g. https://jira.atlassian.net/)")
+        (@arg ALLOWLIST: -a --allowlist +takes_value "Sets a custom allowlist JSON file")
     )
         .get_matches();
     match run(&matches) {

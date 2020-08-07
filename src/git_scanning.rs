@@ -215,7 +215,7 @@ impl GitScanner {
                                 .unwrap_or_else(|_| "<STRING DECODE ERROR>".parse().unwrap()),
                         );
                     }
-                    if !secrets.is_empty() && !self.secret_scanner.is_allowlisted(&reason, &secrets){
+                    if !secrets.is_empty() {
                         let create_finding = self.secret_scanner.check_entropy(&reason, new_line);
                         if create_finding {
                             findings.insert(GitFinding {

@@ -58,6 +58,7 @@ fn main() {
         (@arg PRETTYPRINT: --prettyprint "Outputs the JSON in human readable format")
         (@arg OAUTHSECRETFILE: --oauthsecret "Path to an OAuth secret file (JSON) ./clientsecret.json by default")
         (@arg OAUTHTOKENFILE: --oauthtoken "Path to an OAuth token storage file ./temp_token by default")
+        (@arg ALLOWLIST: -a --allowlist +takes_value "Sets a custom allowlist JSON file")
     )
         .get_matches();
     match run(&matches) {

@@ -60,6 +60,7 @@ fn main() {
         (@arg OUTPUT: -o --outputfile +takes_value "Sets the path to write the scanner results to (stdout by default)")
         (@arg PRETTYPRINT: --prettyprint "Outputs the JSON in human readable format")
         (@arg PROFILE: --profile +takes_value "When using a configuration file, enables a non-default profile")
+        (@arg ALLOWLIST: -a --allowlist +takes_value "Sets a custom allowlist JSON file")
 //        (@arg AWS_ACCESS_KEY_ID: --awsaccesskeyid +takes_value "Forces manual AWS authentication")
 //        (@arg AWS_SECRET_ACCESS_KEY: --awssecretaccesskey +takes_value "Forces manual AWS authentication")
     )

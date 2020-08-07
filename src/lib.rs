@@ -218,7 +218,7 @@ const ENTROPY_MAX_WORD_LEN: usize = 40;
 #[derive(Debug, Clone)]
 pub struct SecretScanner {
     pub regex_map: BTreeMap<String, EntropyRegex>,
-    pub allowlist_map: BTreeMap<String, BTreeMap<String, bool>>,
+    pub allowlist_map: BTreeMap<String, Vec<Regex>>,
     pub pretty_print: bool,
     pub output_path: Option<String>,
     pub entropy_min_word_len: usize,
@@ -585,7 +585,7 @@ impl SecretScannerBuilder {
             .collect()
     }
 
-    fn build_allowlist_from_file(filename: &Path) -> Result<BTreeMap<String, BTreeMap<String, bool>>, SimpleError> {
+    fn build_allowlist_from_file(filename: &Path) -> Result<BTreeMap<String, Vec<Regex>>, SimpleError> {
         info!("Attempting to read JSON allowlist file from {:?}", filename);
         let file = File::open(filename);
         let file = match file {
@@ -594,7 +594,7 @@ impl SecretScannerBuilder {
         };
         let reader = BufReader::new(file);
         info!("Attempting to parse JSON allowlist file {:?}", filename);
-        let allowlist: Map<String, Value> = match serde_json::from_reader(reader) {
+        let allowlist: BTreeMap<String, Value> = match serde_json::from_reader(reader) {
             Ok(m) => Ok(m),
             Err(e) => Err(SimpleError::with("Failed to parse allowlist JSON", e)),
         }?;
@@ -603,11 +603,18 @@ impl SecretScannerBuilder {
             .map(|(p, list)| {
                 match list {
                     Value::Array(v) => {
-                        let l = v.into_iter().map(|v| match v {
-                            Value::String(s) => s,
-                            _ => String::from(""),
+                        let l = v.into_iter().filter_map(|v| match v {
+                            Value::String(s) => {
+                                match Regex::new(&s) {
+                                    Ok(r) => Some(r),
+                                    Err(e) => {
+                                        error!("Failed to parse regex in allowlist JSON: {}", e);
+                                        None
+                                    }
+                                }
+                            },
+                            _ => None,
                         })
-                        .map(|t| (t, true))
                         .collect();
                         Ok((p, l))
                     },
@@ -650,6 +657,7 @@ impl SecretScanner {
                 let matches = x.1.pattern.find_iter(line);
                 let matches_filtered: Vec<RustyHogMatch> = matches
                     .filter(|m| self.check_entropy(x.0, &line[m.start()..m.end()]))
+                    .filter(|m| !self.is_allowlisted(x.0, &line[m.start()..m.end()]))
                     .map(|m| RustyHogMatch::from(m))
                     .inspect(|x| debug!("RustyHogMatch: {:?}", x))
                     .collect();
@@ -868,12 +876,10 @@ impl SecretScanner {
     }
 
     /// Checks if any of the provided tokens is allowlisted
-    pub fn is_allowlisted(&self, pattern: &str, tokens: &Vec<String>) -> bool {
+    pub fn is_allowlisted(&self, pattern: &str, token: &[u8]) -> bool {
         if let Some(allowlist) = self.allowlist_map.get(pattern) {
-            for token in tokens {
-                if let Some(_) = allowlist.get(token) {
-                    return true
-                }
+            for allow_regex in allowlist {
+                if allow_regex.find(token).is_some() { return true }
             }
         }
         false

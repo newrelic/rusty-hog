@@ -84,6 +84,7 @@ fn main() {
         (@arg USERNAME: --username +takes_value conflicts_with[AUTHTOKEN] "Confluence username (crafts basic auth header)")
         (@arg PASSWORD: --password +takes_value conflicts_with[AUTHTOKEN] "Confluence password (crafts basic auth header)")
         (@arg BEARERTOKEN: --authtoken +takes_value conflicts_with[USERNAME PASSWORD] "Confluence basic auth bearer token (instead of user & pass)")
+        (@arg ALLOWLIST: -a --allowlist +takes_value "Sets a custom allowlist JSON file")
     )
         .get_matches();
     match run(&matches) {

@@ -82,7 +82,7 @@ fn main() {
         (@arg CASE: --caseinsensitive "Sets the case insensitive flag for all regexes")
         (@arg OUTPUT: -o --outputfile +takes_value "Sets the path to write the scanner results to (stdout by default)")
         (@arg PRETTYPRINT: --prettyprint "Outputs the JSON in human readable format")
-        (@arg ALLOWLIST: -w --allowlist +takes_value "Sets a custom allowlist JSON file")
+        (@arg ALLOWLIST: -a --allowlist +takes_value "Sets a custom allowlist JSON file")
     )
         .get_matches();
     match run(&matches) {
@@ -215,9 +215,7 @@ fn scan_file<R: Read + io::Seek>(
             );
             for d in inner_findings.drain() {
                 info!("FileFinding: {:?}", d);
-                if !&ss.is_allowlisted(d.reason.as_str(), &(d.strings_found)) {
-                    findings.insert(d);
-                }
+                findings.insert(d);
             }
         }
         findings
@@ -239,9 +237,7 @@ fn scan_file<R: Read + io::Seek>(
             );
             for d in inner_findings.drain() {
                 info!("FileFinding: {:?}", d);
-                if !&ss.is_allowlisted(d.reason.as_str(), &(d.strings_found)) {
-                    findings.insert(d);
-                }
+                findings.insert(d);
             }
         }
         findings
@@ -266,9 +262,7 @@ fn scan_file<R: Read + io::Seek>(
         );
         for d in inner_findings.drain() {
             info!("FileFinding: {:?}", d);
-            if !&ss.is_allowlisted(d.reason.as_str(), &(d.strings_found)) {
-                findings.insert(d);
-            }
+            findings.insert(d);
         }
         findings
     } else {
@@ -295,7 +289,7 @@ fn scan_bytes(input: Vec<u8>, ss: &SecretScanner, path: String) -> HashSet<FileF
                     .unwrap_or_else(|_| "<STRING DECODE ERROR>".parse().unwrap());
                 strings_found.push(result);
             }
-            if !strings_found.is_empty() && !ss.is_allowlisted(r.as_str(), &strings_found) {
+            if !strings_found.is_empty() {
                 let new_line_string = ASCII
                     .decode(&new_line, DecoderTrap::Ignore)
                     .unwrap_or_else(|_| "<STRING DECODE ERROR>".parse().unwrap());
