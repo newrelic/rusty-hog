@@ -52,7 +52,7 @@ use rusty_hogs::{SecretScanner, SecretScannerBuilder};
 /// Main entry function that uses the [clap crate](https://docs.rs/clap/2.33.0/clap/)
 fn main() {
     let matches = clap_app!(choctaw_hog =>
-        (version: "1.0.7")
+        (version: "1.0.8")
         (author: "Scott Cutler <scutler@newrelic.com>")
         (about: "Git secret scanner in Rust")
         (@arg REGEX: -r --regex +takes_value "Sets a custom regex JSON file")

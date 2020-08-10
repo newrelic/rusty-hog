@@ -48,8 +48,8 @@ Download and unzip the [latest ZIP](https://github.com/newrelic/rusty-hog/releas
 on the releases tab. Then, run each binary with `-h` to see the usage.
 
 ```shell script
-wget https://github.com/newrelic/rusty-hog/releases/download/1.0.7/rustyhogs-musl_darwin_1.0.7.zip
-unzip rustyhogs-musl_darwin_1.0.7.zip
+wget https://github.com/newrelic/rusty-hog/releases/download/1.0.8/rustyhogs-musl_darwin_1.0.8.zip
+unzip rustyhogs-musl_darwin_1.0.8.zip
 darwin_releases/choctaw_hog -h
 ```
 
@@ -58,8 +58,8 @@ Rusty Hog Docker images can be found at the authors personal DockerHub page [her
 A Docker Image is built for each Hog and for each release. So to use choctaw_hog you would run the following commands:
 
 ```shell script
-docker pull wetfeet2000/choctaw_hog:1.0.7
-docker run -it --rm wetfeet2000/choctaw_hog:1.0.7 --help
+docker pull wetfeet2000/choctaw_hog:1.0.8
+docker run -it --rm wetfeet2000/choctaw_hog:1.0.8 --help
 ```
 
 ## How to build
@@ -288,7 +288,7 @@ properties output by the scanner.
 Each value should be a string containing a valid [https://docs.rs/regex/1.3.9/regex/#syntax](regular expression for Rust) 
 that should match the type of secret described by its corresponding key.
 
-As of version 1.0.7, the Rusty Hog engine also supports objects as values for each secret. 
+As of version 1.0.8, the Rusty Hog engine also supports objects as values for each secret. 
 The object can contain all of the following:
 
 - a pattern property with the matching regex expression (mandatory)
@@ -443,12 +443,7 @@ Keep in mind that when you submit your pull request, you'll need to sign the CLA
 
 
 ## Feature Roadmap
-- 1.0.7:
-    - [x] Replace whitelist with allowlist
-    - [x] Improve email regex to stop extraneous matches (https://github.com/newrelic/rusty-hog/issues/11)
-    - [x] Add documentation around DockerHub and Docker usage
-    - [x] Perform at-compile-time inclusion of the default ruleset which can sit in an external JSON file
-    
+  
 - 1.1: Enterprise features
     - [ ] Support config files (instead of command line args)
     - [ ] Support environment variables instead of CLI args

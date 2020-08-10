@@ -60,7 +60,7 @@ pub struct JiraFinding {
 /// Main entry function that uses the [clap crate](https://docs.rs/clap/2.33.0/clap/)
 fn main() {
     let matches = clap_app!(gottingen_hog =>
-        (version: "1.0.7")
+        (version: "1.0.8")
         (author: "Emily Cain <ecain@newrelic.com>")
         (about: "Jira secret scanner in Rust.")
         (@arg REGEX: --regex +takes_value "Sets a custom regex JSON file")
