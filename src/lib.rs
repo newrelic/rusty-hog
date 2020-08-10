@@ -85,7 +85,7 @@ use simple_logger::init_with_level;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fs::File;
 use std::hash::{Hash, Hasher};
-use std::io::BufReader;
+use std::io::{BufReader, Read};
 use std::iter::FromIterator;
 use std::{fmt, fs, str};
 use std::path::Path;
@@ -95,6 +95,7 @@ use std::ops::{Range};
 // Regex in progress:   "Basic Auth": "basic(_auth)?([\\s[[:punct:]]]{1,4}[[[:word:]][[:punct:]]]{8,64}[\\s[[:punct:]]]?){1,2}",
 
 const DEFAULT_REGEX_JSON: &str = include_str!("default_rules.json");
+const DEFAULT_ALLOWLIST_JSON: &str = include_str!("default_allowlist.json");
 
 // from https://docs.rs/crate/base64/0.11.0/source/src/tables.rs
 // copied because the value itself was private in the base64 crate
@@ -461,9 +462,20 @@ impl SecretScannerBuilder {
         };
 
         let allowlist_map = match &self.allowlist_json_path {
-            Some(p) => Self::build_allowlist_from_file(Path::new(p)),
-            _ => Ok(BTreeMap::new()),
+            Some(p) => {
+                let json_string_result = std::fs::read_to_string(p);
+                let mut json_string: String = match json_string_result {
+                    Ok(s) => s,
+                    Err(e) => {
+                        error!("Error reading allowlist JSON file, falling back to default allowlist rules: {:?}", e);
+                        String::from(DEFAULT_ALLOWLIST_JSON)
+                    }
+                };
+                Self::build_allowlist_from_str(json_string.as_str())
+            },
+            _ => Self::build_allowlist_from_str(DEFAULT_ALLOWLIST_JSON),
         };
+
         let allowlist_map = match allowlist_map {
             Ok(m) => m,
             Err(e) => {
@@ -473,6 +485,7 @@ impl SecretScannerBuilder {
                 BTreeMap::new()
             }
         };
+
         SecretScanner {
             regex_map,
             pretty_print: self.pretty_print,
@@ -585,16 +598,9 @@ impl SecretScannerBuilder {
             .collect()
     }
 
-    fn build_allowlist_from_file(filename: &Path) -> Result<BTreeMap<String, Vec<Regex>>, SimpleError> {
-        info!("Attempting to read JSON allowlist file from {:?}", filename);
-        let file = File::open(filename);
-        let file = match file {
-            Ok(f) => f,
-            Err(e) => return Err(SimpleError::with("Failed to open the JSON allowlist file", e)),
-        };
-        let reader = BufReader::new(file);
-        info!("Attempting to parse JSON allowlist file {:?}", filename);
-        let allowlist: BTreeMap<String, Value> = match serde_json::from_reader(reader) {
+    fn build_allowlist_from_str(input: &str) -> Result<BTreeMap<String, Vec<Regex>>, SimpleError> {
+        info!("Attempting to parse JSON allowlist string");
+        let allowlist: BTreeMap<String, Value> = match serde_json::from_str(input) {
             Ok(m) => Ok(m),
             Err(e) => Err(SimpleError::with("Failed to parse allowlist JSON", e)),
         }?;
@@ -1185,8 +1191,7 @@ mod tests {
     }
 
     #[test]
-    fn can_parse_allowlist_from_file() -> Result<(), String> {
-        let mut file = NamedTempFile::new().unwrap();
+    fn can_parse_allowlist_from_str() -> Result<(), String> {
         let json = r#"
         {
             "Pattern name 1": [
@@ -1198,9 +1203,8 @@ mod tests {
             ]
         }
         "#;
-        file.write(json.as_bytes()).unwrap();
 
-        if let Err(e) = SecretScannerBuilder::build_allowlist_from_file(file.path()) {
+        if let Err(e) = SecretScannerBuilder::build_allowlist_from_str(json) {
             return Err(format!("failed parsing valid allowlist JSON file: {}", e));
         }
 
