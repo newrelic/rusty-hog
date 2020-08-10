@@ -177,21 +177,18 @@ fn get_page(client: &Client, auth_headers: &Headers, base_url: &str, page_id: &s
     let json_results = get_json(&client, &auth_headers, &comments_full_url);
     let comments = json_results.get("results").unwrap();
     let mut all_comments: String = String::new();
-    match comments {
-        Value::Array(comments) => {
-            for comment in comments {
-                let comment_body = comment.get("body").unwrap().get("storage").unwrap().get("value").unwrap().as_str().unwrap();
-                all_comments.push_str(comment_body);
-            }
-        },
-        _ => ()
+    if let Value::Array(comments) = comments {
+        for comment in comments {
+            let comment_body = comment.get("body").unwrap().get("storage").unwrap().get("value").unwrap().as_str().unwrap();
+            all_comments.push_str(comment_body);
+        }
     };
 
-    return ConfluencePage {
-        web_link: String::from(web_link),
+    ConfluencePage {
+        web_link,
         body: String::from(body),
         comments: all_comments
-    };
+    }
 }
 
 /// Uses a hyper::client object to perform a GET on the full_url and return parsed serde JSON data
@@ -233,7 +230,7 @@ fn get_findings(secret_scanner: &SecretScanner, issue_id: &str, content: &[u8], 
                 secrets.push(ConfluenceFinding {
                     strings_found: Vec::from_iter(secrets_for_reason.iter().cloned()),
                     page_id: String::from(issue_id),
-                    reason: String::from(reason),
+                    reason,
                     url: String::from(web_link)
                 });
             }

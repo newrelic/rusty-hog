@@ -72,9 +72,7 @@ pub mod google_scanning;
 #[macro_use]
 extern crate clap;
 
-use base64;
 use clap::ArgMatches;
-use hex;
 use log::{self, error, info, debug};
 use regex::bytes::{Matches, Regex, RegexBuilder, Match};
 use serde::Serialize;
@@ -85,7 +83,7 @@ use simple_logger::init_with_level;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fs::File;
 use std::hash::{Hash, Hasher};
-use std::io::{BufReader, Read};
+use std::io::{BufReader};
 use std::iter::FromIterator;
 use std::{fmt, fs, str};
 use std::path::Path;
@@ -329,7 +327,7 @@ impl<'t> RustyHogMatch<'t> {
     /// Creates a new match from the given haystack and byte offsets.
     #[inline]
     fn new(haystack: &'t [u8], start: usize, end: usize) -> RustyHogMatch<'t> {
-        RustyHogMatch { text: haystack, start: start, end: end }
+        RustyHogMatch { text: haystack, start, end }
     }
 }
 
@@ -464,7 +462,7 @@ impl SecretScannerBuilder {
         let allowlist_map = match &self.allowlist_json_path {
             Some(p) => {
                 let json_string_result = std::fs::read_to_string(p);
-                let mut json_string: String = match json_string_result {
+                let json_string: String = match json_string_result {
                     Ok(s) => s,
                     Err(e) => {
                         error!("Error reading allowlist JSON file, falling back to default allowlist rules: {:?}", e);
@@ -490,7 +488,7 @@ impl SecretScannerBuilder {
             regex_map,
             pretty_print: self.pretty_print,
             output_path,
-            allowlist_map: allowlist_map,
+            allowlist_map,
             entropy_min_word_len: self.entropy_min_word_len,
             entropy_max_word_len: self.entropy_max_word_len,
             add_entropy_findings: self.add_entropy_findings,
@@ -554,7 +552,7 @@ impl SecretScannerBuilder {
                         regex_builder.case_insensitive(true);
                     };
                     (k, EntropyRegex{
-                        pattern: regex_builder.build().expect(format!("Error parsing regex string: {:?}", p).as_str()),
+                        pattern: regex_builder.build().unwrap_or_else(|_| panic!("Error parsing regex string: {:?}", p)),
                         entropy_threshold: None,
                         keyspace: None,
                         make_ascii_lowercase: false
@@ -588,7 +586,7 @@ impl SecretScannerBuilder {
                         None => false
                     };
                     (k, EntropyRegex{
-                        pattern: regex_builder.build().expect(format!("Error parsing regex string: {:?}", pattern).as_str()),
+                        pattern: regex_builder.build().unwrap_or_else(|_| panic!("Error parsing regex string: {:?}", pattern)),
                         entropy_threshold: entropy,
                         keyspace: keyspace_processed,
                         make_ascii_lowercase: make_ascii_lowercase_processed
@@ -664,7 +662,7 @@ impl SecretScanner {
                 let matches_filtered: Vec<RustyHogMatch> = matches
                     .filter(|m| self.check_entropy(x.0, &line[m.start()..m.end()]))
                     .filter(|m| !self.is_allowlisted(x.0, &line[m.start()..m.end()]))
-                    .map(|m| RustyHogMatch::from(m))
+                    .map(RustyHogMatch::from)
                     .inspect(|x| debug!("RustyHogMatch: {:?}", x))
                     .collect();
                 (x.0.clone(), matches_filtered)
@@ -704,7 +702,7 @@ impl SecretScanner {
         // if make_ascii_lowercase is set to false
         if make_ascii_lowercase {
             for &b in bytes {
-                let mut c = b.clone();
+                let mut c = b;
                 c.make_ascii_lowercase();
                 counts.insert(c, counts.get(&c).unwrap_or(&0) + 1);
             }
@@ -738,9 +736,7 @@ impl SecretScanner {
             None => SecretScanner::guess_keyspace(bytes)
         };
         let raw_entropy = SecretScanner::calc_shannon_entropy(bytes, processed_lowercase);
-        let output = raw_entropy / ((processed_keyspace as f32).log2());
-        // println!("calc_normalized_entropy({:?},{:?},{:?}) -> {:?}", bytes, keyspace, make_ascii_lowercase, output);
-        output
+        raw_entropy / ((processed_keyspace as f32).log2())
     }
 
     /// Scan a byte array for arbitrary hex sequences and base64 sequences. Will return a list of
@@ -780,7 +776,7 @@ impl SecretScanner {
             .map(hex::encode)
             .collect();
         //dedup first to prevent some strings from getting detected twice
-        if b64_words.len() > 0 || hex_words.len() > 0 {
+        if !b64_words.is_empty() || !hex_words.is_empty() {
             debug!("b64_words: {:?}", b64_words);
             debug!("hex_words: {:?}", hex_words);
         }
@@ -794,7 +790,7 @@ impl SecretScanner {
         let mut output = Vec::new();
         for word in output_hashset {
             // There should be a better way to do this. This seems expensive
-            let vec_line = String::from_utf8(Vec::from(line)).unwrap_or(String::from(""));
+            let vec_line = String::from_utf8(Vec::from(line)).unwrap_or_else(|_| String::from(""));
             let index = vec_line.find(&word).unwrap_or(0);
             if index > line.len() {
                 error!("index error");
@@ -803,7 +799,7 @@ impl SecretScanner {
                 output.push(m);
             }
         }
-        if output.len() > 0 {
+        if !output.is_empty() {
             debug!("entropy_findings output: {:?}", output);
         }
         output
@@ -860,9 +856,7 @@ impl SecretScanner {
                 },
                 None => true,
             }
-        } else {
-            if pattern == "Entropy" { true } else { false }
-        }
+        } else { pattern == "Entropy" }
     }
 
     /// Helper function that takes a HashSet of serializable structs and outputs them as JSON

@@ -154,12 +154,12 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
             Some(e) => e.as_bytes(),
             None => {
                 info!("The JIRA ticket description was set to null!");
-                "".as_bytes()
+                b""
             }
         }
         None => {
             info!("The JIRA ticket description was not present!");
-            "".as_bytes()
+            b""
         }
     };
 
@@ -245,7 +245,7 @@ fn get_findings(secret_scanner: &SecretScanner, base_url: &str, issue_id: &str, 
                 secrets.push(JiraFinding {
                     strings_found: Vec::from_iter(secrets_for_reason.iter().cloned()),
                     issue_id: String::from(issue_id),
-                    reason: String::from(reason),
+                    reason,
                     url: web_link.clone(),
                     location: location.clone(),
                 });

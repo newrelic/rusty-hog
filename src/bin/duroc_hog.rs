@@ -171,7 +171,7 @@ fn flat_dir_scan<C>(fspath: &Path, output_file: &Path, mut closure: C) where C: 
             .filter(|e| e.file_type().unwrap().is_file())
             .map(|e| e.path())
             .inspect(|e| debug!("clean path: {:?}, output_file: {:?}", &e.clean(), output_file))
-            .filter(|e| &e.clean() != output_file)
+            .filter(|e| e.clean() != output_file)
             .collect();
     debug!("dir_contents: {:?}", dir_contents);
 

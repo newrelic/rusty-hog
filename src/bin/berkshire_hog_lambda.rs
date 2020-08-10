@@ -25,7 +25,6 @@ use s3::credentials::Credentials;
 use s3::region::Region;
 use serde_derive::{Deserialize, Serialize};
 use simple_error::SimpleError;
-use simple_logger;
 use std::env;
 use std::error::Error;
 use std::time::SystemTime;
