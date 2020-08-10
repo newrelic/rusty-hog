@@ -1,1 +1,6 @@
-{ "Email address":[".*@newrelic.com"] }
+{
+  "Email address":[
+    ".*@newrelic.com"
+  ],
+  "<GLOBAL>": ["(?i)example"]
+}

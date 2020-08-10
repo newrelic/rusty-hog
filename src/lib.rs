@@ -888,6 +888,11 @@ impl SecretScanner {
                 if allow_regex.find(token).is_some() { return true }
             }
         }
+        if let Some(allowlist) = self.allowlist_map.get("<GLOBAL>") {
+            for allow_regex in allowlist {
+                if allow_regex.find(token).is_some() { return true }
+            }
+        }
         false
     }
 }
