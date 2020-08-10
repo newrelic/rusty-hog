@@ -27,25 +27,24 @@ extern crate clap;
 extern crate hyper;
 extern crate hyper_rustls;
 
-use std::io::Read;
-use std::collections::{HashSet, BTreeMap};
-use log::{self, debug, info, error};
-use std::iter::FromIterator;
 use clap::ArgMatches;
-use simple_error::SimpleError;
-use encoding::DecoderTrap;
 use encoding::all::ASCII;
 use encoding::types::Encoding;
-use rusty_hogs::{SecretScanner, RustyHogMatch};
-use url::Url;
-use hyper::Client;
+use encoding::DecoderTrap;
+use hyper::header::{Authorization, Basic, Bearer, Headers};
 use hyper::net::HttpsConnector;
-use hyper::header::{Authorization, Basic, Headers, Bearer};
 use hyper::status::StatusCode;
+use hyper::Client;
+use log::{self, debug, error, info};
 use rusty_hogs::SecretScannerBuilder;
+use rusty_hogs::{RustyHogMatch, SecretScanner};
 use serde_derive::{Deserialize, Serialize};
 use serde_json::{Map, Value};
-
+use simple_error::SimpleError;
+use std::collections::{BTreeMap, HashSet};
+use std::io::Read;
+use std::iter::FromIterator;
+use url::Url;
 
 /// `serde_json` object that represents a single found secret - finding
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, Clone, Default)]
@@ -57,7 +56,6 @@ pub struct JiraFinding {
     pub url: String,
     pub location: String,
 }
-
 
 /// Main entry function that uses the [clap crate](https://docs.rs/clap/2.33.0/clap/)
 fn main() {
@@ -82,7 +80,7 @@ fn main() {
         .get_matches();
     match run(&matches) {
         Ok(()) => {}
-        Err(e) => error!( "Error running command: {}", e)
+        Err(e) => error!("Error running command: {}", e),
     }
 }
 
@@ -95,18 +93,15 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     let ssb = SecretScannerBuilder::new().conf_argm(arg_matches);
     let secret_scanner = ssb.build();
 
-    let jirausername = arg_matches
-        .value_of("USERNAME");
-    let jirapassword = arg_matches
-        .value_of("PASSWORD");
-    let jiraauthtoken = arg_matches
-        .value_of("BEARERTOKEN");
+    let jirausername = arg_matches.value_of("USERNAME");
+    let jirapassword = arg_matches.value_of("PASSWORD");
+    let jiraauthtoken = arg_matches.value_of("BEARERTOKEN");
     let base_url_input = arg_matches
         .value_of("JIRAURL")
-        .unwrap_or_else(||"https://jira.atlassian.com/");
+        .unwrap_or_else(|| "https://jira.atlassian.com/");
     let base_url_as_url = Url::parse(base_url_input).unwrap();
     let issue_id = arg_matches
-        .value_of("JIRAID")  // TODO validate the format somehow
+        .value_of("JIRAID") // TODO validate the format somehow
         .unwrap();
 
     let base_url = base_url_as_url.as_str();
@@ -120,26 +115,18 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
         // craft auth header using username and password if present
         Some(u) => {
             let jirapassword = jirapassword.unwrap().to_owned();
-            auth_headers.set(
-                Authorization(
-                    Basic {
-                        username: u.to_owned(),
-                        password: Some(jirapassword)
-                    }
-                )
-            );
-        },
+            auth_headers.set(Authorization(Basic {
+                username: u.to_owned(),
+                password: Some(jirapassword),
+            }));
+        }
         // otherwise use AUTHTOKEN to craft the auth header
         None => {
-            auth_headers.set(
-                Authorization(
-                    Bearer {
-                        token: jiraauthtoken.unwrap().to_owned()
-                    })
-            );
+            auth_headers.set(Authorization(Bearer {
+                token: jiraauthtoken.unwrap().to_owned(),
+            }));
         }
     }
-
 
     // Build the URL
     // todo make this work regardless of whether the url argument they pass has a trailing slash
@@ -156,40 +143,42 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
                 info!("The JIRA ticket description was set to null!");
                 b""
             }
-        }
+        },
         None => {
             info!("The JIRA ticket description was not present!");
             b""
         }
     };
 
-
     // find secrets in issue body
-    let mut secrets = get_findings(&secret_scanner, base_url, issue_id,  description, String::from("Issue Description"));
+    let mut secrets = get_findings(
+        &secret_scanner,
+        base_url,
+        issue_id,
+        description,
+        String::from("Issue Description"),
+    );
 
-    let all_comments = json_results.get("fields").unwrap()
-        .get("comment").unwrap()
-        .get("comments").unwrap()
-        .as_array().unwrap();
+    let all_comments = json_results
+        .get("fields")
+        .unwrap()
+        .get("comment")
+        .unwrap()
+        .get("comments")
+        .unwrap()
+        .as_array()
+        .unwrap();
 
     // find secrets in each comment
     for comment in all_comments {
         let location = format!(
             "comment by {} on {}",
-            comment.get("author").unwrap()
-                .get("displayName").unwrap(),
+            comment.get("author").unwrap().get("displayName").unwrap(),
             comment.get("created").unwrap()
         );
-        let comment_body = comment.get("body").unwrap()
-            .as_str().unwrap()
-            .as_bytes();
-        let comment_findings = get_findings(
-            &secret_scanner,
-            base_url,
-            issue_id,
-            comment_body,
-            location
-        );
+        let comment_body = comment.get("body").unwrap().as_str().unwrap().as_bytes();
+        let comment_findings =
+            get_findings(&secret_scanner, base_url, issue_id, comment_body, location);
         secrets.extend(comment_findings);
     }
 
@@ -198,7 +187,10 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     info!("Found {} secrets", findings.len());
     match secret_scanner.output_findings(&findings) {
         Ok(_) => Ok(()),
-        Err(err) => Err(SimpleError::with("failed to output findings", SimpleError::new(err.to_string())))
+        Err(err) => Err(SimpleError::with(
+            "failed to output findings",
+            SimpleError::new(err.to_string()),
+        )),
     }
 }
 
@@ -210,7 +202,10 @@ fn get_issue_json(client: Client, auth_headers: Headers, full_url: &str) -> Map<
     let mut response_body: String = String::new();
     resp.read_to_string(&mut response_body).unwrap();
     if resp.status != StatusCode::Ok {
-        panic!("Request to {} failed with code {}: {}", full_url, resp.status, response_body)
+        panic!(
+            "Request to {} failed with code {}: {}",
+            full_url, resp.status, response_body
+        )
     }
     let json_results = serde_json::from_str(&response_body).unwrap();
     debug!("Response JSON: \n{:?}", json_results);
@@ -220,15 +215,22 @@ fn get_issue_json(client: Client, auth_headers: Headers, full_url: &str) -> Map<
 /// Takes the JIRA finding data (base_url, issue_id, description, location) and a `SecretScanner`
 /// object and produces a list of `JiraFinding` objects. Because `description` is a &[u8] the
 /// function can be reused for any part of the ticket (description, comments, etc.)
-fn get_findings(secret_scanner: &SecretScanner, base_url: &str, issue_id: &str, description: &[u8], location: String) -> Vec<JiraFinding> {
-// Await the response...
-// note that get takes &String, or str
+fn get_findings(
+    secret_scanner: &SecretScanner,
+    base_url: &str,
+    issue_id: &str,
+    description: &[u8],
+    location: String,
+) -> Vec<JiraFinding> {
+    // Await the response...
+    // note that get takes &String, or str
 
     let lines = description.split(|&x| (x as char) == '\n');
     let mut secrets: Vec<JiraFinding> = Vec::new();
     let web_link = format!("{}browse/{}", base_url, issue_id);
     for new_line in lines {
-        let matches_map: BTreeMap<String, Vec<RustyHogMatch>> = secret_scanner.matches_entropy(new_line);
+        let matches_map: BTreeMap<String, Vec<RustyHogMatch>> =
+            secret_scanner.matches_entropy(new_line);
         for (reason, match_iterator) in matches_map {
             let mut secrets_for_reason: HashSet<String> = HashSet::new();
             for matchobj in match_iterator {

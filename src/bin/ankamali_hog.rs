@@ -32,7 +32,7 @@ extern crate yup_oauth2 as oauth2;
 
 use clap::ArgMatches;
 use drive3::DriveHub;
-use log::{self, info, error};
+use log::{self, error, info};
 use oauth2::{
     ApplicationSecret, Authenticator, DefaultAuthenticatorDelegate, DiskTokenStorage, FlowType,
 };
@@ -63,7 +63,7 @@ fn main() {
         .get_matches();
     match run(&matches) {
         Ok(()) => {}
-        Err(e) => error!( "Error running command: {}", e)
+        Err(e) => error!("Error running command: {}", e),
     }
 }
 
@@ -112,6 +112,9 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     info!("Found {} secrets", findings.len());
     match gdrive_scanner.secret_scanner.output_findings(&findings) {
         Ok(_) => Ok(()),
-        Err(err) => Err(SimpleError::with("failed to output findings", SimpleError::new(err.to_string())))
+        Err(err) => Err(SimpleError::with(
+            "failed to output findings",
+            SimpleError::new(err.to_string()),
+        )),
     }
 }

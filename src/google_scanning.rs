@@ -151,7 +151,6 @@ pub struct GDriveFileInfo {
 }
 
 impl GDriveFileInfo {
-
     /// Construct a `GDriveFileInfo` object from a Google Drive File ID and an authorized `DriveHub` object
     pub fn new(
         file_id: &str,
@@ -210,7 +209,11 @@ impl GDriveScanner {
         Self { secret_scanner }
     }
 
-    pub fn new() -> Self { Self { secret_scanner: SecretScanner::default() } }
+    pub fn new() -> Self {
+        Self {
+            secret_scanner: SecretScanner::default(),
+        }
+    }
 
     /// Takes information about the file, and the DriveHub object, and retrieves the content from
     /// Google Drive. Expect authorization issues here if you don't have access to the file.

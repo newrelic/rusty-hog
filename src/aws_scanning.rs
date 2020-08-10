@@ -53,7 +53,7 @@
 use crate::SecretScanner;
 use encoding::all::ASCII;
 use encoding::{DecoderTrap, Encoding};
-use log::{self, trace, error};
+use log::{self, error, trace};
 use s3::bucket::Bucket;
 use serde_derive::{Deserialize, Serialize};
 use simple_error::SimpleError;
@@ -87,7 +87,11 @@ impl S3Scanner {
         Self { secret_scanner }
     }
 
-    pub fn new() -> Self { Self { secret_scanner: SecretScanner::default() } }
+    pub fn new() -> Self {
+        Self {
+            secret_scanner: SecretScanner::default(),
+        }
+    }
 
     /// Takes an initialized [Bucket](https://durch.github.io/rust-s3/s3/bucket/struct.Bucket.html)
     /// object and an S3 object path in the format `s3://<path>` and returns a list of S3Finding

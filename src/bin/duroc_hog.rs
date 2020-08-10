@@ -35,20 +35,20 @@ extern crate chrono;
 extern crate encoding;
 
 use clap::ArgMatches;
-use log::{self, debug, info, error};
+use log::{self, debug, error, info};
 use serde::{Deserialize, Serialize};
 use simple_error::SimpleError;
 use std::fs::File;
 use std::io::{Cursor, Read};
 use std::path::{Path, PathBuf};
 use std::{io, str};
-use walkdir::{WalkDir};
+use walkdir::WalkDir;
 
 use encoding::all::ASCII;
 use encoding::{DecoderTrap, Encoding};
+use path_clean::PathClean;
 use rusty_hogs::{SecretScanner, SecretScannerBuilder};
 use std::collections::HashSet;
-use path_clean::PathClean;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, Clone, Default)]
 /// `serde_json` object that represents a single found secret - finding
@@ -87,7 +87,7 @@ fn main() {
         .get_matches();
     match run(&matches) {
         Ok(()) => {}
-        Err(e) => error!( "Error running command: {}", e)
+        Err(e) => error!("Error running command: {}", e),
     }
 }
 
@@ -116,7 +116,13 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     let mut output: HashSet<FileFinding> = HashSet::new();
 
     if Path::is_dir(fspath) {
-        output.extend(scan_dir(fspath, output_file, &secret_scanner, recursive, unzip));
+        output.extend(scan_dir(
+            fspath,
+            output_file,
+            &secret_scanner,
+            recursive,
+            unzip,
+        ));
     } else {
         let f = File::open(fspath).unwrap();
         output.extend(scan_file(fspath, &secret_scanner, f, "", unzip));
@@ -125,7 +131,10 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     info!("Found {} secrets", output.len());
     match secret_scanner.output_findings(&output) {
         Ok(_) => Ok(()),
-        Err(err) => Err(SimpleError::with("failed to output findings", SimpleError::new(err.to_string())))
+        Err(err) => Err(SimpleError::with(
+            "failed to output findings",
+            SimpleError::new(err.to_string()),
+        )),
     }
 }
 
@@ -155,7 +164,10 @@ fn scan_dir(
     output
 }
 
-fn recursive_dir_scan<C>(fspath: &Path, output_file: &Path, mut closure: C) where C: FnMut(&Path) {
+fn recursive_dir_scan<C>(fspath: &Path, output_file: &Path, mut closure: C)
+where
+    C: FnMut(&Path),
+{
     for entry in WalkDir::new(fspath).into_iter().filter_map(|e| e.ok()) {
         if entry.file_type().is_file() && &PathBuf::from(entry.path()).clean() != output_file {
             closure(&entry.path());
@@ -163,16 +175,25 @@ fn recursive_dir_scan<C>(fspath: &Path, output_file: &Path, mut closure: C) wher
     }
 }
 
-fn flat_dir_scan<C>(fspath: &Path, output_file: &Path, mut closure: C) where C: FnMut(&Path) {
+fn flat_dir_scan<C>(fspath: &Path, output_file: &Path, mut closure: C)
+where
+    C: FnMut(&Path),
+{
     let dir_contents: Vec<PathBuf> = fspath
-            .read_dir()
-            .expect("read_dir call failed")
-            .filter_map(|e| e.ok())
-            .filter(|e| e.file_type().unwrap().is_file())
-            .map(|e| e.path())
-            .inspect(|e| debug!("clean path: {:?}, output_file: {:?}", &e.clean(), output_file))
-            .filter(|e| e.clean() != output_file)
-            .collect();
+        .read_dir()
+        .expect("read_dir call failed")
+        .filter_map(|e| e.ok())
+        .filter(|e| e.file_type().unwrap().is_file())
+        .map(|e| e.path())
+        .inspect(|e| {
+            debug!(
+                "clean path: {:?}, output_file: {:?}",
+                &e.clean(),
+                output_file
+            )
+        })
+        .filter(|e| e.clean() != output_file)
+        .collect();
     debug!("dir_contents: {:?}", dir_contents);
 
     for file_path in dir_contents {
@@ -204,7 +225,10 @@ fn scan_file<R: Read + io::Seek>(
             // and moving it (inefficient) *but* that means we can recursively decompress
             let mut innerdata: Vec<u8> = Vec::new();
             let read_result = innerfile.read_to_end(&mut innerdata);
-            if read_result.is_err() { info!("read error within ZIP file"); continue; }
+            if read_result.is_err() {
+                info!("read error within ZIP file");
+                continue;
+            }
             let new_reader = Cursor::new(innerdata);
             let mut inner_findings = scan_file(
                 innerfile.sanitized_name().as_path(),
@@ -226,7 +250,10 @@ fn scan_file<R: Read + io::Seek>(
             let mut inner_entry = entry_result.unwrap();
             let mut innerdata: Vec<u8> = Vec::new();
             let read_result = inner_entry.read_to_end(&mut innerdata);
-            if read_result.is_err() { info!("read error within TAR file"); continue; }
+            if read_result.is_err() {
+                info!("read error within TAR file");
+                continue;
+            }
             let new_reader = Cursor::new(innerdata);
             let mut inner_findings = scan_file(
                 inner_entry.path().unwrap().as_ref(),
@@ -245,7 +272,10 @@ fn scan_file<R: Read + io::Seek>(
         let mut decompressor = flate2::read::GzDecoder::new(reader);
         let mut innerdata: Vec<u8> = Vec::new();
         let read_result = decompressor.read_to_end(&mut innerdata);
-        if read_result.is_err() { info!("read error within ZIP file"); return findings; }
+        if read_result.is_err() {
+            info!("read error within ZIP file");
+            return findings;
+        }
         let new_reader = Cursor::new(innerdata);
         let mut tempstring = String::from(file_path.file_stem().unwrap().to_str().unwrap());
         if ext.to_ascii_lowercase() == "tgz" {
@@ -253,13 +283,7 @@ fn scan_file<R: Read + io::Seek>(
         }
         let inner_path: &Path = Path::new(&tempstring);
         info!("gunzip inner path: {:?}", inner_path);
-        let mut inner_findings = scan_file(
-            inner_path,
-            ss,
-            new_reader,
-            &path_string,
-            unzip,
-        );
+        let mut inner_findings = scan_file(inner_path, ss, new_reader, &path_string, unzip);
         for d in inner_findings.drain() {
             info!("FileFinding: {:?}", d);
             findings.insert(d);
@@ -268,7 +292,9 @@ fn scan_file<R: Read + io::Seek>(
     } else {
         let mut data = Vec::new();
         let read_result = reader.read_to_end(&mut data);
-        if read_result.is_err() { info!("read error for file {}", path_string); }
+        if read_result.is_err() {
+            info!("read error for file {}", path_string);
+        }
         scan_bytes(data, ss, path_string)
     }
 }
@@ -309,23 +335,17 @@ fn scan_bytes(input: Vec<u8>, ss: &SecretScanner, path: String) -> HashSet<FileF
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::io::Result;
-    use std::process::Output;
-    use std::io::Write;
-    use tempfile::{NamedTempFile, TempDir};
     use escargot::CargoBuild;
+    use std::io::Result;
+    use std::io::Write;
+    use std::process::Output;
+    use tempfile::{NamedTempFile, TempDir};
 
     fn run_command_in_dir(dir: &TempDir, command: &str, args: &[&str]) -> Result<Output> {
         let dir_path = dir.path().to_str().unwrap();
-        let binary = CargoBuild::new()
-            .bin(command)
-            .run()
-            .unwrap();
+        let binary = CargoBuild::new().bin(command).run().unwrap();
 
-        binary.command()
-            .current_dir(dir_path)
-            .args(args)
-            .output()
+        binary.command().current_dir(dir_path).args(args).output()
     }
 
     fn write_temp_file(dir: &TempDir, filename: &str, contents: &str) {
@@ -346,7 +366,11 @@ mod tests {
     fn does_not_scan_output_file() {
         let temp_dir = TempDir::new().unwrap();
 
-        write_temp_file(&temp_dir, "insecure-file.txt", "My email is username@mail.com");
+        write_temp_file(
+            &temp_dir,
+            "insecure-file.txt",
+            "My email is username@mail.com",
+        );
 
         let cmd_args = ["-o", "output_file.txt", "."];
 
@@ -374,13 +398,20 @@ mod tests {
         }
         "#;
         write!(allowlist_temp_file, "{}", json).unwrap();
-        write_temp_file(&temp_dir, "insecure-file.txt", "My email is username@mail.com");
+        write_temp_file(
+            &temp_dir,
+            "insecure-file.txt",
+            "My email is username@mail.com",
+        );
 
-        let cmd_args = ["--allowlist", allowlist_temp_file.path().to_str().unwrap(), "."];
+        let cmd_args = [
+            "--allowlist",
+            allowlist_temp_file.path().to_str().unwrap(),
+            ".",
+        ];
 
         let output = run_command_in_dir(&temp_dir, "duroc_hog", &cmd_args).unwrap();
 
         assert_eq!("[]\n", str::from_utf8(&output.stdout).unwrap());
-
     }
 }

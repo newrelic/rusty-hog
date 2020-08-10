@@ -42,20 +42,20 @@
 //! assert_eq!(findings.len(), 8);
 //! ```
 
-use crate::{SecretScanner, RustyHogMatch};
+use crate::{RustyHogMatch, SecretScanner};
 use chrono::NaiveDateTime;
 use chrono::Utc;
 use encoding::all::ASCII;
 use encoding::{DecoderTrap, Encoding};
 use git2::{Commit, DiffFormat, Tree};
 use git2::{DiffOptions, Repository, Time};
-use log::{self, info, debug};
+use log::{self, debug, info};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashSet};
-use std::path::Path;
-use std::{str, fmt};
-use url::{ParseError, Url};
 use std::hash::{Hash, Hasher};
+use std::path::Path;
+use std::{fmt, str};
+use url::{ParseError, Url};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, Clone, Default)]
 /// `serde_json` object that represents a single found secret - finding
@@ -74,7 +74,7 @@ pub struct GitFinding {
     pub new_file_id: String,
     pub old_line_num: u32,
     pub new_line_num: u32,
-    pub parent_commit_hash: String
+    pub parent_commit_hash: String,
 }
 
 /// enum used by init_git_repo to communicate the type of git repo specified by the supplied URL
@@ -104,7 +104,13 @@ impl GitScanner {
         }
     }
 
-    pub fn new() -> Self { Self { secret_scanner: SecretScanner::default(), repo: None, scheme: None } }
+    pub fn new() -> Self {
+        Self {
+            secret_scanner: SecretScanner::default(),
+            repo: None,
+            scheme: None,
+        }
+    }
 
     /// Uses the GitScanner object to return a HashSet of findings from that repository
     pub fn perform_scan(
@@ -133,12 +139,10 @@ impl GitScanner {
                 // println!("{:?}", o.as_commit().unwrap());
                 o.as_commit().unwrap().time()
             }
-            None =>  {
-                match recent_days {
-                    Some(rd) => Time::new(Utc::now().timestamp() - (rd as i64 * 24 * 60 * 60), 0),
-                    None => Time::new(0, 0)
-                }
-            }
+            None => match recent_days {
+                Some(rd) => Time::new(Utc::now().timestamp() - (rd as i64 * 24 * 60 * 60), 0),
+                None => Time::new(0, 0),
+            },
         };
 
         let until_time_obj: Time = match until_commit {
@@ -175,11 +179,11 @@ impl GitScanner {
             };
             let parent_commit_hash: String = match parent_commit_option.as_ref() {
                 Some(pc) => pc.id().to_string(),
-                None => String::from("None")
+                None => String::from("None"),
             };
             let a: Option<Tree> = match parent_commit_option {
                 Some(pc) => Some(pc.tree().unwrap()),
-                _ => None
+                _ => None,
             };
             let b = commit.tree().unwrap();
             let mut diffopts = DiffOptions::new();
@@ -192,9 +196,12 @@ impl GitScanner {
 
             // secondary loop that occurs for each *line* in the diff
             diff.print(DiffFormat::Patch, |delta, _hunk, line| {
-                if line.origin() == 'F' || line.origin() == 'H' { return true };
+                if line.origin() == 'F' || line.origin() == 'H' {
+                    return true;
+                };
                 let new_line = line.content();
-                let matches_map: BTreeMap<String, Vec<RustyHogMatch>> = self.secret_scanner.matches_entropy(new_line);
+                let matches_map: BTreeMap<String, Vec<RustyHogMatch>> =
+                    self.secret_scanner.matches_entropy(new_line);
                 if matches_map.contains_key("Entropy") {
                     debug!("Entropy finding");
                 }
@@ -239,7 +246,7 @@ impl GitScanner {
                                 new_file_id: new_file_id.to_string(),
                                 old_line_num,
                                 new_line_num,
-                                parent_commit_hash: parent_commit_hash.clone()
+                                parent_commit_hash: parent_commit_hash.clone(),
                             });
                         }
                     }
@@ -456,9 +463,16 @@ impl fmt::Debug for GitScanner {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let repo_str = match self.repo.as_ref() {
             None => "None",
-            Some(repo_obj) => repo_obj.path().to_str().unwrap_or_else(|| "<path unwrap error>")
+            Some(repo_obj) => repo_obj
+                .path()
+                .to_str()
+                .unwrap_or_else(|| "<path unwrap error>"),
         };
-        write!(f, "GitScanner: SecretScanner: {:?}, Repo: {:?}, GitScheme: {:?}", self.secret_scanner, repo_str, self.scheme)
+        write!(
+            f,
+            "GitScanner: SecretScanner: {:?}, Repo: {:?}, GitScheme: {:?}",
+            self.secret_scanner, repo_str, self.scheme
+        )
     }
 }
 
@@ -466,13 +480,20 @@ impl fmt::Display for GitScanner {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let repo_str = match self.repo.as_ref() {
             None => "None",
-            Some(repo_obj) => repo_obj.path().to_str().unwrap_or_else(|| "<path unwrap error>")
+            Some(repo_obj) => repo_obj
+                .path()
+                .to_str()
+                .unwrap_or_else(|| "<path unwrap error>"),
         };
         let scheme_string: String = match self.scheme.as_ref() {
             None => String::from("None"),
-            Some(s) => fmt::format(format_args!("{}", s))
+            Some(s) => fmt::format(format_args!("{}", s)),
         };
-        write!(f, "GitScanner: SecretScanner: {}, Repo: {}, GitScheme: {}", self.secret_scanner, repo_str, &scheme_string)
+        write!(
+            f,
+            "GitScanner: SecretScanner: {}, Repo: {}, GitScheme: {}",
+            self.secret_scanner, repo_str, &scheme_string
+        )
     }
 }
 
@@ -512,20 +533,20 @@ impl Eq for GitScheme {}
 
 impl PartialEq for GitScanner {
     fn eq(&self, other: &Self) -> bool {
-        self.secret_scanner == other.secret_scanner &&
-            match self.scheme.as_ref() {
+        self.secret_scanner == other.secret_scanner
+            && match self.scheme.as_ref() {
                 None => other.scheme.is_none(),
                 Some(gs) => match other.scheme.as_ref() {
                     None => false,
-                    Some(gs2) => *gs == *gs2
-                }
-            } &&
-            match self.repo.as_ref() {
+                    Some(gs2) => *gs == *gs2,
+                },
+            }
+            && match self.repo.as_ref() {
                 None => other.repo.is_none(),
                 Some(r) => match other.repo.as_ref() {
                     None => false,
-                    Some(r2) => r.path() == r2.path()
-                }
+                    Some(r2) => r.path() == r2.path(),
+                },
             }
     }
 }
@@ -537,7 +558,7 @@ impl Hash for GitScanner {
         self.secret_scanner.hash(state);
         match self.repo.as_ref() {
             None => "norepo".hash(state),
-            Some(r) => r.path().hash(state)
+            Some(r) => r.path().hash(state),
         };
         match self.scheme.as_ref() {
             None => "noscheme".hash(state),
@@ -547,7 +568,7 @@ impl Hash for GitScanner {
                 GitScheme::Ssh => "ssh".hash(state),
                 GitScheme::Relativepath => "relativepath".hash(state),
                 GitScheme::Git => "git".hash(state),
-            }
+            },
         }
     }
 }

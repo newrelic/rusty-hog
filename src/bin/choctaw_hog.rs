@@ -41,12 +41,12 @@ extern crate chrono;
 extern crate encoding;
 
 use clap::ArgMatches;
-use log::{self, info, error};
+use log::{self, error, info};
 use simple_error::SimpleError;
 use std::str;
 use tempdir::TempDir;
 
-use rusty_hogs::git_scanning::{GitScanner};
+use rusty_hogs::git_scanning::GitScanner;
 use rusty_hogs::{SecretScanner, SecretScannerBuilder};
 
 /// Main entry function that uses the [clap crate](https://docs.rs/clap/2.33.0/clap/)
@@ -75,7 +75,7 @@ fn main() {
     .get_matches();
     match run(&matches) {
         Ok(()) => {}
-        Err(e) => error!( "Error running command: {}", e)
+        Err(e) => error!("Error running command: {}", e),
     }
 }
 
@@ -93,8 +93,14 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     let since_commit = arg_matches.value_of("SINCECOMMIT");
     let until_commit = arg_matches.value_of("UNTILCOMMIT");
     let recent_days: Option<u32> = match value_t!(arg_matches.value_of("RECENTDAYS"), u32) {
-        Ok(d) => { if d == 0 { None } else { Some(d) } },
-        Err(_e) => None
+        Ok(d) => {
+            if d == 0 {
+                None
+            } else {
+                Some(d)
+            }
+        }
+        Err(_e) => None,
     };
 
     // Get Git objects
@@ -111,12 +117,15 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
         httpsuser,
         httpspass,
     );
-    let findings = git_scanner.perform_scan(None, since_commit, until_commit, recent_days) ;
+    let findings = git_scanner.perform_scan(None, since_commit, until_commit, recent_days);
 
     // Output the results
     info!("Found {} secrets", findings.len());
     match git_scanner.secret_scanner.output_findings(&findings) {
         Ok(_) => Ok(()),
-        Err(err) => Err(SimpleError::with("failed to output findings", SimpleError::new(err.to_string())))
+        Err(err) => Err(SimpleError::with(
+            "failed to output findings",
+            SimpleError::new(err.to_string()),
+        )),
     }
 }
