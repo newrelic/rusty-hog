@@ -109,8 +109,11 @@ FLAGS:
     -V, --version            Prints version information
 
 OPTIONS:
-    -o, --outputfile <OUTPUT>    Sets the path to write the scanner results to (stdout by default)
-        --regex <REGEX>          Sets a custom regex JSON file
+    -a, --allowlist <ALLOWLIST>                                    Sets a custom allowlist JSON file
+        --default_entropy_threshold <DEFAULT_ENTROPY_THRESHOLD>    Default entropy threshold (0.6 by default)
+    -o, --outputfile <OUTPUT>                                      Sets the path to write the scanner results to (stdout by default)
+
+        --regex <REGEX>                                            Sets a custom regex JSON file
 
 ARGS:
     <GDRIVEID>    The ID of the Google drive file you want to scan
@@ -131,13 +134,17 @@ FLAGS:
     -V, --version            Prints version information
 
 OPTIONS:
-    -o, --outputfile <OUTPUT>    Sets the path to write the scanner results to (stdout by default)
-        --profile <PROFILE>      When using a configuration file, enables a non-default profile
-        --regex <REGEX>          Sets a custom regex JSON file
+    -a, --allowlist <ALLOWLIST>                                    Sets a custom allowlist JSON file
+        --default_entropy_threshold <DEFAULT_ENTROPY_THRESHOLD>    Default entropy threshold (0.6 by default)
+    -o, --outputfile <OUTPUT>                                      Sets the path to write the scanner results to (stdout by default)
+
+        --profile <PROFILE>                                        When using a configuration file, enables a non-default profile
+
+        --regex <REGEX>                                            Sets a custom regex JSON file
 
 ARGS:
-    <S3URI>       The location of a S3 bucket and optional prefix or filename to scan. This must be written in the form
-                  s3://mybucket[/prefix_or_file]
+    <S3URI>       The location of a S3 bucket and optional prefix or filename to scan. This must be written in the
+                  form s3://mybucket[/prefix_or_file]
     <S3REGION>    Sets the region of the S3 bucket to scan
 ```
 
@@ -181,7 +188,7 @@ OPTIONS:
         --sshkeypath <SSHKEYPATH>                                  Takes a path to a private SSH key for git authentication, defaults to ssh-agent
         --sshkeyphrase <SSHKEYPHRASE>                              Takes a passphrase to a private SSH key for git authentication, defaults to none
         --until_commit <UNTILCOMMIT>                               Filters commits based on date committed (branch agnostic)
-    -w, --allowlist <ALLOWLIST>                                    Sets a custom ALLOWLIST JSON file
+    -a, --allowlist <ALLOWLIST>                                    Sets a custom ALLOWLIST JSON file
 
 ARGS:
     <GITPATH>    Sets the path (or URL) of the Git repo to scan. SSH links must include username (git@)
@@ -194,17 +201,19 @@ USAGE:
 
 FLAGS:
         --caseinsensitive    Sets the case insensitive flag for all regexes
+        --entropy            Enables entropy scanning
+        --norecursive        Disable recursive scanning of all subdirectories underneath the supplied path
         --prettyprint        Outputs the JSON in human readable format
-        --recursive          Scans all subdirectories underneath the supplied path
     -z, --unzip              Recursively scans archives (ZIP and TAR) in memory (dangerous)
     -v, --verbose            Sets the level of debugging information
     -h, --help               Prints help information
     -V, --version            Prints version information
 
 OPTIONS:
-    -o, --outputfile <OUTPUT>      Sets the path to write the scanner results to (stdout by default)
-    -r, --regex <REGEX>            Sets a custom regex JSON file
-    -w, --allowlist <ALLOWLIST>    Sets a custom allowlist JSON file
+    -a, --allowlist <ALLOWLIST>                                    Sets a custom allowlist JSON file
+        --default_entropy_threshold <DEFAULT_ENTROPY_THRESHOLD>    Default entropy threshold (0.6 by default)
+    -o, --outputfile <OUTPUT>                                      Sets the path to write the scanner results to (stdout by default)
+    -r, --regex <REGEX>                                            Sets a custom regex JSON file
 
 ARGS:
     <FSPATH>    Sets the path of the directory or file to scan.
@@ -224,11 +233,14 @@ FLAGS:
     -V, --version            Prints version information
 
 OPTIONS:
-        --authtoken <BEARERTOKEN>    Confluence basic auth bearer token (instead of user & pass)
-    -o, --outputfile <OUTPUT>        Sets the path to write the scanner results to (stdout by default)
-        --password <PASSWORD>        Confluence password (crafts basic auth header)
-        --regex <REGEX>              Sets a custom regex JSON file
-        --username <USERNAME>        Confluence username (crafts basic auth header)
+    -a, --allowlist <ALLOWLIST>                                    Sets a custom allowlist JSON file
+        --authtoken <BEARERTOKEN>                                  Confluence basic auth bearer token (instead of user & pass)
+
+        --default_entropy_threshold <DEFAULT_ENTROPY_THRESHOLD>    Default entropy threshold (0.6 by default)
+    -o, --outputfile <OUTPUT>                                      Sets the path to write the scanner results to (stdout by default)
+        --password <PASSWORD>                                      Confluence password (crafts basic auth header)
+        --regex <REGEX>                                            Sets a custom regex JSON file
+        --username <USERNAME>                                      Confluence username (crafts basic auth header)
 
 ARGS:
     <PAGEID>    The ID (e.g. 1234) of the confluence page you want to scan
@@ -240,7 +252,7 @@ ARGS:
 Jira secret scanner in Rust.
 
 USAGE:
-    gottingen_hog [FLAGS] [OPTIONS] <JIRAID> --password <PASSWORD> --username <USERNAME>
+    gottingen_hog [FLAGS] [OPTIONS] <JIRAID>
 
 FLAGS:
         --caseinsensitive    Sets the case insensitive flag for all regexes
@@ -251,11 +263,14 @@ FLAGS:
     -V, --version            Prints version information
 
 OPTIONS:
-        --url <JIRAURL>
-    -o, --outputfile <OUTPUT>    Sets the path to write the scanner results to (stdout by default)
-        --password <PASSWORD>    Jira password (or API token)
-        --regex <REGEX>          Sets a custom regex JSON file
-        --username <USERNAME>    Jira username
+    -a, --allowlist <ALLOWLIST>                                    Sets a custom allowlist JSON file
+        --authtoken <BEARERTOKEN>                                  Jira basic auth bearer token (instead of user & pass)
+        --default_entropy_threshold <DEFAULT_ENTROPY_THRESHOLD>    Default entropy threshold (0.6 by default)
+        --url <JIRAURL>                                            Base URL of JIRA instance (e.g. https://jira.atlassian.net/)
+    -o, --outputfile <OUTPUT>                                      Sets the path to write the scanner results to (stdout by default)
+        --password <PASSWORD>                                      Jira password (crafts basic auth header)
+        --regex <REGEX>                                            Sets a custom regex JSON file
+        --username <USERNAME>                                      Jira username (crafts basic auth header)
 
 ARGS:
     <JIRAID>    The ID (e.g. PROJECT-123) of the Jira issue you want to scan
