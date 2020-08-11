@@ -20,4 +20,4 @@
     - includes a default allowlist when none is specified
     - if the pattern name "<GLOBAL>" is used it will be checked against all patterns
     - moved the allowlist code into lib.rs so that all hogs will use it by default
-    
+    - included a new format for allowlists that include checks for paths as well

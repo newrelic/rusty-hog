@@ -392,22 +392,37 @@ As of version 1.0.5, the current default regex JSON used is as follows:
 
 ## Allowlist JSON file format
 
-Some of the scanners provide a allowlist feature. This allows you to specific a allowlist file that identifies exceptions
-to each regex pattern that should be excluded from the final output.
+Scanners provide an allowlist feature. This allows you to specify a list of regular expressions for each pattern that
+will be ignored by the scanner. You can now optionally supply a list of regular expressions that are evaluated against 
+the file path as well. 
 
 The format for this allowlist file should be a single json object. Each key in the allowlist should match a key in the 
-regex json, and the value should be an array of strings that are exceptions for that regex pattern. For example:
+regex json, and the value can be one of two things:
+1) An array of strings that are exceptions for that regex pattern. For example:
+2) An object with at least one key (patterns) and optionally a second key (paths). 
+
+In addition, you can specify the key `<GLOBAL>` which is evaluated against all patterns. 
+
+The following is the default allowlist included in all scans:
+
 
 ```json
 {
-    "Email address": [
-        "username@mail.com",
-        "admin@mail.com"
+  "Email address": {
+    "patterns": [
+      "(?i).*@newrelic.com"
     ],
-    "New Relic Account IDs in URL": [
-        "newrelic.com/accounts/some-unoffensive-account-number",
-        "newrelic.com/accounts/an-account-that-doesn't-exist-like-this-one",
+    "paths": [
+      "(?i)authors",
+      "(?i)contributors",
+      "(?i)license",
+      "(?i)maintainers",
+      "(?i)third_party_notices"
     ]
+  },
+  "<GLOBAL>": [
+    "(?i)example"
+  ]
 }
 ```
 

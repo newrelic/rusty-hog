@@ -223,8 +223,10 @@ impl GitScanner {
                         );
                     }
                     if !secrets.is_empty() {
-                        let create_finding = self.secret_scanner.check_entropy(&reason, new_line);
-                        if create_finding {
+                        let path = delta.new_file().path().unwrap().to_str().unwrap().to_string();
+                        let enough_entropy = self.secret_scanner.check_entropy(&reason, new_line);
+                        let valid_path = !self.secret_scanner.is_allowlisted_path(&reason, path.as_bytes());
+                        if enough_entropy && valid_path {
                             findings.insert(GitFinding {
                                 commit_hash: commit.id().to_string(),
                                 commit: commit.message().unwrap().to_string(),
@@ -234,13 +236,7 @@ impl GitScanner {
                                 date: NaiveDateTime::from_timestamp(commit.time().seconds(), 0)
                                     .to_string(),
                                 strings_found: secrets.clone(),
-                                path: delta
-                                    .new_file()
-                                    .path()
-                                    .unwrap()
-                                    .to_str()
-                                    .unwrap()
-                                    .to_string(),
+                                path,
                                 reason: reason.clone(),
                                 old_file_id: old_file_id.to_string(),
                                 new_file_id: new_file_id.to_string(),

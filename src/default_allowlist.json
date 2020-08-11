@@ -1,6 +1,17 @@
 {
-  "Email address":[
-    ".*@newrelic.com"
-  ],
-  "<GLOBAL>": ["(?i)example"]
+  "Email address": {
+    "patterns": [
+      "(?i).*@newrelic.com"
+    ],
+    "paths": [
+      "(?i)authors",
+      "(?i)contributors",
+      "(?i)license",
+      "(?i)maintainers",
+      "(?i)third_party_notices"
+    ]
+  },
+  "<GLOBAL>": [
+    "(?i)example"
+  ]
 }

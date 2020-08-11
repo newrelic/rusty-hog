@@ -217,7 +217,7 @@ const ENTROPY_MAX_WORD_LEN: usize = 40;
 #[derive(Debug, Clone)]
 pub struct SecretScanner {
     pub regex_map: BTreeMap<String, EntropyRegex>,
-    pub allowlist_map: BTreeMap<String, Vec<Regex>>,
+    pub allowlist_map: BTreeMap<String, AllowList>,
     pub pretty_print: bool,
     pub output_path: Option<String>,
     pub entropy_min_word_len: usize,
@@ -253,6 +253,22 @@ pub enum PatternEntropy {
         keyspace: Option<String>,
         make_ascii_lowercase: Option<bool>,
     },
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(untagged)]
+pub enum AllowListEnum {
+    PatternList(Vec<String>),
+    AllowListJson {
+        patterns: Vec<String>,
+        paths: Option<Vec<String>>
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct AllowList {
+    pub pattern_list: Vec<Regex>,
+    pub path_list: Vec<Regex>
 }
 
 /// Used to instantiate the `SecretScanner` object with user-supplied options
@@ -630,32 +646,40 @@ impl SecretScannerBuilder {
             .collect()
     }
 
-    fn build_allowlist_from_str(input: &str) -> Result<BTreeMap<String, Vec<Regex>>, SimpleError> {
+    fn vec_string_to_vec_regex(incoming_array: Vec<String>) -> Vec<Regex> {
+        incoming_array
+            .into_iter()
+            .filter_map(|x| match Regex::new(&x) {
+                Ok(r) => Some(r),
+                Err(e) => {
+                    error!("Failed to parse regex: {}", e);
+                    None
+                }
+            })
+            .collect()
+    }
+
+    fn build_allowlist_from_str(input: &str) -> Result<BTreeMap<String, AllowList>, SimpleError> {
         info!("Attempting to parse JSON allowlist string");
-        let allowlist: BTreeMap<String, Value> = match serde_json::from_str(input) {
+        let allowlist: BTreeMap<String, AllowListEnum> = match serde_json::from_str(input) {
             Ok(m) => Ok(m),
             Err(e) => Err(SimpleError::with("Failed to parse allowlist JSON", e)),
         }?;
         allowlist
             .into_iter()
-            .map(|(p, list)| match list {
-                Value::Array(v) => {
-                    let l = v
-                        .into_iter()
-                        .filter_map(|v| match v {
-                            Value::String(s) => match Regex::new(&s) {
-                                Ok(r) => Some(r),
-                                Err(e) => {
-                                    error!("Failed to parse regex in allowlist JSON: {}", e);
-                                    None
-                                }
-                            },
-                            _ => None,
-                        })
-                        .collect();
-                    Ok((p, l))
+            .map(|(p, allowlistobj)| match allowlistobj {
+                AllowListEnum::PatternList(v) => {
+                    let l = SecretScannerBuilder::vec_string_to_vec_regex(v);
+                    Ok((p, AllowList { pattern_list: l, path_list: vec![] }))
                 }
-                _ => Err(SimpleError::new("Invalid allowlist JSON format")),
+                AllowListEnum::AllowListJson { patterns: pattern_list, paths: path_list } => {
+                    let l1 = SecretScannerBuilder::vec_string_to_vec_regex(pattern_list);
+                    let l2 = match path_list {
+                        Some(v) => SecretScannerBuilder::vec_string_to_vec_regex(v),
+                        None => Vec::new()
+                    };
+                    Ok((p, AllowList { pattern_list: l1, path_list: l2 }))
+                }
             })
             .collect()
     }
@@ -696,7 +720,7 @@ impl SecretScanner {
                 let matches = x.1.pattern.find_iter(line);
                 let matches_filtered: Vec<RustyHogMatch> = matches
                     .filter(|m| self.check_entropy(x.0, &line[m.start()..m.end()]))
-                    .filter(|m| !self.is_allowlisted(x.0, &line[m.start()..m.end()]))
+                    .filter(|m| !self.is_allowlisted_pattern(x.0, &line[m.start()..m.end()]))
                     .map(RustyHogMatch::from)
                     .inspect(|x| debug!("RustyHogMatch: {:?}", x))
                     .collect();
@@ -947,21 +971,24 @@ impl SecretScanner {
         Ok(())
     }
 
-    /// Checks if any of the provided tokens is allowlisted
-    pub fn is_allowlisted(&self, pattern: &str, token: &[u8]) -> bool {
+    /// Checks if the provided path name is allowlisted
+    pub fn is_allowlisted_path(&self, pattern: &str, path: &[u8]) -> bool {
         if let Some(allowlist) = self.allowlist_map.get(pattern) {
-            for allow_regex in allowlist {
-                if allow_regex.find(token).is_some() {
-                    return true;
-                }
-            }
+            if allowlist.path_list.iter().any(|x| x.find(path).is_some()) { return true }
         }
         if let Some(allowlist) = self.allowlist_map.get("<GLOBAL>") {
-            for allow_regex in allowlist {
-                if allow_regex.find(token).is_some() {
-                    return true;
-                }
-            }
+            if allowlist.path_list.iter().any(|x| x.find(path).is_some()) { return true }
+        }
+        false
+    }
+
+    /// Checks if the provided token is allowlisted
+    pub fn is_allowlisted_pattern(&self, pattern: &str, token: &[u8]) -> bool {
+        if let Some(allowlist) = self.allowlist_map.get(pattern) {
+            if allowlist.pattern_list.iter().any(|x| x.find(token).is_some()) { return true }
+        }
+        if let Some(allowlist) = self.allowlist_map.get("<GLOBAL>") {
+            if allowlist.pattern_list.iter().any(|x| x.find(token).is_some()) { return true }
         }
         false
     }
