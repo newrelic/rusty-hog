@@ -1,4 +1,5 @@
-# Rusty Hogs
+<img src="RustyHogLogo_700x700.png" width=350 align=center>
+
 Rusty Hog is a secret scanner built in Rust for performance, and based on TruffleHog which is written
 in Python. Rusty Hog provides the following binaries:
 
