@@ -1,7 +1,9 @@
 {
   "Email address": {
     "patterns": [
-      "(?i).*@newrelic.com"
+      "(?i)@newrelic.com",
+      "(?i)noreply@",
+      "(?i)test@"
     ],
     "paths": [
       "(?i)authors",
@@ -11,7 +13,14 @@
       "(?i)third_party_notices"
     ]
   },
+  "Credentials in absolute URL": {
+    "patterns": [
+      "(?i):pass(word)?"
+    ]
+  },
   "<GLOBAL>": [
-    "(?i)example"
+    "(?i)example",
+    "(?i)fake",
+    "(?i)replace"
   ]
 }
