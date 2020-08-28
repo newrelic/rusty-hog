@@ -15,7 +15,7 @@
 //!    -V, --version            Prints version information
 //!
 //!OPTIONS:
-//!    -w, --allowlist <allowlist>          Sets a custom allowlist JSON file
+//!    -a, --allowlist <allowlist>          Sets a custom allowlist JSON file
 //!        --recent_days <RECENTDAYS>       Filters commits to the last number of days (branch agnostic)
 //!        --default_entropy_threshold <DEFAULT_ENTROPY_THRESHOLD>    Default entropy threshold (0.6 by default)
 //!        --httpspass <HTTPSPASS>          Takes a password for HTTPS-based authentication
