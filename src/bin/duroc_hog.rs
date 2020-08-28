@@ -16,7 +16,7 @@
 //!
 //!OPTIONS:
 //!        --default_entropy_threshold <DEFAULT_ENTROPY_THRESHOLD>    Default entropy threshold (0.6 by default)
-//!    -w, --allowlist <ALLOWLIST>          Sets a custom allowlist JSON file
+//!    -a, --allowlist <ALLOWLIST>          Sets a custom allowlist JSON file
 //!    -o, --outputfile <OUTPUT>            Sets the path to write the scanner results to (stdout by default)
 //!    -r, --regex <REGEX>                  Sets a custom regex JSON file, defaults to built-in
 
