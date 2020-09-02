@@ -37,12 +37,14 @@ import urllib.parse
 
 loglevel = "WARNING"
 sample = False
+knownbad = None
 for arg in sys.argv:
     if arg.startswith("--sample="):
         sample = int(arg[9:])
     if arg.startswith("--log="):
         loglevel = arg[6:]
-
+    if arg.startswith("--knownbad="):
+        knownbad = arg[11:]
 numeric_level = getattr(logging, loglevel.upper(), None)
 if not isinstance(numeric_level, int):
     raise ValueError('Invalid log level: %s' % loglevel)
@@ -59,7 +61,11 @@ CHOCTAW_HOG_PATH = os.environ["CHOCTAW_HOG_PATH"]
 # initialize GitHub object and list of all repos
 logging.info("Trying to authenticate to Github...")
 g = Github(base_url=f"https://{GHE_DOMAIN}/api/v3", login_or_token=GHE_REPO_TOKEN, per_page=100)
-repos = g.get_repos()
+repos = []
+if knownbad:
+    repos.append(g.get_repo(knownbad))
+else:
+    repos = g.get_repos()
 if sample:
     logging.info(f"sample size set to {sample}, retrieving list of repos...")
     repos = random.sample(list(repos), sample)
@@ -128,6 +134,28 @@ logging.debug(output)
 # the last block of work, iterate through each JSON file from choctaw_hog and put the results in Insights
 logging.info("Collecting choctaw hog output into a single python list...")
 output_array = []
+comment_worthy_reasons = [
+    "Amazon AWS Access Key ID",
+    "Amazon MWS Auth Token",
+    "Slack Token",
+    "GitHub",
+    "MailChimp API Key",
+    "Mailgun API Key",
+    "Slack Webhook",
+    "New Relic Insights Key (specific)",
+    "New Relic Insights Key (vague)",
+    "New Relic License Key",
+    "New Relic HTTP Auth Headers and API Key",
+    "New Relic API Key Service Key (new format)",
+    "New Relic APM License Key (new format)",
+    "New Relic APM License Key (new format, region-aware)",
+    "New Relic REST API Key (new format)",
+    "New Relic Admin API Key (new format)",
+    "New Relic Insights Insert Key (new format)",
+    "New Relic Insights Query Key (new format)",
+    "New Relic Synthetics Private Location Key (new format)"
+]
+
 for result_dict in output:
     try:
         f = open(result_dict["results"], "r")
@@ -139,7 +167,9 @@ for result_dict in output:
 
     with f:
         result_list = json.load(f)
+        logging.info("Processing choctaw_hog output for Git comments and Insights...")
         for finding in result_list:
+            # Part 1: Prep the insights findings
             fileurl = ""
             if finding["new_line_num"] != 0:
                 fileurl = f"{result_dict['url']}/blob/{finding['commitHash']}/{finding['path']}#L{finding['new_line_num']}"
@@ -159,6 +189,22 @@ for result_dict in output:
                     "parent_commitHash": finding["parent_commit_hash"]
                 }
             )
+
+            # Part 2: Comment on the commit
+            if finding["reason"] not in comment_worthy_reasons:
+                continue
+            repo_name = result_dict["repo"].split(":")[1][:-4]
+            r = g.get_repo(repo_name)
+            c = r.get_commit(finding["commitHash"])
+            author = c.author
+            body = (
+                f"Hi @{author.login} ! It looks like a secret {finding['reason']} was posted in the file {finding['path']} "
+                f"on line {finding['new_line_num']} in this commit. We're trying to reduce sensitive information in "
+                "GitHub Enterprise by using the Rusty Hog scanner on all commits going forward."
+            )
+            logging.info(f"Creating Github comment for {result_dict['repo']} {finding['commitHash']}")
+            c.create_comment(body)
+            
 
     os.remove(result_dict["results"])
 
