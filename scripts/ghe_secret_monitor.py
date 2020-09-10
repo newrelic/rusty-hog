@@ -23,6 +23,7 @@
 from datetime import datetime, timedelta
 from github import Github, GithubException
 from multiprocessing import Pool
+from collections import namedtuple, defaultdict
 import gzip
 import json
 import os
@@ -167,6 +168,8 @@ for result_dict in output:
 
     with f:
         result_list = json.load(f)
+        GheFinding = namedtuple('GheFinding', ['repo','commitObj','reason', 'path','linenum'])
+        ghe_findings = defaultdict(list)
         logging.info("Processing choctaw_hog output for Git comments and Insights...")
         for finding in result_list:
             # Part 1: Prep the insights findings
@@ -190,16 +193,23 @@ for result_dict in output:
                 }
             )
 
-            # Part 2: Comment on the commit
+            # Part 2: Collate the comments
             if finding["reason"] not in comment_worthy_reasons:
                 continue
             repo_name = result_dict["repo"].split(":")[1][:-4]
             r = g.get_repo(repo_name)
             c = r.get_commit(finding["commitHash"])
-            author = c.author
+            ghe_findings[finding["commitHash"]].append(GheFinding(repo_name, c, finding['reason'], finding['path'], finding['new_line_num']))
+
+        # Part 3: Create the GHE comments
+        for c_hash, finding_tuples in ghe_findings.items():
+            author_names = {ft.commitObj.author.login for ft in finding_tuples}
+            author_names = " ".join(author_names)
+            secrets = [f"  - {ft.path}:{ft.linenum} ({ft.reason})" for ft in finding_tuples]
+            secrets = "\n".join(secrets)
             body = (
-                f"Hi @{author.login} ! It looks like a secret {finding['reason']} was posted in the file {finding['path']} "
-                f"on line {finding['new_line_num']} in this commit. We're trying to reduce sensitive information in "
+                f"Hi {author_names} ! It looks like the following secrets were found in this commit:\n{secrets}\n"
+                f"We're trying to reduce sensitive information in "
                 "GitHub Enterprise by using the Rusty Hog scanner on all commits going forward."
             )
             logging.info(f"Creating Github comment for {result_dict['repo']} {finding['commitHash']}")
