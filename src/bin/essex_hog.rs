@@ -171,7 +171,7 @@ fn get_page(
     page_id: &str,
 ) -> ConfluencePage {
     let page_full_url = format!(
-        "{}rest/api/content/{}?expand=body.storage",
+        "{}/rest/api/content/{}?expand=body.storage",
         base_url, page_id
     );
     let json_results = get_json(&client, &auth_headers, &page_full_url);
@@ -192,10 +192,10 @@ fn get_page(
         .as_str()
         .unwrap()
         .trim_start_matches('/');
-    let web_link = format!("{}", base_url, webui);
+    let web_link = format!("{}/{}", base_url, webui);
 
     let comments_full_url = format!(
-        "{}rest/api/content/{}/child/comment?expand=body.storage",
+        "{}/rest/api/content/{}/child/comment?expand=body.storage",
         base_url, page_id
     );
     let json_results = get_json(&client, &auth_headers, &comments_full_url);
