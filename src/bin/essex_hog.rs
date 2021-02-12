@@ -22,6 +22,12 @@
 //! ARGS:
 //!     <PAGEID>    The ID (e.g. 1234) of the confluence page you want to scan
 //!     <URL>       Base URL of Confluence instance (e.g. https://newrelic.atlassian.net/)
+//! 				From https://docs.atlassian.com/ConfluenceServer/rest/7.11.0/ Structure of the REST URIs section
+//! 				for details on declaring the base url with or without context
+//! 				With context: http://host:port/context/rest/api/resource-name
+//! 				Or without context: http://host:port/rest/api/resource-name
+//! 				Example with context: http://example.com:8080/confluence/rest/api/space/ds
+//! 				Example without context: http://confluence.myhost.com:8095/rest/api/space/ds
 
 #[macro_use]
 extern crate clap;
@@ -165,7 +171,7 @@ fn get_page(
     page_id: &str,
 ) -> ConfluencePage {
     let page_full_url = format!(
-        "{}wiki/rest/api/content/{}?expand=body.storage",
+        "{}rest/api/content/{}?expand=body.storage",
         base_url, page_id
     );
     let json_results = get_json(&client, &auth_headers, &page_full_url);
@@ -186,10 +192,10 @@ fn get_page(
         .as_str()
         .unwrap()
         .trim_start_matches('/');
-    let web_link = format!("{}wiki/{}", base_url, webui);
+    let web_link = format!("{}", base_url, webui);
 
     let comments_full_url = format!(
-        "{}wiki/rest/api/content/{}/child/comment?expand=body.storage",
+        "{}rest/api/content/{}/child/comment?expand=body.storage",
         base_url, page_id
     );
     let json_results = get_json(&client, &auth_headers, &comments_full_url);
