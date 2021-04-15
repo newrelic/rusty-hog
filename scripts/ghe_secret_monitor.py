@@ -22,7 +22,7 @@
 
 from datetime import datetime, timedelta
 from github import Github, GithubException
-from multiprocessing import Pool
+from multiprocessing import Pool, freeze_support
 from collections import namedtuple, defaultdict
 import gzip
 import json
@@ -36,21 +36,6 @@ import sys
 import random
 import urllib.parse
 
-loglevel = "WARNING"
-sample = False
-knownbad = None
-for arg in sys.argv:
-    if arg.startswith("--sample="):
-        sample = int(arg[9:])
-    if arg.startswith("--log="):
-        loglevel = arg[6:]
-    if arg.startswith("--knownbad="):
-        knownbad = arg[11:]
-numeric_level = getattr(logging, loglevel.upper(), None)
-if not isinstance(numeric_level, int):
-    raise ValueError('Invalid log level: %s' % loglevel)
-logging.basicConfig(level=numeric_level)
-
 # initialize auth tokens, fail if not present
 GHE_REPO_TOKEN = os.environ["GHE_REPO_TOKEN"]
 INSIGHTS_INSERT_KEY = os.environ["INSIGHTS_INSERT_KEY"]
@@ -58,56 +43,10 @@ SSH_KEY_PATH = os.environ["SSH_KEY_PATH"]
 INSIGHTS_ACCT_ID = os.environ["INSIGHTS_ACCT_ID"]
 GHE_DOMAIN = os.environ["GHE_DOMAIN"]
 CHOCTAW_HOG_PATH = os.environ["CHOCTAW_HOG_PATH"]
+TEMPDIR = tempfile.gettempdir()
 
-# initialize GitHub object and list of all repos
-logging.info("Trying to authenticate to Github...")
-g = Github(base_url=f"https://{GHE_DOMAIN}/api/v3", login_or_token=GHE_REPO_TOKEN, per_page=100)
-repos = []
-if knownbad:
-    repos.append(g.get_repo(knownbad))
-else:
-    repos = g.get_repos()
-if sample:
-    logging.info(f"sample size set to {sample}, retrieving list of repos...")
-    repos = random.sample(list(repos), sample)
-
-# use the datetime library to get an object representing 48 hours ago
-today = datetime.today()
-twentyfourhoursago = today - timedelta(hours=24)
-
-# start the first main set of work: translate our list of repo objects to a dict of { git_url : since_commit_hash }
-repo_dict = {}
-logging.info("Getting a list of all commits since 24 hours ago for each repo...")
-for repo in repos:
-    commits = []
-    try:
-        commits = list(repo.get_commits(since=twentyfourhoursago))
-    except GithubException as e:
-        logging.debug(e)
-        continue
-    if len(commits) == 0:
-        logging.debug("len(commits) == 0")
-        continue
-    if not repo.ssh_url:
-        logging.debug("no SSH URL")
-        continue
-    logging.info(f"({repo.ssh_url}, {commits[-1].sha}")
-    repo_dict[repo.ssh_url] = (commits[-1].sha, repo.html_url)
-
-logging.info("Completed Github API requests...")
-repo_dict = dict(
-    filter(lambda x: x[1], repo_dict.items())
-)  # and filter out key/value pairs with None as a value
-
-logging.info(f"len(repo_dict) = {len(repo_dict)}")
-
-# start the next block of work, run choctaw_hog for each key/value pair in repo_dict, and return a dict containing the
-# git url as the key and the filename containing the results as the value
-tempdir = tempfile.gettempdir()
-
-logging.info("Starting choctaw hog scan of all commits over the last 24 hours...")
 def scan_repo(x):
-    filename = os.path.join(tempdir, str(uuid.uuid4()))
+    filename = os.path.join(TEMPDIR, str(uuid.uuid4()))
     cmdline = [
         CHOCTAW_HOG_PATH,
         "--outputfile",
@@ -123,110 +62,191 @@ def scan_repo(x):
     logging.info(f"choctaw hog output: {s.stdout} {s.stderr}")
     return {"repo": x[0], "results": filename, "url": x[1][1]}
 
-output = []
+def main():
+    loglevel = "WARNING"
+    sample = False
+    knownbad = None
+    for arg in sys.argv:
+        if arg.startswith("--sample="):
+            sample = int(arg[9:])
+        if arg.startswith("--log="):
+            loglevel = arg[6:]
+        if arg.startswith("--knownbad="):
+            knownbad = arg[11:]
+    numeric_level = getattr(logging, loglevel.upper(), None)
+    if not isinstance(numeric_level, int):
+        raise ValueError('Invalid log level: %s' % loglevel)
+    logging.basicConfig(level=numeric_level)
 
-# increase this number to the number of cores you have - runs great on a c5n.4xlarge with 14
-with Pool(3) as p:
-    output.extend(p.map(scan_repo, repo_dict.items()))
+    # initialize GitHub object and list of all repos
+    logging.info("Trying to authenticate to Github...")
+    g = Github(base_url=f"https://{GHE_DOMAIN}/api/v3", login_or_token=GHE_REPO_TOKEN, per_page=100)
+    repos = []
+    if knownbad:
+        repos.append(g.get_repo(knownbad))
+    else:
+        repos = g.get_repos()
+    if sample:
+        logging.info(f"sample size set to {sample}, retrieving list of repos...")
+        repos = random.sample(list(repos), sample)
 
-logging.info(f"len(output) = {len(output)}")
-logging.debug(output)
+    # use the datetime library to get an object representing 48 hours ago
+    today = datetime.today()
+    twentyfourhoursago = today - timedelta(hours=24)
 
-# the last block of work, iterate through each JSON file from choctaw_hog and put the results in Insights
-logging.info("Collecting choctaw hog output into a single python list...")
-output_array = []
-comment_worthy_reasons = [
-    "Amazon AWS Access Key ID",
-    "Amazon MWS Auth Token",
-    "Slack Token",
-    "GitHub",
-    "MailChimp API Key",
-    "Mailgun API Key",
-    "Slack Webhook",
-    "New Relic Insights Key (specific)",
-    "New Relic Insights Key (vague)",
-    "New Relic License Key",
-    "New Relic HTTP Auth Headers and API Key",
-    "New Relic API Key Service Key (new format)",
-    "New Relic APM License Key (new format)",
-    "New Relic APM License Key (new format, region-aware)",
-    "New Relic REST API Key (new format)",
-    "New Relic Admin API Key (new format)",
-    "New Relic Insights Insert Key (new format)",
-    "New Relic Insights Query Key (new format)",
-    "New Relic Synthetics Private Location Key (new format)"
-]
+    # start the first main set of work: translate our list of repo objects to a dict of { git_url : since_commit_hash }
+    repo_dict = {}
+    logging.info("Getting a list of all commits since 24 hours ago for each repo...")
+    for repo in repos:
+        commits = []
+        issues = []
+        try:
+            commits = list(repo.get_commits(since=twentyfourhoursago))
+            issues = list(repo.get_issues(since=twentyfourhoursago))
+        except GithubException as e:
+            logging.debug(e)
+            continue
+        if len(commits) == 0:
+            logging.debug("len(commits) == 0")
+            continue
+        if not repo.ssh_url:
+            logging.debug("no SSH URL")
+            continue
+        logging.info(f"({repo.ssh_url}, {commits[-1].sha}")
+        repo_dict[repo.ssh_url] = (commits[-1].sha, repo.html_url)
 
-for result_dict in output:
-    try:
-        f = open(result_dict["results"], "r")
-    except:
-        # TODO: add better error handling here. the file won't exist if we couldn't
-        # access the git repo
-        logging.warning("failed to open " + result_dict["results"])
-        continue
+    logging.info("Completed Github API requests...")
+    repo_dict = dict(
+        filter(lambda x: x[1], repo_dict.items())
+    )  # and filter out key/value pairs with None as a value
 
-    with f:
-        result_list = json.load(f)
-        GheFinding = namedtuple('GheFinding', ['repo','commitObj','reason', 'path','linenum'])
-        ghe_findings = defaultdict(list)
-        logging.info("Processing choctaw_hog output for Git comments and Insights...")
-        for finding in result_list:
-            # Part 1: Prep the insights findings
-            fileurl = ""
-            if finding["new_line_num"] != 0:
-                fileurl = f"{result_dict['url']}/blob/{finding['commitHash']}/{finding['path']}#L{finding['new_line_num']}"
-            else:
-                fileurl = f"{result_dict['url']}/blob/{finding['parent_commit_hash']}/{finding['path']}#L{finding['old_line_num']}"
-            output_array.append(
-                {
-                    "eventType": "ghe_secret_monitor",
-                    "commitHash": finding["commitHash"],
-                    "reason": finding["reason"],
-                    "path": finding["path"],
-                    "repo": result_dict["repo"],
-                    "url": f"{result_dict['url']}/commit/{finding['commitHash']}/{finding['path']}",
-                    "fileurl": fileurl,
-                    "old_line_num": finding["old_line_num"],
-                    "new_line_num": finding["new_line_num"],
-                    "parent_commitHash": finding["parent_commit_hash"]
-                }
-            )
+    logging.info(f"len(repo_dict) = {len(repo_dict)}")
 
-            # Part 2: Collate the comments
-            if finding["reason"] not in comment_worthy_reasons:
-                continue
-            repo_name = result_dict["repo"].split(":")[1][:-4]
-            r = g.get_repo(repo_name)
-            c = r.get_commit(finding["commitHash"])
-            ghe_findings[finding["commitHash"]].append(GheFinding(repo_name, c, finding['reason'], finding['path'], finding['new_line_num']))
+    # start the next block of work, run choctaw_hog for each key/value pair in repo_dict, and return a dict containing the
+    # git url as the key and the filename containing the results as the value
 
-        # Part 3: Create the GHE comments
-        for c_hash, finding_tuples in ghe_findings.items():
-            author_names = {ft.commitObj.author.login for ft in finding_tuples}
-            author_names = " ".join(author_names)
-            secrets = [f"  - {ft.path}:{ft.linenum} ({ft.reason})" for ft in finding_tuples]
-            secrets = "\n".join(secrets)
-            body = (
-                f"Hi {author_names} ! It looks like the following secrets were found in this commit:\n{secrets}\n"
-                f"We're trying to reduce sensitive information in "
-                "GitHub Enterprise by using the Rusty Hog scanner on all commits going forward."
-            )
-            logging.info(f"Creating Github comment for {result_dict['repo']} {finding['commitHash']}")
-            c.create_comment(body)
-            
+    logging.info("Starting choctaw hog scan of all commits over the last 24 hours...")
 
-    os.remove(result_dict["results"])
+    output = []
 
-url = "https://insights-collector.newrelic.com/v1/accounts/{INSIGHTS_ACCT_ID}/events"
-headers = {
-    "Content-Type": "application/json",
-    "X-Insert-Key": INSIGHTS_INSERT_KEY,
-    "Content-Encoding": "gzip",
-}
-post = gzip.compress(json.dumps(output_array).encode("utf-8"))
-logging.info(f"len(output_array) = {len(output_array)}")
-logging.debug(output_array)
-logging.info("Submitting data to New Relic Insights...")
-r = requests.post(url, data=post, headers=headers)
-logging.info(f"insights status code: {r.status_code}")
+    # increase this number to the number of cores you have - runs great on a c5n.4xlarge with 14
+    with Pool(3) as p:
+        output.extend(p.map(scan_repo, repo_dict.items()))
+
+    logging.info(f"len(output) = {len(output)}")
+    logging.debug(output)
+
+    # the last block of work, iterate through each JSON file from choctaw_hog and put the results in Insights
+    logging.info("Collecting choctaw hog output into a single python list...")
+    output_array = []
+    comment_worthy_reasons = [
+        "Amazon AWS Access Key ID",
+        "Amazon MWS Auth Token",
+        "Slack Token",
+        "GitHub",
+        "MailChimp API Key",
+        "Mailgun API Key",
+        "Slack Webhook",
+        "New Relic Insights Key (specific)",
+        "New Relic Insights Key (vague)",
+        "New Relic License Key",
+        "New Relic HTTP Auth Headers and API Key",
+        "New Relic API Key Service Key (new format)",
+        "New Relic APM License Key (new format)",
+        "New Relic APM License Key (new format, region-aware)",
+        "New Relic REST API Key (new format)",
+        "New Relic Admin API Key (new format)",
+        "New Relic Insights Insert Key (new format)",
+        "New Relic Insights Query Key (new format)",
+        "New Relic Synthetics Private Location Key (new format)"
+    ]
+
+    for result_dict in output:
+        try:
+            f = open(result_dict["results"], "r")
+        except:
+            # TODO: add better error handling here. the file won't exist if we couldn't
+            # access the git repo
+            logging.warning("failed to open " + result_dict["results"])
+            continue
+
+        with f:
+            result_list = json.load(f)
+            GheFinding = namedtuple('GheFinding', ['repo','commitObj','reason', 'path','linenum'])
+            ghe_findings = defaultdict(list)
+            logging.info("Processing choctaw_hog output for Git comments and Insights...")
+            for finding in result_list:
+                # Part 1: Prep the insights findings
+                fileurl = ""
+                if finding["new_line_num"] != 0:
+                    fileurl = f"{result_dict['url']}/blob/{finding['commitHash']}/{finding['path']}#L{finding['new_line_num']}"
+                else:
+                    fileurl = f"{result_dict['url']}/blob/{finding['parent_commit_hash']}/{finding['path']}#L{finding['old_line_num']}"
+                output_array.append(
+                    {
+                        "eventType": "ghe_secret_monitor",
+                        "commitHash": finding["commitHash"],
+                        "reason": finding["reason"],
+                        "path": finding["path"],
+                        "repo": result_dict["repo"],
+                        "url": f"{result_dict['url']}/commit/{finding['commitHash']}/{finding['path']}",
+                        "fileurl": fileurl,
+                        "old_line_num": finding["old_line_num"],
+                        "new_line_num": finding["new_line_num"],
+                        "parent_commitHash": finding["parent_commit_hash"]
+                    }
+                )
+
+                # Part 2: Collate the comments
+                if finding["reason"] not in comment_worthy_reasons:
+                    continue
+                repo_name = result_dict["repo"].split(":")[1][:-4]
+                r = g.get_repo(repo_name)
+                c = r.get_commit(finding["commitHash"])
+                ghe_findings[finding["commitHash"]].append(GheFinding(repo_name, c, finding['reason'], finding['path'], finding['new_line_num']))
+
+            # Part 3: Create the GHE comments
+            for c_hash, finding_tuples in ghe_findings.items():
+                author_names = {ft.commitObj.author.login for ft in finding_tuples}
+                author_names = " ".join(author_names)
+                secrets_inserted = [f"  - {ft.path}:{ft.linenum} ({ft.reason})" for ft in finding_tuples if int(ft.linenum) > 0]
+                secrets_deleted = [f"  - {ft.path}:{ft.linenum} ({ft.reason})" for ft in finding_tuples if
+                                    int(ft.linenum) == 0]
+                body = ""
+                if len(secrets_inserted) > 0:
+                    secrets_inserted = "\n".join(secrets_inserted)
+                    body += (
+                        f"Hi {author_names} ! It looks like the following secrets were found in this commit:\n{secrets_inserted}\n"
+                        f"We're trying to reduce sensitive information in "
+                        "GitHub Enterprise by using the Rusty Hog scanner on all commits going forward.\n"
+                    )
+                if len(secrets_deleted) > 0:
+                    secrets_deleted = "\n".join(secrets_deleted)
+                    body += (
+                        f"Hi {author_names} ! It looks like the following secrets were deleted in this commit:\n{secrets_deleted}\n"
+                        f"Thanks for getting rid of that! We want to remind you that the secret is still "
+                        f"in the Git history and can be recovered by an attacker, so it may still be "
+                        f"prudent to rotate the secret."
+                    )
+                logging.info(f"Creating Github comment for {result_dict['repo']} {finding['commitHash']}")
+                c.create_comment(body)
+
+
+        os.remove(result_dict["results"])
+
+    url = "https://insights-collector.newrelic.com/v1/accounts/{INSIGHTS_ACCT_ID}/events"
+    headers = {
+        "Content-Type": "application/json",
+        "X-Insert-Key": INSIGHTS_INSERT_KEY,
+        "Content-Encoding": "gzip",
+    }
+    post = gzip.compress(json.dumps(output_array).encode("utf-8"))
+    logging.info(f"len(output_array) = {len(output_array)}")
+    logging.debug(output_array)
+    logging.info("Submitting data to New Relic Insights...")
+    r = requests.post(url, data=post, headers=headers)
+    logging.info(f"insights status code: {r.status_code}")
+
+if __name__ == '__main__':
+    freeze_support()
+    main()
