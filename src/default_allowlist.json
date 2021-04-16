@@ -15,12 +15,38 @@
   },
   "Credentials in absolute URL": {
     "patterns": [
-      "(?i):pass(word)?"
+      "(?i)(https?://)?user:pass(word)?@"
+    ]
+  },
+  "New Relic API Key Service Key (new format)": {
+    "patterns": [
+      "NRAK-123456789ABCDEFGHIJKLMNOPQR"
+    ]
+  },
+  "Generic API Key": {
+    "patterns": [
+      "(?i)sanitizeAPIKeyForLogging"
+    ]
+  },
+  "New Relic License Key": {
+    "patterns": [
+      "(?i)bootstrap_newrelic_admin_license_key",
+      "(?i)xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "(?i)__YOUR_NEW_RELIC_LICENSE_KEY__LICENSE__",
+      "(?i)YOUR_NEW_RELIC_APPLICATION_TOKEN"
+    ]
+  },
+  "Generic Secret": {
+    "patterns": [
+      "(?i)secret:NewRelicLicenseKeySecret"
     ]
   },
   "<GLOBAL>": [
     "(?i)example",
     "(?i)fake",
-    "(?i)replace"
+    "(?i)replace",
+    "(?i)deadbeef",
+    "(?i)ABCDEFGHIJKLMNOPQRSTUVWX",
+    "1234567890"
   ]
 }

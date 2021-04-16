@@ -16,4 +16,5 @@ testData
 bootstrap
 *.zip
 temp_token
+temptoken_scanner.json
 clientsecret.json

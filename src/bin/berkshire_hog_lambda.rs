@@ -17,7 +17,7 @@
 extern crate s3;
 
 use lambda_runtime::{error::HandlerError, lambda, Context};
-use log::{self, warn};
+use log::{self, warn, LevelFilter};
 use rusty_hogs::aws_scanning::{S3Finding, S3Scanner};
 use rusty_hogs::SecretScannerBuilder;
 use s3::bucket::Bucket;
@@ -28,6 +28,7 @@ use simple_error::SimpleError;
 use std::env;
 use std::error::Error;
 use std::time::SystemTime;
+use simple_logger::SimpleLogger;
 
 // Each of these structs correspond to parsed JSON objects coming from S3 -> SQS -> Lambda
 #[derive(Deserialize, Clone, Debug)]
@@ -106,7 +107,7 @@ struct Finding {
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
-    simple_logger::init_with_level(log::Level::Debug)?;
+    SimpleLogger::new().with_level(LevelFilter::Debug).init().unwrap();
     lambda!(my_handler);
     Ok(())
 }

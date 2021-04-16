@@ -74,13 +74,13 @@ extern crate clap;
 
 use anyhow::Result;
 use clap::ArgMatches;
-use log::{self, debug, error, info};
+use log::{self, debug, error, info, LevelFilter};
 use regex::bytes::{Match, Matches, Regex, RegexBuilder};
 use serde::Serialize;
 use serde_derive::Deserialize;
 use serde_json::{Map, Value};
 use simple_error::SimpleError;
-use simple_logger::init_with_level;
+use simple_logger::SimpleLogger;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fs::File;
 use std::hash::{Hash, Hasher};
@@ -688,11 +688,12 @@ impl SecretScannerBuilder {
 impl SecretScanner {
     /// Helper function to set global logging level
     pub fn set_logging(verbose_level: u64) {
+        let sl = SimpleLogger::new();
         match verbose_level {
-            0 => init_with_level(log::Level::Warn).unwrap(),
-            1 => init_with_level(log::Level::Info).unwrap(),
-            2 => init_with_level(log::Level::Debug).unwrap(),
-            _ => init_with_level(log::Level::Trace).unwrap(),
+            0 => sl.with_level(LevelFilter::Warn).init().unwrap(),
+            1 => sl.with_level(LevelFilter::Info).init().unwrap(),
+            2 => sl.with_level(LevelFilter::Debug).init().unwrap(),
+            _ => sl.with_level(LevelFilter::Trace).init().unwrap(),
         }
     }
 
@@ -1134,7 +1135,7 @@ mod tests {
         let ss = ssb.build();
         let test_string = String::from(
             r#"
-            secret: ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefg
+            secret: gfedcbaZYXWVUTSRQPONMLKJIHGFEDCBA
             another_secret = "1dd06c1162b44890b97ad27849f1c1ef"
             secret:aea7f86653514d94b86cc33a5bad1659
             not_so_secret_but_has_the_word_secret_and_is_long

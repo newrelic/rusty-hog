@@ -21,3 +21,11 @@
     - if the pattern name `<GLOBAL>` is used it will be checked against all patterns
     - moved the allowlist code into lib.rs so that all hogs will use it by default
     - included a new format for allowlists that include checks for paths as well
+
+## 1.0.9
+- Fixed issue in Essex Hog that resulted in invalid URLs
+- Added some more items to the default allowlist based on New Relic's usage of Rusty Hog
+- Made some more updates to the scripts:
+  - ghe_secret_scanner will now differentiate between deleted secrets and added secrets
+  - added a script to scan an entire GDrive share, will scan docs with Ankamali hog and binaries with duroc_hog.
+- Fixed deprecated function warning with simple_logger
