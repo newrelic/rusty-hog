@@ -49,8 +49,8 @@ Download and unzip the [latest ZIP](https://github.com/newrelic/rusty-hog/releas
 on the releases tab. Then, run each binary with `-h` to see the usage.
 
 ```shell script
-wget https://github.com/newrelic/rusty-hog/releases/download/v1.0.8/rustyhogs-musl_darwin_1.0.8.zip
-unzip rustyhogs-musl_darwin_1.0.8.zip
+wget https://github.com/newrelic/rusty-hog/releases/download/v1.0.9/rustyhogs-musl_darwin_1.0.9.zip
+unzip rustyhogs-musl_darwin_1.0.9.zip
 darwin_releases/choctaw_hog -h
 ```
 
@@ -59,8 +59,8 @@ Rusty Hog Docker images can be found at the authors personal DockerHub page [her
 A Docker Image is built for each Hog and for each release. So to use choctaw_hog you would run the following commands:
 
 ```shell script
-docker pull wetfeet2000/choctaw_hog:1.0.8
-docker run -it --rm wetfeet2000/choctaw_hog:1.0.8 --help
+docker pull wetfeet2000/choctaw_hog:1.0.9
+docker run -it --rm wetfeet2000/choctaw_hog:1.0.9 --help
 ```
 
 ## How to build
