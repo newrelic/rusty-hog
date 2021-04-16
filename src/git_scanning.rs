@@ -123,7 +123,7 @@ impl GitScanner {
         let repo_option = self.repo.as_ref(); //borrowing magic here!
         let repo = repo_option.unwrap();
         let mut revwalk = repo.revwalk().unwrap();
-        revwalk.push_glob(glob.unwrap_or_else(|| "*")).unwrap(); //easy mode: iterate over all the commits
+        revwalk.push_glob(glob.unwrap_or("*")).unwrap(); //easy mode: iterate over all the commits
 
         // take our "--since_commit" input (hash id) and convert it to a date and time
         // and build our revwalk with a filter for commits >= that time. This isn't a perfect
@@ -207,8 +207,8 @@ impl GitScanner {
                 }
                 let old_file_id = delta.old_file().id();
                 let new_file_id = delta.new_file().id();
-                let old_line_num = line.old_lineno().unwrap_or_else(|| 0);
-                let new_line_num = line.new_lineno().unwrap_or_else(|| 0);
+                let old_line_num = line.old_lineno().unwrap_or(0);
+                let new_line_num = line.new_lineno().unwrap_or(0);
 
                 for (reason, match_iterator) in matches_map {
                     let mut secrets: Vec<String> = Vec::new();
@@ -462,7 +462,7 @@ impl fmt::Debug for GitScanner {
             Some(repo_obj) => repo_obj
                 .path()
                 .to_str()
-                .unwrap_or_else(|| "<path unwrap error>"),
+                .unwrap_or("<path unwrap error>"),
         };
         write!(
             f,
@@ -479,7 +479,7 @@ impl fmt::Display for GitScanner {
             Some(repo_obj) => repo_obj
                 .path()
                 .to_str()
-                .unwrap_or_else(|| "<path unwrap error>"),
+                .unwrap_or("<path unwrap error>"),
         };
         let scheme_string: String = match self.scheme.as_ref() {
             None => String::from("None"),

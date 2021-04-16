@@ -41,7 +41,6 @@ use url::Url;
 use rusty_hogs::aws_scanning::{S3Finding, S3Scanner};
 use rusty_hogs::{SecretScanner, SecretScannerBuilder};
 use std::collections::HashSet;
-use std::iter::FromIterator;
 
 /// Main entry function that uses the [clap crate](https://docs.rs/clap/2.33.0/clap/)
 fn main() {
@@ -159,7 +158,7 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     }
 
     // Output the results
-    let findings: HashSet<S3Finding> = HashSet::from_iter(findings.into_iter());
+    let findings: HashSet<S3Finding> = findings.into_iter().collect();
     info!("Found {} secrets", findings.len());
     match s3scanner.secret_scanner.output_findings(&findings) {
         Ok(_) => Ok(()),

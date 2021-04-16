@@ -85,7 +85,6 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fs::File;
 use std::hash::{Hash, Hasher};
 use std::io::BufReader;
-use std::iter::FromIterator;
 use std::ops::Range;
 use std::path::Path;
 use std::{fmt, fs, str};
@@ -626,10 +625,7 @@ impl SecretScannerBuilder {
                         },
                         None => None,
                     };
-                    let make_ascii_lowercase_processed = match make_ascii_lowercase {
-                        Some(b) => b,
-                        None => false,
-                    };
+                    let make_ascii_lowercase_processed = make_ascii_lowercase.unwrap_or(false);
                     (
                         k,
                         EntropyRegex {
@@ -743,14 +739,14 @@ impl SecretScanner {
 
     /// Helper function to determine whether a byte array only contains valid Base64 characters.
     fn is_base64_string(string_in: &[u8]) -> bool {
-        let hashset_string_in: HashSet<&u8> = HashSet::from_iter(string_in.iter());
-        hashset_string_in.is_subset(&HashSet::from_iter(B64_ENCODE.iter()))
+        let hashset_string_in: HashSet<&u8> = string_in.iter().collect();
+        hashset_string_in.is_subset(&B64_ENCODE.iter().collect())
     }
 
     /// Helper function to determine whether a byte array only contains valid hex characters.
     fn is_hex_string(string_in: &[u8]) -> bool {
-        let hashset_string_in: HashSet<&u8> = HashSet::from_iter(string_in.iter());
-        hashset_string_in.is_subset(&HashSet::from_iter(HEX_ENCODE.iter()))
+        let hashset_string_in: HashSet<&u8> = string_in.iter().collect();
+        hashset_string_in.is_subset(&HEX_ENCODE.iter().collect())
     }
 
     /// Compute the Shannon entropy for a byte array (from https://docs.rs/crate/entropy/0.3.0/source/src/lib.rs)

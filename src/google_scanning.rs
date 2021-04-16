@@ -85,7 +85,6 @@ use serde_derive::{Deserialize, Serialize};
 use simple_error::SimpleError;
 use std::collections::HashSet;
 use std::io::Read;
-use std::iter::FromIterator;
 use yup_oauth2::{Authenticator, DefaultAuthenticatorDelegate, DiskTokenStorage};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, Clone, Default)]
@@ -286,7 +285,7 @@ impl GDriveScanner {
             }
         }
 
-        HashSet::from_iter(findings.into_iter())
+        findings.into_iter().collect()
     }
 }
 

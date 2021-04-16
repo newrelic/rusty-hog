@@ -22,12 +22,12 @@
 //! ARGS:
 //!     <PAGEID>    The ID (e.g. 1234) of the confluence page you want to scan
 //!     <URL>       Base URL of Confluence instance (e.g. https://newrelic.atlassian.net/)
-//! 				From https://docs.atlassian.com/ConfluenceServer/rest/7.11.0/ Structure of the REST URIs section
-//! 				for details on declaring the base url with or without context
-//! 				With context: http://host:port/context/rest/api/resource-name
-//! 				Or without context: http://host:port/rest/api/resource-name
-//! 				Example with context: http://example.com:8080/confluence/rest/api/space/ds
-//! 				Example without context: http://confluence.myhost.com:8095/rest/api/space/ds
+//!                 From https://docs.atlassian.com/ConfluenceServer/rest/7.11.0/ Structure of the REST URIs section
+//!                 for details on declaring the base url with or without context
+//!                 With context: http://host:port/context/rest/api/resource-name
+//!                 Or without context: http://host:port/rest/api/resource-name
+//!                 Example with context: http://example.com:8080/confluence/rest/api/space/ds
+//!                 Example without context: http://confluence.myhost.com:8095/rest/api/space/ds
 
 #[macro_use]
 extern crate clap;
@@ -50,7 +50,6 @@ use serde_json::{Map, Value};
 use simple_error::SimpleError;
 use std::collections::{BTreeMap, HashSet};
 use std::io::Read;
-use std::iter::FromIterator;
 use url::Url;
 
 /// `serde_json` object that represents a single found secret - finding
@@ -112,7 +111,7 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     let authtoken = arg_matches.value_of("BEARERTOKEN");
     let base_url_input = arg_matches
         .value_of("URL")
-        .unwrap_or_else(|| "https://confluence.atlassian.com")
+        .unwrap_or("https://confluence.atlassian.com")
         .trim_end_matches('/');
     let base_url_as_url = Url::parse(base_url_input).unwrap();
     let page_id = arg_matches
@@ -152,7 +151,7 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     let secrets = get_findings(&secret_scanner, page_id, content.as_bytes(), &page.web_link);
 
     // combine and output the results
-    let findings: HashSet<ConfluenceFinding> = HashSet::from_iter(secrets.into_iter());
+    let findings: HashSet<ConfluenceFinding> = secrets.into_iter().collect();
     info!("Found {} secrets", findings.len());
     match secret_scanner.output_findings(&findings) {
         Ok(_) => Ok(()),
@@ -273,7 +272,7 @@ fn get_findings(
             }
             if !secrets_for_reason.is_empty() {
                 secrets.push(ConfluenceFinding {
-                    strings_found: Vec::from_iter(secrets_for_reason.iter().cloned()),
+                    strings_found: secrets_for_reason.iter().cloned().collect(),
                     page_id: String::from(issue_id),
                     reason,
                     url: String::from(web_link),

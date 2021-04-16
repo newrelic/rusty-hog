@@ -171,7 +171,7 @@ where
     C: FnMut(&Path),
 {
     for entry in WalkDir::new(fspath).into_iter().filter_map(|e| e.ok()) {
-        if entry.file_type().is_file() && &PathBuf::from(entry.path()).clean() != output_file {
+        if entry.file_type().is_file() && PathBuf::from(entry.path()).clean() != output_file {
             closure(&entry.path());
         }
     }
@@ -214,7 +214,7 @@ fn scan_file<R: Read + io::Seek>(
     let path_string = String::from(Path::new(path_prefix).join(file_path).to_str().unwrap());
     info!("scan_file({:?})", path_string);
     let ext: String = match file_path.extension() {
-        Some(osstr) => String::from(osstr.to_str().unwrap_or_else(|| "")).to_ascii_lowercase(),
+        Some(osstr) => String::from(osstr.to_str().unwrap_or("")).to_ascii_lowercase(),
         None => String::from(""),
     };
 

@@ -26,7 +26,6 @@ use s3::region::Region;
 use serde_derive::{Deserialize, Serialize};
 use simple_error::SimpleError;
 use std::env;
-use std::error::Error;
 use std::time::SystemTime;
 use simple_logger::SimpleLogger;
 
@@ -106,10 +105,9 @@ struct Finding {
     reason: String,
 }
 
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() {
     SimpleLogger::new().with_level(LevelFilter::Debug).init().unwrap();
     lambda!(my_handler);
-    Ok(())
 }
 
 fn my_handler(e: CustomEvent, _c: Context) -> Result<CustomOutput, HandlerError> {

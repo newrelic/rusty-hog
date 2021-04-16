@@ -76,10 +76,10 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     // Initialize some variables
     let oauthsecretfile = arg_matches
         .value_of("OAUTHSECRETFILE")
-        .unwrap_or_else(|| "clientsecret.json");
+        .unwrap_or("clientsecret.json");
     let oauthtokenfile = arg_matches
         .value_of("OAUTHTOKENFILE")
-        .unwrap_or_else(|| "temp_token");
+        .unwrap_or("temp_token");
     let file_id = arg_matches.value_of("GDRIVEID").unwrap();
     let secret_scanner = SecretScannerBuilder::new().conf_argm(arg_matches).build();
     let gdrive_scanner = GDriveScanner::new_from_scanner(secret_scanner);

@@ -43,7 +43,6 @@ use serde_json::{Map, Value};
 use simple_error::SimpleError;
 use std::collections::{BTreeMap, HashSet};
 use std::io::Read;
-use std::iter::FromIterator;
 use url::Url;
 
 /// `serde_json` object that represents a single found secret - finding
@@ -98,7 +97,7 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     let jiraauthtoken = arg_matches.value_of("BEARERTOKEN");
     let base_url_input = arg_matches
         .value_of("JIRAURL")
-        .unwrap_or_else(|| "https://jira.atlassian.com/");
+        .unwrap_or("https://jira.atlassian.com/");
     let base_url_as_url = Url::parse(base_url_input).unwrap();
     let issue_id = arg_matches
         .value_of("JIRAID") // TODO validate the format somehow
@@ -183,7 +182,7 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     }
 
     // combine and output the results
-    let findings: HashSet<JiraFinding> = HashSet::from_iter(secrets.into_iter());
+    let findings: HashSet<JiraFinding> = secrets.into_iter().collect();
     info!("Found {} secrets", findings.len());
     match secret_scanner.output_findings(&findings) {
         Ok(_) => Ok(()),
@@ -229,6 +228,7 @@ fn get_findings(
     let mut secrets: Vec<JiraFinding> = Vec::new();
     let web_link = format!("{}browse/{}", base_url, issue_id);
     for new_line in lines {
+        debug!("{:?}", std::str::from_utf8(new_line));
         let matches_map: BTreeMap<String, Vec<RustyHogMatch>> =
             secret_scanner.matches_entropy(new_line);
         for (reason, match_iterator) in matches_map {
@@ -245,7 +245,7 @@ fn get_findings(
             }
             if !secrets_for_reason.is_empty() {
                 secrets.push(JiraFinding {
-                    strings_found: Vec::from_iter(secrets_for_reason.iter().cloned()),
+                    strings_found: secrets_for_reason.iter().cloned().collect(),
                     issue_id: String::from(issue_id),
                     reason,
                     url: web_link.clone(),
