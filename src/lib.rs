@@ -260,14 +260,14 @@ pub enum AllowListEnum {
     PatternList(Vec<String>),
     AllowListJson {
         patterns: Vec<String>,
-        paths: Option<Vec<String>>
-    }
+        paths: Option<Vec<String>>,
+    },
 }
 
 #[derive(Debug, Clone)]
 pub struct AllowList {
     pub pattern_list: Vec<Regex>,
-    pub path_list: Vec<Regex>
+    pub path_list: Vec<Regex>,
 }
 
 /// Used to instantiate the `SecretScanner` object with user-supplied options
@@ -666,15 +666,30 @@ impl SecretScannerBuilder {
             .map(|(p, allowlistobj)| match allowlistobj {
                 AllowListEnum::PatternList(v) => {
                     let l = SecretScannerBuilder::vec_string_to_vec_regex(v);
-                    Ok((p, AllowList { pattern_list: l, path_list: vec![] }))
+                    Ok((
+                        p,
+                        AllowList {
+                            pattern_list: l,
+                            path_list: vec![],
+                        },
+                    ))
                 }
-                AllowListEnum::AllowListJson { patterns: pattern_list, paths: path_list } => {
+                AllowListEnum::AllowListJson {
+                    patterns: pattern_list,
+                    paths: path_list,
+                } => {
                     let l1 = SecretScannerBuilder::vec_string_to_vec_regex(pattern_list);
                     let l2 = match path_list {
                         Some(v) => SecretScannerBuilder::vec_string_to_vec_regex(v),
-                        None => Vec::new()
+                        None => Vec::new(),
                     };
-                    Ok((p, AllowList { pattern_list: l1, path_list: l2 }))
+                    Ok((
+                        p,
+                        AllowList {
+                            pattern_list: l1,
+                            path_list: l2,
+                        },
+                    ))
                 }
             })
             .collect()
@@ -971,10 +986,14 @@ impl SecretScanner {
     /// Checks if the provided path name is allowlisted
     pub fn is_allowlisted_path(&self, pattern: &str, path: &[u8]) -> bool {
         if let Some(allowlist) = self.allowlist_map.get(pattern) {
-            if allowlist.path_list.iter().any(|x| x.find(path).is_some()) { return true }
+            if allowlist.path_list.iter().any(|x| x.find(path).is_some()) {
+                return true;
+            }
         }
         if let Some(allowlist) = self.allowlist_map.get("<GLOBAL>") {
-            if allowlist.path_list.iter().any(|x| x.find(path).is_some()) { return true }
+            if allowlist.path_list.iter().any(|x| x.find(path).is_some()) {
+                return true;
+            }
         }
         false
     }
@@ -982,10 +1001,22 @@ impl SecretScanner {
     /// Checks if the provided token is allowlisted
     pub fn is_allowlisted_pattern(&self, pattern: &str, token: &[u8]) -> bool {
         if let Some(allowlist) = self.allowlist_map.get(pattern) {
-            if allowlist.pattern_list.iter().any(|x| x.find(token).is_some()) { return true }
+            if allowlist
+                .pattern_list
+                .iter()
+                .any(|x| x.find(token).is_some())
+            {
+                return true;
+            }
         }
         if let Some(allowlist) = self.allowlist_map.get("<GLOBAL>") {
-            if allowlist.pattern_list.iter().any(|x| x.find(token).is_some()) { return true }
+            if allowlist
+                .pattern_list
+                .iter()
+                .any(|x| x.find(token).is_some())
+            {
+                return true;
+            }
         }
         false
     }

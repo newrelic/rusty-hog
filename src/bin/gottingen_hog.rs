@@ -31,7 +31,11 @@ use clap::ArgMatches;
 use encoding::all::ASCII;
 use encoding::types::Encoding;
 use encoding::DecoderTrap;
-use hyper::{Client, client, HeaderMap, Body};
+use hyper::body;
+use hyper::header::AUTHORIZATION;
+use hyper::http::Request;
+use hyper::http::StatusCode;
+use hyper::{client, Body, Client};
 use log::{self, debug, error, info};
 use rusty_hogs::SecretScannerBuilder;
 use rusty_hogs::{RustyHogMatch, SecretScanner};
@@ -40,10 +44,6 @@ use serde_json::{Map, Value};
 use simple_error::SimpleError;
 use std::collections::{BTreeMap, HashSet};
 use url::Url;
-use hyper::http::StatusCode;
-use hyper::header::AUTHORIZATION;
-use hyper::http::Request;
-use hyper::body;
 
 /// `serde_json` object that represents a single found secret - finding
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, Clone, Default)]
@@ -111,17 +111,17 @@ async fn run<'b>(arg_matches: ArgMatches<'b>) -> Result<(), SimpleError> {
     let hyper_client: client::Client<_, hyper::Body> = client::Client::builder().build(https);
 
     // TODO: Support other modes of JIRA authentication
-    //let mut auth_headers = HeaderMap::new();
     let auth_string = match jirausername {
         // craft auth header using username and password if present
         Some(u) => {
-            format!("Basic {}", base64::encode(format!("{}:{}",u, jirapassword.unwrap())))
-            //auth_headers.insert(AUTHORIZATION, auth_string.parse().unwrap());
+            format!(
+                "Basic {}",
+                base64::encode(format!("{}:{}", u, jirapassword.unwrap()))
+            )
         }
         // otherwise use AUTHTOKEN to craft the auth header
         None => {
             format!("Bearer {}", base64::encode(jiraauthtoken.unwrap()))
-            //auth_headers.insert(AUTHORIZATION, auth_string.parse().unwrap());
         }
     };
 
@@ -192,12 +192,18 @@ async fn run<'b>(arg_matches: ArgMatches<'b>) -> Result<(), SimpleError> {
 }
 
 /// Uses a hyper::client object to perform a GET on the full_url and return parsed serde JSON data
-async fn get_issue_json<'a, C>(hyper_client: Client<C>, auth_headers: String, full_url: &str) -> Map<String, Value> where C: hyper::client::connect::Connect + Clone + Send + Sync + 'static {
+async fn get_issue_json<'a, C>(
+    hyper_client: Client<C>,
+    auth_headers: String,
+    full_url: &str,
+) -> Map<String, Value>
+where
+    C: hyper::client::connect::Connect + Clone + Send + Sync + 'static,
+{
     debug!("auth header: {}", auth_headers);
-    let mut req_builder = Request::builder()
+    let req_builder = Request::builder()
         .header(AUTHORIZATION, auth_headers)
         .uri(full_url);
-    // req_builder.headers_mut().replace(auth_headers);
     let r = req_builder.body(Body::empty()).unwrap();
     let resp = hyper_client.request(r).await.unwrap();
     debug!("sending request to {}", full_url);

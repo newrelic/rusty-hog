@@ -77,16 +77,16 @@
 //! [`perform_scan`]: struct.GDriveScanner.html#method.perform_scan
 
 use crate::SecretScanner;
-extern crate yup_oauth2 as oauth2;
 extern crate google_drive3 as drive3;
+extern crate yup_oauth2 as oauth2;
+use drive3::DriveHub;
 use encoding::all::ASCII;
 use encoding::{DecoderTrap, Encoding};
 use google_drive3::api::Scope;
-use drive3::DriveHub;
+use hyper::body;
 use serde_derive::{Deserialize, Serialize};
 use simple_error::SimpleError;
 use std::collections::HashSet;
-use hyper::body;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, Clone, Default)]
 /// `serde_json` object that represents a single found secret - finding
@@ -152,17 +152,15 @@ pub struct GDriveFileInfo {
 
 impl GDriveFileInfo {
     /// Construct a `GDriveFileInfo` object from a Google Drive File ID and an authorized `DriveHub` object
-    pub async fn new(
-        file_id: &str,
-        hub: &DriveHub,
-    ) -> Result<Self, SimpleError> {
+    pub async fn new(file_id: &str, hub: &DriveHub) -> Result<Self, SimpleError> {
         let fields = "kind, id, name, mimeType, webViewLink, modifiedTime, parents";
         let hub_result = hub
             .files()
             .get(file_id)
             .add_scope(Scope::Readonly)
             .param("fields", fields)
-            .doit().await;
+            .doit()
+            .await;
         let (_, file_object) = match hub_result {
             Ok(x) => x,
             Err(e) => {
@@ -221,7 +219,8 @@ impl GDriveScanner {
         let resp_obj = hub
             .files()
             .export(&gdrivefile.file_id, &gdrivefile.mime_type)
-            .doit().await;
+            .doit()
+            .await;
         let resp_obj = match resp_obj {
             Ok(r) => r,
             Err(e) => return Err(SimpleError::new(e.to_string())),

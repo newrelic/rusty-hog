@@ -128,7 +128,10 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
         output.extend(scan_file(fspath, &secret_scanner, f, "", unzip));
     }
 
-    let output: HashSet<FileFinding> = output.into_iter().filter(|ff| !secret_scanner.is_allowlisted_path(&ff.reason, ff.path.as_bytes())).collect();
+    let output: HashSet<FileFinding> = output
+        .into_iter()
+        .filter(|ff| !secret_scanner.is_allowlisted_path(&ff.reason, ff.path.as_bytes()))
+        .collect();
 
     info!("Found {} secrets", output.len());
     match secret_scanner.output_findings(&output) {

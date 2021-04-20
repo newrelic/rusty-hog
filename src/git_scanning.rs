@@ -223,9 +223,17 @@ impl GitScanner {
                         );
                     }
                     if !secrets.is_empty() {
-                        let path = delta.new_file().path().unwrap().to_str().unwrap().to_string();
+                        let path = delta
+                            .new_file()
+                            .path()
+                            .unwrap()
+                            .to_str()
+                            .unwrap()
+                            .to_string();
                         let enough_entropy = self.secret_scanner.check_entropy(&reason, new_line);
-                        let valid_path = !self.secret_scanner.is_allowlisted_path(&reason, path.as_bytes());
+                        let valid_path = !self
+                            .secret_scanner
+                            .is_allowlisted_path(&reason, path.as_bytes());
                         if enough_entropy && valid_path {
                             findings.insert(GitFinding {
                                 commit_hash: commit.id().to_string(),
@@ -459,10 +467,7 @@ impl fmt::Debug for GitScanner {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let repo_str = match self.repo.as_ref() {
             None => "None",
-            Some(repo_obj) => repo_obj
-                .path()
-                .to_str()
-                .unwrap_or("<path unwrap error>"),
+            Some(repo_obj) => repo_obj.path().to_str().unwrap_or("<path unwrap error>"),
         };
         write!(
             f,
@@ -476,10 +481,7 @@ impl fmt::Display for GitScanner {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let repo_str = match self.repo.as_ref() {
             None => "None",
-            Some(repo_obj) => repo_obj
-                .path()
-                .to_str()
-                .unwrap_or("<path unwrap error>"),
+            Some(repo_obj) => repo_obj.path().to_str().unwrap_or("<path unwrap error>"),
         };
         let scheme_string: String = match self.scheme.as_ref() {
             None => String::from("None"),

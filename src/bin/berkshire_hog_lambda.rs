@@ -25,9 +25,9 @@ use s3::creds::Credentials;
 use s3::region::Region;
 use serde_derive::{Deserialize, Serialize};
 use simple_error::SimpleError;
+use simple_logger::SimpleLogger;
 use std::env;
 use std::time::SystemTime;
-use simple_logger::SimpleLogger;
 
 // Each of these structs correspond to parsed JSON objects coming from S3 -> SQS -> Lambda
 #[derive(Deserialize, Clone, Debug)]
@@ -107,7 +107,10 @@ struct Finding {
 
 #[tokio::main]
 async fn main() {
-    SimpleLogger::new().with_level(LevelFilter::Debug).init().unwrap();
+    SimpleLogger::new()
+        .with_level(LevelFilter::Debug)
+        .init()
+        .unwrap();
     let my_handler = handler_fn(my_handler);
     lambda_runtime::run(my_handler).await.unwrap();
 }
