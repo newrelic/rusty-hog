@@ -31,10 +31,7 @@ use clap::ArgMatches;
 use encoding::all::ASCII;
 use encoding::types::Encoding;
 use encoding::DecoderTrap;
-use hyper::header::{Authorization, Basic, Bearer, Headers};
-use hyper::net::HttpsConnector;
-use hyper::status::StatusCode;
-use hyper::Client;
+use hyper::{Client, client, HeaderMap, Body};
 use log::{self, debug, error, info};
 use rusty_hogs::SecretScannerBuilder;
 use rusty_hogs::{RustyHogMatch, SecretScanner};
@@ -42,8 +39,11 @@ use serde_derive::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use simple_error::SimpleError;
 use std::collections::{BTreeMap, HashSet};
-use std::io::Read;
 use url::Url;
+use hyper::http::StatusCode;
+use hyper::header::AUTHORIZATION;
+use hyper::http::Request;
+use hyper::body;
 
 /// `serde_json` object that represents a single found secret - finding
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, Clone, Default)]
@@ -57,8 +57,9 @@ pub struct JiraFinding {
 }
 
 /// Main entry function that uses the [clap crate](https://docs.rs/clap/2.33.0/clap/)
-fn main() {
-    let matches = clap_app!(gottingen_hog =>
+#[tokio::main]
+async fn main() {
+    let matches: ArgMatches = clap_app!(gottingen_hog =>
         (version: "1.0.9")
         (author: "Emily Cain <ecain@newrelic.com>")
         (about: "Jira secret scanner in Rust.")
@@ -77,7 +78,7 @@ fn main() {
         (@arg ALLOWLIST: -a --allowlist +takes_value "Sets a custom allowlist JSON file")
     )
         .get_matches();
-    match run(&matches) {
+    match run(matches).await {
         Ok(()) => {}
         Err(e) => error!("Error running command: {}", e),
     }
@@ -85,11 +86,11 @@ fn main() {
 
 /// Main logic contained here. Get the CLI variables, create the appropriate TLS objects,
 /// make the TLS calls, and scan the result..
-fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
+async fn run<'b>(arg_matches: ArgMatches<'b>) -> Result<(), SimpleError> {
     SecretScanner::set_logging(arg_matches.occurrences_of("VERBOSE"));
 
     // initialize the basic variables and CLI options
-    let ssb = SecretScannerBuilder::new().conf_argm(arg_matches);
+    let ssb = SecretScannerBuilder::new().conf_argm(&arg_matches);
     let secret_scanner = ssb.build();
 
     let jirausername = arg_matches.value_of("USERNAME");
@@ -106,32 +107,29 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     let base_url = base_url_as_url.as_str();
 
     // Still inside `async fn main`...
-    let client = Client::with_connector(HttpsConnector::new(hyper_rustls::TlsClient::new()));
+    let https = hyper_rustls::HttpsConnector::with_native_roots();
+    let hyper_client: client::Client<_, hyper::Body> = client::Client::builder().build(https);
 
     // TODO: Support other modes of JIRA authentication
-    let mut auth_headers = Headers::new();
-    match jirausername {
+    //let mut auth_headers = HeaderMap::new();
+    let auth_string = match jirausername {
         // craft auth header using username and password if present
         Some(u) => {
-            let jirapassword = jirapassword.unwrap().to_owned();
-            auth_headers.set(Authorization(Basic {
-                username: u.to_owned(),
-                password: Some(jirapassword),
-            }));
+            format!("Basic {}", base64::encode(format!("{}:{}",u, jirapassword.unwrap())))
+            //auth_headers.insert(AUTHORIZATION, auth_string.parse().unwrap());
         }
         // otherwise use AUTHTOKEN to craft the auth header
         None => {
-            auth_headers.set(Authorization(Bearer {
-                token: jiraauthtoken.unwrap().to_owned(),
-            }));
+            format!("Bearer {}", base64::encode(jiraauthtoken.unwrap()))
+            //auth_headers.insert(AUTHORIZATION, auth_string.parse().unwrap());
         }
-    }
+    };
 
     // Build the URL
     // todo make this work regardless of whether the url argument they pass has a trailing slash
     let full_url = format!("{}rest/api/2/issue/{}", base_url, issue_id);
 
-    let json_results = get_issue_json(client, auth_headers, &full_url);
+    let json_results = get_issue_json(hyper_client, auth_string, &full_url).await;
 
     let fields = json_results.get("fields").unwrap();
 
@@ -194,16 +192,24 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
 }
 
 /// Uses a hyper::client object to perform a GET on the full_url and return parsed serde JSON data
-fn get_issue_json(client: Client, auth_headers: Headers, full_url: &str) -> Map<String, Value> {
-    let mut resp = client.get(full_url).headers(auth_headers).send().unwrap();
+async fn get_issue_json<'a, C>(hyper_client: Client<C>, auth_headers: String, full_url: &str) -> Map<String, Value> where C: hyper::client::connect::Connect + Clone + Send + Sync + 'static {
+    debug!("auth header: {}", auth_headers);
+    let mut req_builder = Request::builder()
+        .header(AUTHORIZATION, auth_headers)
+        .uri(full_url);
+    // req_builder.headers_mut().replace(auth_headers);
+    let r = req_builder.body(Body::empty()).unwrap();
+    let resp = hyper_client.request(r).await.unwrap();
     debug!("sending request to {}", full_url);
-    debug!("Response: {}", resp.status);
-    let mut response_body: String = String::new();
-    resp.read_to_string(&mut response_body).unwrap();
-    if resp.status != StatusCode::Ok {
+    let status = resp.status().clone();
+    debug!("Response: {:?}", status);
+    let data = body::to_bytes(resp.into_body()).await.unwrap();
+    let data_vec: Vec<u8> = data.to_vec();
+    let response_body: String = String::from(std::str::from_utf8(&data_vec).unwrap());
+    if status != StatusCode::OK {
         panic!(
-            "Request to {} failed with code {}: {}",
-            full_url, resp.status, response_body
+            "Request to {} failed with code {:?}: {}",
+            full_url, status, response_body
         )
     }
     let json_results = serde_json::from_str(&response_body).unwrap();

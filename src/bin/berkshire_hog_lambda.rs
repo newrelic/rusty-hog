@@ -16,12 +16,12 @@
 
 extern crate s3;
 
-use lambda_runtime::{error::HandlerError, lambda, Context};
+use lambda_runtime::{handler_fn, Context, Error};
 use log::{self, warn, LevelFilter};
 use rusty_hogs::aws_scanning::{S3Finding, S3Scanner};
 use rusty_hogs::SecretScannerBuilder;
 use s3::bucket::Bucket;
-use s3::credentials::Credentials;
+use s3::creds::Credentials;
 use s3::region::Region;
 use serde_derive::{Deserialize, Serialize};
 use simple_error::SimpleError;
@@ -105,15 +105,18 @@ struct Finding {
     reason: String,
 }
 
-fn main() {
+#[tokio::main]
+async fn main() {
     SimpleLogger::new().with_level(LevelFilter::Debug).init().unwrap();
-    lambda!(my_handler);
+    let my_handler = handler_fn(my_handler);
+    lambda_runtime::run(my_handler).await.unwrap();
 }
 
-fn my_handler(e: CustomEvent, _c: Context) -> Result<CustomOutput, HandlerError> {
-    warn!("incoming JSON: {:?}", e);
+async fn my_handler(event: CustomEvent, _: Context) -> Result<CustomOutput, Error> {
+    // let event: CustomEvent = serde_json::from_value(e).unwrap();
+    warn!("incoming JSON: {:?}", event);
     // Initialize our S3 variables
-    let credentials = Credentials::new(None, None, None, None);
+    let credentials = Credentials::new(None, None, None, None, None).unwrap();
     let output_bucket_name = env::var("OUTPUT_BUCKET_NAME").unwrap();
     let output_bucket_region: Region = env::var("OUTPUT_BUCKET_REGION").unwrap().parse().unwrap();
     let output_bucket_keyprefix = env::var("OUTPUT_BUCKET_KEYPREFIX").unwrap();
@@ -128,7 +131,7 @@ fn my_handler(e: CustomEvent, _c: Context) -> Result<CustomOutput, HandlerError>
     let mut findings: Vec<S3Finding> = Vec::new();
     let ss = SecretScannerBuilder::new().build();
     let s3scanner = S3Scanner::new_from_scanner(ss);
-    for top_record in e.records {
+    for top_record in event.records {
         let body_obj: Body = serde_json::from_str(top_record.body.as_str()).unwrap(); //yo dawg
         for record in body_obj.records {
             let region_str = record.aws_region;
@@ -141,7 +144,7 @@ fn my_handler(e: CustomEvent, _c: Context) -> Result<CustomOutput, HandlerError>
                 s3scanner.scan_s3_file(bucket, key.as_ref());
             match f_result {
                 Ok(mut f) => findings.append(&mut f),
-                Err(e) => return Err(HandlerError::from(e.as_str())),
+                Err(e) => return Err(Error::from(e.as_str())),
             };
         }
     }
@@ -154,7 +157,7 @@ fn my_handler(e: CustomEvent, _c: Context) -> Result<CustomOutput, HandlerError>
         .as_secs();
     let dest = format!("{}/{}", output_bucket_keyprefix, epoch);
     output_bucket
-        .put_object(dest.as_ref(), output_string.as_bytes(), "text/plain")
+        .put_object_with_content_type_blocking(&dest, output_string.as_bytes(), "text/plain")
         .unwrap();
     Ok(CustomOutput {
         is_base64_encoded: false,

@@ -33,9 +33,7 @@ extern crate yup_oauth2 as oauth2;
 use clap::ArgMatches;
 use drive3::DriveHub;
 use log::{self, error, info};
-use oauth2::{
-    ApplicationSecret, Authenticator, DefaultAuthenticatorDelegate, DiskTokenStorage, FlowType,
-};
+use oauth2::ApplicationSecret;
 use simple_error::SimpleError;
 use std::path::Path;
 

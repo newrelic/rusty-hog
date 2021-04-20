@@ -38,10 +38,8 @@ use clap::ArgMatches;
 use encoding::all::ASCII;
 use encoding::types::Encoding;
 use encoding::DecoderTrap;
-use hyper::header::{Authorization, Basic, Bearer, Headers};
-use hyper::net::HttpsConnector;
-use hyper::status::StatusCode;
-use hyper::Client;
+use hyper::{Client, client};
+use hyper::header;
 use log::{self, debug, error, info};
 use rusty_hogs::SecretScannerBuilder;
 use rusty_hogs::{RustyHogMatch, SecretScanner};
@@ -121,10 +119,11 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     let base_url = base_url_as_url.as_str();
 
     // Still inside `async fn main`...
-    let client = Client::with_connector(HttpsConnector::new(hyper_rustls::TlsClient::new()));
+    let https = hyper_rustls::HttpsConnector::with_native_roots();
+    let client: client::Client<_, hyper::Body> = client::Client::builder().build(https);
 
     // TODO: Support other modes of JIRA authentication
-    let mut auth_headers = Headers::new();
+    let mut auth_headers = header::new();
     match username {
         // craft auth header using username and password if present
         Some(u) => {
