@@ -29,3 +29,4 @@
   - ghe_secret_scanner will now differentiate between deleted secrets and added secrets
   - added a script to scan an entire GDrive share, will scan docs with Ankamali hog and binaries with duroc_hog.
 - Fixed deprecated function warning with simple_logger
+- Added some clippy fixes

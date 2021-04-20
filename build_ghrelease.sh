@@ -24,7 +24,12 @@ mkdir musl_releases
 cp target/release/*_hog darwin_releases
 cp target/x86_64-unknown-linux-musl/release/*_hog musl_releases
 mv scripts/.idea ../
-zip -r rustyhogs-musl_darwin_$1.zip darwin_releases musl_releases berkshire_lambda.zip scripts
+strip darwin_releases/*
+upx --best --lzma musl_releases/*
+zip -r rustyhogs-darwin_$1.zip darwin_releases
+zip -r rustyhogs-linux_$1.zip musl_releases
+zip -r rustyhogs-lambda_$1.zip berkshire_lambda.zip
+zip -r rustyhogs-scripts_$1.zip scripts
 rm -rf darwin_releases musl_releases
 mv ../.idea scripts
 echo "Output build in release.zip"
