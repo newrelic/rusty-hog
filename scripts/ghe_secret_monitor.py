@@ -43,6 +43,7 @@ SSH_KEY_PATH = os.environ["SSH_KEY_PATH"]
 INSIGHTS_ACCT_ID = os.environ["INSIGHTS_ACCT_ID"]
 GHE_DOMAIN = os.environ["GHE_DOMAIN"]
 CHOCTAW_HOG_PATH = os.environ["CHOCTAW_HOG_PATH"]
+ALLOW_LIST_PATH = os.environ["ALLOW_LIST_PATH"]
 TEMPDIR = tempfile.gettempdir()
 
 def scan_repo(x):
@@ -55,6 +56,8 @@ def scan_repo(x):
         x[1][0],
         "--sshkeypath",
         SSH_KEY_PATH,
+        "--allowlist",
+        ALLOW_LIST_PATH,
         x[0],
     ]
     logging.info(f"Running choctaw hog: {str(cmdline)}")
