@@ -77,15 +77,16 @@
 //! [`perform_scan`]: struct.GDriveScanner.html#method.perform_scan
 
 use crate::SecretScanner;
+extern crate google_drive3 as drive3;
+extern crate yup_oauth2 as oauth2;
+use drive3::DriveHub;
 use encoding::all::ASCII;
 use encoding::{DecoderTrap, Encoding};
-use google_drive3::{DriveHub, Scope};
-use hyper::Client;
+use google_drive3::api::Scope;
+use hyper::body;
 use serde_derive::{Deserialize, Serialize};
 use simple_error::SimpleError;
 use std::collections::HashSet;
-use std::io::Read;
-use yup_oauth2::{Authenticator, DefaultAuthenticatorDelegate, DiskTokenStorage};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, Clone, Default)]
 /// `serde_json` object that represents a single found secret - finding
@@ -151,20 +152,15 @@ pub struct GDriveFileInfo {
 
 impl GDriveFileInfo {
     /// Construct a `GDriveFileInfo` object from a Google Drive File ID and an authorized `DriveHub` object
-    pub fn new(
-        file_id: &str,
-        hub: &DriveHub<
-            Client,
-            Authenticator<DefaultAuthenticatorDelegate, DiskTokenStorage, Client>,
-        >,
-    ) -> Result<Self, SimpleError> {
+    pub async fn new(file_id: &str, hub: &DriveHub) -> Result<Self, SimpleError> {
         let fields = "kind, id, name, mimeType, webViewLink, modifiedTime, parents";
         let hub_result = hub
             .files()
             .get(file_id)
             .add_scope(Scope::Readonly)
             .param("fields", fields)
-            .doit();
+            .doit()
+            .await;
         let (_, file_object) = match hub_result {
             Ok(x) => x,
             Err(e) => {
@@ -216,41 +212,33 @@ impl GDriveScanner {
 
     /// Takes information about the file, and the DriveHub object, and retrieves the content from
     /// Google Drive. Expect authorization issues here if you don't have access to the file.
-    fn gdrive_file_contents(
+    async fn gdrive_file_contents(
         gdrivefile: &GDriveFileInfo,
-        hub: &DriveHub<
-            Client,
-            Authenticator<DefaultAuthenticatorDelegate, DiskTokenStorage, Client>,
-        >,
+        hub: &DriveHub,
     ) -> Result<Vec<u8>, SimpleError> {
         let resp_obj = hub
             .files()
             .export(&gdrivefile.file_id, &gdrivefile.mime_type)
-            .doit();
-        let mut resp_obj = match resp_obj {
+            .doit()
+            .await;
+        let resp_obj = match resp_obj {
             Ok(r) => r,
             Err(e) => return Err(SimpleError::new(e.to_string())),
         };
-        let mut buffer: Vec<u8> = Vec::new();
-        match resp_obj.read_to_end(&mut buffer) {
-            Err(e) => return Err(SimpleError::new(e.to_string())),
-            Ok(s) => s,
-        };
+        let data = body::to_bytes(resp_obj.into_body()).await.unwrap();
+        let buffer = data.to_vec();
         Ok(buffer)
     }
 
     /// Takes information about the file, and the DriveHub object, and return a list of findings.
     /// This calls get_file_contents(), so expect an HTTPS call to GDrive.
-    pub fn perform_scan(
+    pub async fn perform_scan(
         &self,
         gdrivefile: &GDriveFileInfo,
-        hub: &DriveHub<
-            Client,
-            Authenticator<DefaultAuthenticatorDelegate, DiskTokenStorage, Client>,
-        >,
+        hub: &DriveHub,
     ) -> HashSet<GDriveFinding> {
         // download an export of the file, split on new lines, store in lines
-        let buffer = Self::gdrive_file_contents(gdrivefile, hub).unwrap();
+        let buffer = Self::gdrive_file_contents(gdrivefile, hub).await.unwrap();
         let lines = buffer.split(|x| (*x as char) == '\n');
 
         // main loop - search each line for secrets, output a list of GDriveFinding objects

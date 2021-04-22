@@ -31,7 +31,7 @@ extern crate clap;
 use clap::ArgMatches;
 use log::{self, debug, error, info};
 use s3::bucket::Bucket;
-use s3::credentials::Credentials;
+use s3::creds::Credentials;
 use s3::region::Region;
 use simple_error::SimpleError;
 use simple_error::{require_with, try_with};
@@ -45,7 +45,7 @@ use std::collections::HashSet;
 /// Main entry function that uses the [clap crate](https://docs.rs/clap/2.33.0/clap/)
 fn main() {
     let matches = clap_app!(berkshire_hog =>
-        (version: "1.0.9")
+        (version: "1.0.10")
         (author: "Scott Cutler <scutler@newrelic.com>")
         (about: "S3 secret hunter in Rust. Avoid bandwidth costs, run this within a VPC!")
         (@arg REGEX: --regex +takes_value "Sets a custom regex JSON file")
@@ -93,10 +93,10 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
 
     // Initialize our S3 variables
     let profile = arg_matches.value_of("PROFILE").map(|x| x.to_string());
-    let credentials = Credentials::new(None, None, None, profile);
+    let credentials = Credentials::new(None, None, None, None, profile.as_deref()).unwrap();
     debug!(
         "credentials: {:?} {:?} {:?}",
-        credentials.access_key, credentials.secret_key, credentials.token
+        credentials.access_key, credentials.secret_key, credentials.security_token
     );
     let region_str = arg_matches.value_of("S3REGION").unwrap();
     let region: Region = match region_str.parse() {
@@ -116,10 +116,11 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
 
     // Retrieve all the keys that match the prefix
     debug!("key_path: {:?} delimiter: {:?}", key_path, delimiter);
-    let results = bucket.list_all(String::from(key_path), delimiter);
+    let results = bucket.list_blocking(String::from(key_path), delimiter);
     let results = match results {
         Ok(r) => r,
         Err(e) => {
+            //TODO: This bug has been fixed, need to test it.
             error!(
                 "WARNING: There is a bug in rust-s3 library that prevents it from \
                  reading access tokens from .credentials files. If you are using this method, \

@@ -33,19 +33,17 @@ extern crate yup_oauth2 as oauth2;
 use clap::ArgMatches;
 use drive3::DriveHub;
 use log::{self, error, info};
-use oauth2::{
-    ApplicationSecret, Authenticator, DefaultAuthenticatorDelegate, DiskTokenStorage, FlowType,
-};
 use simple_error::SimpleError;
 use std::path::Path;
-
 use rusty_hogs::google_scanning::{GDriveFileInfo, GDriveScanner};
 use rusty_hogs::{SecretScanner, SecretScannerBuilder};
+use oauth2::{InstalledFlowAuthenticator, InstalledFlowReturnMethod};
 
 /// Main entry function that uses the [clap crate](https://docs.rs/clap/2.33.0/clap/)
-fn main() {
+#[tokio::main]
+async fn main() {
     let matches = clap_app!(ankamali_hog =>
-        (version: "1.0.9")
+        (version: "1.0.10")
         (author: "Scott Cutler <scutler@newrelic.com>")
         (about: "Google Drive secret scanner in Rust.")
         (@arg REGEX: --regex +takes_value "Sets a custom regex JSON file")
@@ -61,7 +59,7 @@ fn main() {
         (@arg ALLOWLIST: -a --allowlist +takes_value "Sets a custom allowlist JSON file")
     )
         .get_matches();
-    match run(&matches) {
+    match run(matches).await {
         Ok(()) => {}
         Err(e) => error!("Error running command: {}", e),
     }
@@ -69,8 +67,7 @@ fn main() {
 
 /// Main logic contained here. Get the CLI variables, setup OAuth, setup GDriveScanner and output
 /// the results.
-fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
-    // Set logging
+async fn run<'b>(arg_matches: ArgMatches<'b>) -> Result<(), SimpleError> {    // Set logging
     SecretScanner::set_logging(arg_matches.occurrences_of("VERBOSE"));
 
     // Initialize some variables
@@ -81,34 +78,25 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
         .value_of("OAUTHTOKENFILE")
         .unwrap_or("temp_token");
     let file_id = arg_matches.value_of("GDRIVEID").unwrap();
-    let secret_scanner = SecretScannerBuilder::new().conf_argm(arg_matches).build();
+    let secret_scanner = SecretScannerBuilder::new().conf_argm(&arg_matches).build();
     let gdrive_scanner = GDriveScanner::new_from_scanner(secret_scanner);
 
     // Start with GDrive auth - based on example code from drive3 API and yup-oauth2
-    let secret: ApplicationSecret =
-        yup_oauth2::read_application_secret(Path::new(oauthsecretfile)).expect(oauthsecretfile);
-    let token_storage = DiskTokenStorage::new(&String::from(oauthtokenfile)).unwrap();
-    let auth = Authenticator::new(
-        &secret,
-        DefaultAuthenticatorDelegate,
-        hyper::Client::with_connector(hyper::net::HttpsConnector::new(
-            hyper_rustls::TlsClient::new(),
-        )),
-        token_storage,
-        Some(FlowType::InstalledInteractive),
-    );
-    let hub = DriveHub::new(
-        hyper::Client::with_connector(hyper::net::HttpsConnector::new(
-            hyper_rustls::TlsClient::new(),
-        )),
-        auth,
-    );
+    let secret = yup_oauth2::read_application_secret(Path::new(oauthsecretfile))
+        .await
+        .expect(oauthsecretfile);
+    let auth = InstalledFlowAuthenticator::builder(secret, InstalledFlowReturnMethod::HTTPRedirect)
+        .persist_tokens_to_disk(Path::new(oauthtokenfile))
+        .build()
+        .await
+        .expect("failed to create authenticator (try deleting temp_token and restarting)");
+    let hub = DriveHub::new(hyper::Client::builder().build(hyper_rustls::HttpsConnector::with_native_roots()), auth);
 
     // get some initial info about the file
-    let gdriveinfo = GDriveFileInfo::new(file_id, &hub).unwrap();
+    let gdriveinfo = GDriveFileInfo::new(file_id, &hub).await.unwrap();
 
     // Do the scan
-    let findings = gdrive_scanner.perform_scan(&gdriveinfo, &hub);
+    let findings = gdrive_scanner.perform_scan(&gdriveinfo, &hub).await;
     info!("Found {} secrets", findings.len());
     match gdrive_scanner.secret_scanner.output_findings(&findings) {
         Ok(_) => Ok(()),
