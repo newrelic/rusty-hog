@@ -38,8 +38,11 @@ use clap::ArgMatches;
 use encoding::all::ASCII;
 use encoding::types::Encoding;
 use encoding::DecoderTrap;
-use hyper::header;
-use hyper::{client, Client};
+use hyper::body;
+use hyper::header::AUTHORIZATION;
+use hyper::http::Request;
+use hyper::http::StatusCode;
+use hyper::{client, Body, Client};
 use log::{self, debug, error, info};
 use rusty_hogs::SecretScannerBuilder;
 use rusty_hogs::{RustyHogMatch, SecretScanner};
@@ -47,7 +50,6 @@ use serde_derive::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use simple_error::SimpleError;
 use std::collections::{BTreeMap, HashSet};
-use std::io::Read;
 use url::Url;
 
 /// `serde_json` object that represents a single found secret - finding
@@ -69,7 +71,8 @@ pub struct ConfluencePage {
 }
 
 /// Main entry function that uses the [clap crate](https://docs.rs/clap/2.33.0/clap/)
-fn main() {
+#[tokio::main]
+async fn main() {
     let matches = clap_app!(gottingen_hog =>
         (version: "1.0.9")
         (author: "Emily Cain <ecain@newrelic.com>, Scott Cutler")
@@ -89,7 +92,7 @@ fn main() {
         (@arg ALLOWLIST: -a --allowlist +takes_value "Sets a custom allowlist JSON file")
     )
         .get_matches();
-    match run(&matches) {
+    match run(matches).await {
         Ok(()) => {}
         Err(e) => error!("Error running command: {}", e),
     }
@@ -97,16 +100,16 @@ fn main() {
 
 /// Main logic contained here. Get the CLI variables, create the appropriate TLS objects,
 /// make the TLS calls, and scan the result..
-fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
+async fn run<'b>(arg_matches: ArgMatches<'b>) -> Result<(), SimpleError> {
     SecretScanner::set_logging(arg_matches.occurrences_of("VERBOSE"));
 
     // initialize the basic variables and CLI options
-    let ssb = SecretScannerBuilder::new().conf_argm(arg_matches);
+    let ssb = SecretScannerBuilder::new().conf_argm(&arg_matches);
     let secret_scanner = ssb.build();
 
-    let username = arg_matches.value_of("USERNAME");
-    let password = arg_matches.value_of("PASSWORD");
-    let authtoken = arg_matches.value_of("BEARERTOKEN");
+    let jirausername = arg_matches.value_of("USERNAME");
+    let jirapassword = arg_matches.value_of("PASSWORD");
+    let jiraauthtoken = arg_matches.value_of("BEARERTOKEN");
     let base_url_input = arg_matches
         .value_of("URL")
         .unwrap_or("https://confluence.atlassian.com")
@@ -120,29 +123,25 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
 
     // Still inside `async fn main`...
     let https = hyper_rustls::HttpsConnector::with_native_roots();
-    let client: client::Client<_, hyper::Body> = client::Client::builder().build(https);
+    let hyper_client: client::Client<_, hyper::Body> = client::Client::builder().build(https);
 
     // TODO: Support other modes of JIRA authentication
-    let mut auth_headers = header::new();
-    match username {
+    let auth_string = match jirausername {
         // craft auth header using username and password if present
         Some(u) => {
-            let atlassianpassword = password.unwrap().to_owned();
-            auth_headers.set(Authorization(Basic {
-                username: u.to_owned(),
-                password: Some(atlassianpassword),
-            }));
+            format!(
+                "Basic {}",
+                base64::encode(format!("{}:{}", u, jirapassword.unwrap()))
+            )
         }
         // otherwise use AUTHTOKEN to craft the auth header
         None => {
-            auth_headers.set(Authorization(Bearer {
-                token: authtoken.unwrap().to_owned(),
-            }));
+            format!("Bearer {}", base64::encode(jiraauthtoken.unwrap()))
         }
-    }
+    };
 
     // fetch the content of confluence page along with the comments
-    let page = get_page(&client, &auth_headers, &base_url, &page_id);
+    let page = get_page(hyper_client, auth_string, &base_url, &page_id).await;
 
     // find secrets in page body and comments
     let mut content = page.body;
@@ -162,18 +161,21 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
 }
 
 /// Fetches the body of a confluence page along with the comments
-fn get_page(
-    client: &Client,
-    auth_headers: &Headers,
+async fn get_page<'a, C>(
+    hyper_client: Client<C>,
+    auth_headers: String,
     base_url: &str,
     page_id: &str,
-) -> ConfluencePage {
+) -> ConfluencePage
+where
+    C: hyper::client::connect::Connect + Clone + Send + Sync + 'static,
+{
     let base_url_trimmed = base_url.trim_end_matches('/');
     let page_full_url = format!(
         "{}/rest/api/content/{}?expand=body.storage",
         base_url_trimmed, page_id
     );
-    let json_results = get_json(&client, &auth_headers, &page_full_url);
+    let json_results = get_json(&hyper_client, &auth_headers, &page_full_url).await;
     let body = json_results
         .get("body")
         .unwrap()
@@ -197,7 +199,7 @@ fn get_page(
         "{}/rest/api/content/{}/child/comment?expand=body.storage",
         base_url_trimmed, page_id
     );
-    let json_results = get_json(&client, &auth_headers, &comments_full_url);
+    let json_results = get_json(&hyper_client, &auth_headers, &comments_full_url).await;
     let comments = json_results.get("results").unwrap();
     let mut all_comments: String = String::new();
     if let Value::Array(comments) = comments {
@@ -223,20 +225,30 @@ fn get_page(
 }
 
 /// Uses a hyper::client object to perform a GET on the full_url and return parsed serde JSON data
-fn get_json(client: &Client, auth_headers: &Headers, full_url: &str) -> Map<String, Value> {
-    let mut resp = client
-        .get(full_url)
-        .headers(auth_headers.clone())
-        .send()
-        .unwrap();
+async fn get_json<'a, C>(
+    hyper_client: &Client<C>,
+    auth_headers: &String,
+    full_url: &str,
+) -> Map<String, Value>
+where
+    C: hyper::client::connect::Connect + Clone + Send + Sync + 'static,
+{
+    debug!("auth header: {}", auth_headers);
+    let req_builder = Request::builder()
+        .header(AUTHORIZATION, auth_headers)
+        .uri(full_url);
+    let r = req_builder.body(Body::empty()).unwrap();
+    let resp = hyper_client.request(r).await.unwrap();
     debug!("sending request to {}", full_url);
-    debug!("Response: {}", resp.status);
-    let mut response_body: String = String::new();
-    resp.read_to_string(&mut response_body).unwrap();
-    if resp.status != StatusCode::Ok {
+    let status = resp.status().clone();
+    debug!("Response: {:?}", status);
+    let data = body::to_bytes(resp.into_body()).await.unwrap();
+    let data_vec: Vec<u8> = data.to_vec();
+    let response_body: String = String::from(std::str::from_utf8(&data_vec).unwrap());
+    if status != StatusCode::OK {
         panic!(
-            "Request to {} failed with code {}: {}",
-            full_url, resp.status, response_body
+            "Request to {} failed with code {:?}: {}",
+            full_url, status, response_body
         )
     }
     let json_results = serde_json::from_str(&response_body).unwrap();
