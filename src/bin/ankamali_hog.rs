@@ -43,7 +43,7 @@ use oauth2::{InstalledFlowAuthenticator, InstalledFlowReturnMethod};
 #[tokio::main]
 async fn main() {
     let matches = clap_app!(ankamali_hog =>
-        (version: "1.0.9")
+        (version: "1.0.10")
         (author: "Scott Cutler <scutler@newrelic.com>")
         (about: "Google Drive secret scanner in Rust.")
         (@arg REGEX: --regex +takes_value "Sets a custom regex JSON file")

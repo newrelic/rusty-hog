@@ -60,7 +60,7 @@ pub struct JiraFinding {
 #[tokio::main]
 async fn main() {
     let matches: ArgMatches = clap_app!(gottingen_hog =>
-        (version: "1.0.9")
+        (version: "1.0.10")
         (author: "Emily Cain <ecain@newrelic.com>")
         (about: "Jira secret scanner in Rust.")
         (@arg REGEX: --regex +takes_value "Sets a custom regex JSON file")
