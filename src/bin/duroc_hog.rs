@@ -236,7 +236,7 @@ fn scan_file<R: Read + io::Seek>(
             }
             let new_reader = Cursor::new(innerdata);
             let mut inner_findings = scan_file(
-                innerfile.sanitized_name().as_path(),
+                innerfile.enclosed_name().unwrap(),
                 ss,
                 new_reader,
                 &path_string,

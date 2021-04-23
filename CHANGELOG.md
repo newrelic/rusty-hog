@@ -30,3 +30,6 @@
   - added a script to scan an entire GDrive share, will scan docs with Ankamali hog and binaries with duroc_hog.
 - Fixed deprecated function warning with simple_logger
 - Added some clippy fixes
+
+## 1.0.10
+- Addressed some aging dependencies

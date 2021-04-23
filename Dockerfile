@@ -1,4 +1,4 @@
-ARG RUST_VERSION=1.43
+ARG RUST_VERSION=1.51
 FROM rust:${RUST_VERSION} as builder
 RUN mkdir -p /build
 WORKDIR /build

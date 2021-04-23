@@ -49,8 +49,8 @@ Download and unzip the [latest ZIP](https://github.com/newrelic/rusty-hog/releas
 on the releases tab. Then, run each binary with `-h` to see the usage.
 
 ```shell script
-wget https://github.com/newrelic/rusty-hog/releases/download/v1.0.9/rustyhogs-darwin_1.0.9.zip
-unzip rustyhogs-darwin_1.0.9.zip
+wget https://github.com/newrelic/rusty-hog/releases/download/v1.0.10/rustyhogs-darwin-choctaw_hog-1.0.10.zip
+unzip rustyhogs-darwin-choctaw_hog-1.0.10.zip
 darwin_releases/choctaw_hog -h
 ```
 
@@ -59,8 +59,8 @@ Rusty Hog Docker images can be found at the authors personal DockerHub page [her
 A Docker Image is built for each Hog and for each release. So to use choctaw_hog you would run the following commands:
 
 ```shell script
-docker pull wetfeet2000/choctaw_hog:1.0.9
-docker run -it --rm wetfeet2000/choctaw_hog:1.0.9 --help
+docker pull wetfeet2000/choctaw_hog:1.0.10
+docker run -it --rm wetfeet2000/choctaw_hog:1.0.10 --help
 ```
 
 ## How to build
@@ -68,11 +68,10 @@ docker run -it --rm wetfeet2000/choctaw_hog:1.0.9 --help
 - Clone this repo, and then run `cargo build --release`. The binaries are located in `target/release`.
 - To build and view HTML documents, run ```cargo doc --no-deps --open```.
 - To run unit tests, run ```cargo test```.
-- To cross-compile Berkshire Hog for the AWS Lambda environment, first install
-[cross](https://github.com/rust-embedded/cross). Then run the following commands and upload berkshire_lambda.zip to
+- To cross-compile Berkshire Hog for the AWS Lambda environment, run the following commands and upload berkshire_lambda.zip to
 your AWS Lambda dashboard:
 ```shell script
-cross build --release --target x86_64-unknown-linux-musl
+docker run --rm -it -v "$(pwd)":/home/rust/src ekidd/rust-musl-builder cargo build --release
 cp target/x86_64-unknown-linux-musl/release/berkshire_hog bootstrap
 zip -j berkshire_lambda.zip bootstrap
 ```
@@ -325,69 +324,83 @@ An example of this format is here:
 ```
 
 
-As of version 1.0.5, the current default regex JSON used is as follows:
+As of version 1.0.10, the current default regex JSON used is as follows:
 
 ```json
 {
-  "Slack Token": "(xox[p|b|o|a]-[0-9]{12}-[0-9]{12}-[0-9]{12}-[a-z0-9]{32})",
-  "RSA private key": "-----BEGIN RSA PRIVATE KEY-----",
-  "SSH (DSA) private key": "-----BEGIN DSA PRIVATE KEY-----",
-  "SSH (EC) private key": "-----BEGIN EC PRIVATE KEY-----",
-  "PGP private key block": "-----BEGIN PGP PRIVATE KEY BLOCK-----",
-  "Amazon AWS Access Key ID": "AKIA[0-9A-Z]{16}",
-  "Amazon MWS Auth Token": "amzn\\.mws\\.[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
-  "AWS API Key": "AKIA[0-9A-Z]{16}",
-  "Facebook Access Token": "EAACEdEose0cBA[0-9A-Za-z]+",
-  "Facebook OAuth": "(?i)facebook[\\s[[:punct:]]]{1,4}[0-9a-f]{32}[\\s[[:punct:]]]?",
-  "GitHub": "(?i)(github|access[[:punct:]]token)[\\s[[:punct:]]]{1,4}[0-9a-zA-Z]{35,40}",
-  "Generic API Key": "(?i)(api|access)[\\s[[:punct:]]]?key[\\s[[:punct:]]]{1,4}[0-9a-zA-Z\\-_]{16,64}[\\s[[:punct:]]]?",
-  "Generic Account API Key": "(?i)account[\\s[[:punct:]]]?api[\\s[[:punct:]]]{1,4}[0-9a-zA-Z\\-_]{16,64}[\\s[[:punct:]]]?",
-  "Generic Secret": "(?i)secret[\\s[[:punct:]]]{1,4}[0-9a-zA-Z-_]{16,64}[\\s[[:punct:]]]?",
-  "Google API Key": "AIza[0-9A-Za-z\\-_]{35}",
-  "Google Cloud Platform API Key": "AIza[0-9A-Za-z\\-_]{35}",
-  "Google Cloud Platform OAuth": "(?i)[0-9]+-[0-9A-Za-z_]{32}\\.apps\\.googleusercontent\\.com",
-  "Google Drive API Key": "AIza[0-9A-Za-z\\-_]{35}",
-  "Google Drive OAuth": "(?i)[0-9]+-[0-9A-Za-z_]{32}\\.apps\\.googleusercontent\\.com",
-  "Google (GCP) Service-account": "(?i)\"type\": \"service_account\"",
-  "Google Gmail API Key": "AIza[0-9A-Za-z\\-_]{35}",
-  "Google Gmail OAuth": "(?i)[0-9]+-[0-9A-Za-z_]{32}\\.apps\\.googleusercontent\\.com",
-  "Google OAuth Access Token": "ya29\\.[0-9A-Za-z\\-_]+",
-  "Google YouTube API Key": "AIza[0-9A-Za-z\\-_]{35}",
-  "Google YouTube OAuth": "(?i)[0-9]+-[0-9A-Za-z_]{32}\\.apps\\.googleusercontent\\.com",
-  "Heroku API Key": "[h|H][e|E][r|R][o|O][k|K][u|U][\\s[[:punct:]]]{1,4}[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}",
-  "MailChimp API Key": "[0-9a-f]{32}-us[0-9]{1,2}",
-  "Mailgun API Key": "(?i)key-[0-9a-zA-Z]{32}",
-  "Credentials in absolute URL": "(?i)((https?|ftp)://)(([a-z0-9$_\\.\\+!\\*'\\(\\),;\\?&=-]|%[0-9a-f]{2})+(:([a-z0-9$_\\.\\+!\\*'\\(\\),;\\?&=-]|%[0-9a-f]{2})+)?@)((([a-z0-9]\\.|[a-z0-9][a-z0-9-]*[a-z0-9]\\.)*[a-z][a-z0-9-]*[a-z0-9]|((\\d|[1-9]\\d|1\\d{2}|2[0-4][0-9]|25[0-5])\\.){3}(\\d|[1-9]\\d|1\\d{2}|2[0-4][0-9]|25[0-5]))(:\\d+)?)(((/+([a-z0-9$_\\.\\+!\\*'\\(\\),;:@&=-]|%[0-9a-f]{2})*)*(\\?([a-z0-9$_\\.\\+!\\*'\\(\\),;:@&=-]|%[0-9a-f]{2})*)?)?)?",
-  "PayPal Braintree Access Token": "(?i)access_token\\$production\\$[0-9a-z]{16}\\$[0-9a-f]{32}",
-  "Picatic API Key": "(?i)sk_live_[0-9a-z]{32}",
-  "Slack Webhook": "(?i)https://hooks.slack.com/services/T[a-zA-Z0-9_]{8}/B[a-zA-Z0-9_]{8}/[a-zA-Z0-9_]{24}",
-  "Stripe API Key": "(?i)sk_live_[0-9a-zA-Z]{24}",
-  "Stripe Restricted API Key": "(?i)rk_live_[0-9a-zA-Z]{24}",
-  "Square Access Token": "(?i)sq0atp-[0-9A-Za-z\\-_]{22}",
-  "Square OAuth Secret": "(?i)sq0csp-[0-9A-Za-z\\-_]{43}",
-  "Twilio API Key": "SK[0-9a-fA-F]{32}",
-  "Twitter Access Token": "(?i)twitter[\\s[[:punct:]]]{1,4}[1-9][0-9]+-[0-9a-zA-Z]{40}",
-  "Twitter OAuth": "(?i)twitter[\\s[[:punct:]]]{1,4}['|\"]?[0-9a-zA-Z]{35,44}['|\"]?",
-  "New Relic Partner & REST API Key": "[\\s[[:punct:]]][A-Fa-f0-9]{47}[\\s[[:punct:]][[:cntrl:]]]",
-  "New Relic Mobile Application Token": "[\\s[[:punct:]]][A-Fa-f0-9]{42}[\\s[[:punct:]][[:cntrl:]]]",
-  "New Relic Synthetics Private Location": "(?i)minion_private_location_key",
-  "New Relic Insights Key (specific)": "(?i)insights[\\s[[:punct:]]]?(key|query|insert)[\\s[[:punct:]]]{1,4}\\b[\\w-]{32,40}\\b",
-  "New Relic Insights Key (vague)": "(?i)(query|insert)[\\s[[:punct:]]]?key[\\s[[:punct:]]]{1,4}b[\\w-]{32,40}\\b",
-  "New Relic License Key": "(?i)license[\\s[[:punct:]]]?key[\\s[[:punct:]]]{1,4}\\b[\\w-]{32,40}\\b",
-  "New Relic Internal API Key": "(?i)nr-internal-api-key",
-  "New Relic HTTP Auth Headers and API Key": "(?i)(x|newrelic|nr)-?(admin|partner|account|query|insert|api|license)-?(id|key)[\\s[[:punct:]]]{1,4}\\b[\\w-]{32,47}\\b",
-  "New Relic API Key Service Key (new format)": "(?i)NRAK-[A-Z0-9]{27}",
-  "New Relic APM License Key (new format)": "(?i)[a-f0-9]{36}NRAL",
-  "New Relic APM License Key (new format, region-aware)": "(?i)[a-z]{2}[0-9]{2}xx[a-f0-9]{30}NRAL",
-  "New Relic REST API Key (new format)": "(?i)NRRA-[a-f0-9]{42}",
-  "New Relic Admin API Key (new format)": "(?i)NRAA-[a-f0-9]{27}",
-  "New Relic Insights Insert Key (new format)": "(?i)NRII-[A-Za-z0-9-_]{32}",
-  "New Relic Insights Query Key (new format)": "(?i)NRIQ-[A-Za-z0-9-_]{32}",
-  "New Relic Synthetics Private Location Key (new format)": "(?i)NRSP-[a-z]{2}[0-9]{2}[a-f0-9]{31}",
-  "Email address": "(?i)(?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|\"(?:[\\x01-\\x08\\x0b\\x0c\\x0e-\\x1f\\x21\\x23-\\x5b\\x5d-\\x7f]|\\\\[\\x01-\\x09\\x0b\\x0c\\x0e-\\x7f])*\")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\\[(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?|[a-z0-9-]*[a-z0-9]:(?:[\\x01-\\x08\\x0b\\x0c\\x0e-\\x1f\\x21-\\x5a\\x53-\\x7f]|\\\\[\\x01-\\x09\\x0b\\x0c\\x0e-\\x7f])+)\\])",
-  "New Relic Account IDs in URL": "(newrelic\\.com/)?accounts/\\d{1,10}/",
-  "Account ID": "(?i)account[\\s[[:punct:]]]?id[\\s[[:punct:]]]{1,4}\\b[\\d]{1,10}\\b",
-  "Salary Information": "(?i)(salary|commission|compensation|pay)([\\s[[:punct:]]](amount|target))?[\\s[[:punct:]]]{1,4}\\d+"
+	"Slack Token": "(xox[p|b|o|a]-[0-9]{12}-[0-9]{12}-[0-9]{12}-[a-z0-9]{32})",
+	"RSA private key": "-----BEGIN RSA PRIVATE KEY-----",
+	"SSH (DSA) private key": "-----BEGIN DSA PRIVATE KEY-----",
+	"SSH (EC) private key": "-----BEGIN EC PRIVATE KEY-----",
+	"PGP private key block": "-----BEGIN PGP PRIVATE KEY BLOCK-----",
+	"Amazon AWS Access Key ID": "AKIA[0-9A-Z]{16}",
+	"Amazon MWS Auth Token": "amzn\\.mws\\.[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+	"Facebook Access Token": "EAACEdEose0cBA[0-9A-Za-z]+",
+	"Facebook OAuth": "(?i)facebook[\\s[[:punct:]]]{1,4}[0-9a-f]{32}[\\s[[:punct:]]]?",
+	"GitHub": "(?i)(github|access[[:punct:]]token)[\\s[[:punct:]]]{1,4}[0-9a-zA-Z]{35,40}",
+	"Generic API Key": {
+		"pattern": "(?i)(api|access)[\\s[[:punct:]]]?key[\\s[[:punct:]]]{1,4}[0-9a-zA-Z\\-_]{16,64}[\\s[[:punct:]]]?",
+		"entropy_filter": true,
+		"threshold": "0.6",
+		"keyspace": "guess"
+	},
+	"Generic Account API Key": {
+		"pattern": "(?i)account[\\s[[:punct:]]]?api[\\s[[:punct:]]]{1,4}[0-9a-zA-Z\\-_]{16,64}[\\s[[:punct:]]]?",
+		"entropy_filter": true,
+		"threshold": "0.6",
+		"keyspace": "guess"
+	},
+	"Generic Secret": {
+		"pattern": "(?i)secret[\\s[[:punct:]]]{1,4}[0-9a-zA-Z-_]{16,64}[\\s[[:punct:]]]?",
+		"entropy_filter": true,
+		"threshold": "0.6",
+		"keyspace": "guess"
+	},
+	"Google API Key": "AIza[0-9A-Za-z\\-_]{35}",
+	"Google Cloud Platform API Key": "AIza[0-9A-Za-z\\-_]{35}",
+	"Google Cloud Platform OAuth": "(?i)[0-9]+-[0-9A-Za-z_]{32}\\.apps\\.googleusercontent\\.com",
+	"Google Drive API Key": "AIza[0-9A-Za-z\\-_]{35}",
+	"Google Drive OAuth": "(?i)[0-9]+-[0-9A-Za-z_]{32}\\.apps\\.googleusercontent\\.com",
+	"Google (GCP) Service-account": "(?i)\"type\": \"service_account\"",
+	"Google Gmail API Key": "AIza[0-9A-Za-z\\-_]{35}",
+	"Google Gmail OAuth": "(?i)[0-9]+-[0-9A-Za-z_]{32}\\.apps\\.googleusercontent\\.com",
+	"Google OAuth Access Token": "ya29\\.[0-9A-Za-z\\-_]+",
+	"Google YouTube API Key": "AIza[0-9A-Za-z\\-_]{35}",
+	"Google YouTube OAuth": "(?i)[0-9]+-[0-9A-Za-z_]{32}\\.apps\\.googleusercontent\\.com",
+	"Heroku API Key": "[h|H][e|E][r|R][o|O][k|K][u|U][\\s[[:punct:]]]{1,4}[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}",
+	"MailChimp API Key": "[0-9a-f]{32}-us[0-9]{1,2}",
+	"Mailgun API Key": "(?i)key-[0-9a-zA-Z]{32}",
+	"Credentials in absolute URL": "(?i)((https?|ftp)://)(([a-z0-9$_\\.\\+!\\*'\\(\\),;\\?&=-]|%[0-9a-f]{2})+(:([a-z0-9$_\\.\\+!\\*'\\(\\),;\\?&=-]|%[0-9a-f]{2})+)@)((([a-z0-9]\\.|[a-z0-9][a-z0-9-]*[a-z0-9]\\.)*[a-z][a-z0-9-]*[a-z0-9]|((\\d|[1-9]\\d|1\\d{2}|2[0-4][0-9]|25[0-5])\\.){3}(\\d|[1-9]\\d|1\\d{2}|2[0-4][0-9]|25[0-5]))(:\\d+)?)(((/+([a-z0-9$_\\.\\+!\\*'\\(\\),;:@&=-]|%[0-9a-f]{2})*)*(\\?([a-z0-9$_\\.\\+!\\*'\\(\\),;:@&=-]|%[0-9a-f]{2})*)?)?)?",
+	"PayPal Braintree Access Token": "(?i)access_token\\$production\\$[0-9a-z]{16}\\$[0-9a-f]{32}",
+	"Picatic API Key": "(?i)sk_live_[0-9a-z]{32}",
+	"Slack Webhook": "(?i)https://hooks.slack.com/services/T[a-zA-Z0-9_]{8}/B[a-zA-Z0-9_]{8}/[a-zA-Z0-9_]{24}",
+	"Stripe API Key": "(?i)sk_live_[0-9a-zA-Z]{24}",
+	"Stripe Restricted API Key": "(?i)rk_live_[0-9a-zA-Z]{24}",
+	"Square Access Token": "(?i)sq0atp-[0-9A-Za-z\\-_]{22}",
+	"Square OAuth Secret": "(?i)sq0csp-[0-9A-Za-z\\-_]{43}",
+	"Twilio API Key": "SK[0-9a-fA-F]{32}",
+	"Twitter Access Token": "(?i)twitter[\\s[[:punct:]]]{1,4}[1-9][0-9]+-[0-9a-zA-Z]{40}",
+	"Twitter OAuth": "(?i)twitter[\\s[[:punct:]]]{1,4}['|\"]?[0-9a-zA-Z]{35,44}['|\"]?",
+	"New Relic Partner & REST API Key": "[\\s[[:punct:]]][A-Fa-f0-9]{47}[\\s[[:punct:]][[:cntrl:]]]",
+	"New Relic Mobile Application Token": "[\\s[[:punct:]]][A-Fa-f0-9]{42}[\\s[[:punct:]][[:cntrl:]]]",
+	"New Relic Synthetics Private Location": "(?i)minion_private_location_key",
+	"New Relic Insights Key (specific)": "(?i)insights[\\s[[:punct:]]]?(key|query|insert)[\\s[[:punct:]]]{1,4}\\b[\\w-]{32,40}\\b",
+	"New Relic Insights Key (vague)": "(?i)(query|insert)[\\s[[:punct:]]]?key[\\s[[:punct:]]]{1,4}b[\\w-]{32,40}\\b",
+	"New Relic License Key": "(?i)license[\\s[[:punct:]]]?key[\\s[[:punct:]]]{1,4}\\b[\\w-]{32,40}\\b",
+	"New Relic Internal API Key": "(?i)nr-internal-api-key",
+	"New Relic HTTP Auth Headers and API Key": "(?i)(x|newrelic|nr)-?(admin|partner|account|query|insert|api|license)-?(id|key)[\\s[[:punct:]]]{1,4}\\b[\\w-]{32,47}\\b",
+	"New Relic API Key Service Key (new format)": "(?i)NRAK-[A-Z0-9]{27}",
+	"New Relic APM License Key (new format)": "(?i)[a-f0-9]{36}NRAL",
+	"New Relic APM License Key (new format, region-aware)": "(?i)[a-z]{2}[0-9]{2}xx[a-f0-9]{30}NRAL",
+	"New Relic REST API Key (new format)": "(?i)NRRA-[a-f0-9]{42}",
+	"New Relic Admin API Key (new format)": "(?i)NRAA-[a-f0-9]{27}",
+	"New Relic Insights Insert Key (new format)": "(?i)NRII-[A-Za-z0-9-_]{32}",
+	"New Relic Insights Query Key (new format)": "(?i)NRIQ-[A-Za-z0-9-_]{32}",
+	"New Relic Synthetics Private Location Key (new format)": "(?i)NRSP-[a-z]{2}[0-9]{2}[a-f0-9]{31}",
+	"Email address": "(?i)\\b(?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*)@[a-z0-9][a-z0-9-]+\\.(com|de|cn|net|uk|org|info|nl|eu|ru)([\\W&&[^:/]]|\\A|\\z)",
+	"New Relic Account IDs in URL": "(newrelic\\.com/)?accounts/\\d{1,10}/",
+	"Account ID": "(?i)account[\\s[[:punct:]]]?id[\\s[[:punct:]]]{1,4}\\b[\\d]{1,10}\\b",
+	"Salary Information": "(?i)(salary|commission|compensation|pay)([\\s[[:punct:]]](amount|target))?[\\s[[:punct:]]]{1,4}\\d+"
 }
 ```
 
@@ -409,21 +422,56 @@ The following is the default allowlist included in all scans:
 
 ```json
 {
-  "Email address": {
-    "patterns": [
-      "(?i).*@newrelic.com"
-    ],
-    "paths": [
-      "(?i)authors",
-      "(?i)contributors",
-      "(?i)license",
-      "(?i)maintainers",
-      "(?i)third_party_notices"
-    ]
-  },
-  "<GLOBAL>": [
-    "(?i)example"
-  ]
+	"Email address": {
+		"patterns": [
+			"(?i)@newrelic.com",
+			"(?i)noreply@",
+			"(?i)test@"
+		],
+		"paths": [
+			"(?i)authors",
+			"(?i)contributors",
+			"(?i)license",
+			"(?i)maintainers",
+			"(?i)third_party_notices"
+		]
+	},
+	"Credentials in absolute URL": {
+		"patterns": [
+			"(?i)(https?://)?user:pass(word)?@"
+		]
+	},
+	"New Relic API Key Service Key (new format)": {
+		"patterns": [
+			"NRAK-123456789ABCDEFGHIJKLMNOPQR"
+		]
+	},
+	"Generic API Key": {
+		"patterns": [
+			"(?i)sanitizeAPIKeyForLogging"
+		]
+	},
+	"New Relic License Key": {
+		"patterns": [
+			"(?i)bootstrap_newrelic_admin_license_key",
+			"(?i)xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+			"(?i)__YOUR_NEW_RELIC_LICENSE_KEY__LICENSE__",
+			"(?i)YOUR_NEW_RELIC_APPLICATION_TOKEN"
+		]
+	},
+	"Generic Secret": {
+		"patterns": [
+			"(?i)secret:NewRelicLicenseKeySecret"
+		]
+	},
+	"<GLOBAL>": [
+		"(?i)example",
+		"(?i)fake",
+		"(?i)replace",
+		"(?i)deadbeef",
+		"(?i)ABCDEFGHIJKLMNOPQRSTUVWX",
+		"1234567890"
+	]
 }
 ```
 

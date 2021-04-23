@@ -36,9 +36,6 @@ hex = "0.4"
 lambda_runtime = "0.3"
 rust-s3 = "0.26"
 google-drive3 = "2.0.4"
-# This project intentionally uses an old version of Hyper. See
-# https://github.com/Byron/google-apis-rs/issues/173 for more
-# information.
 hyper = "^0.14"
 hyper-rustls = "^0.22"
 yup-oauth2 = "^5.0"
