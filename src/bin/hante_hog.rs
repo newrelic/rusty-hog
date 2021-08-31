@@ -1,8 +1,7 @@
 //! Slack secret scanner in Rust.
 //!
 //! USAGE:
-//!     slack_hog [FLAGS] [OPTIONS] <CHANNEL_ID> --authtoken <BEARERTOKEN>
-//!     slack_hog -h | --help
+//!     hante_hog [FLAGS] [OPTIONS] --authtoken <BEARERTOKEN> --channelid <CHANNELID> --url <SLACKURL>
 //!
 //! FLAGS:
 //!         --caseinsensitive    Sets the case insensitive flag for all regexes
@@ -13,14 +12,20 @@
 //!     -V, --version            Prints version information
 //!
 //! OPTIONS:
-//!         --default_entropy_threshold <DEFAULT_ENTROPY_THRESHOLD>    Default entropy threshold (0.6 by default)
-//!         --url <SLACKURL> Base URL of Slack Workspace (e.g. https://[WORKSPACE NAME].slack.com)
-//!     -o, --outputfile <OUTPUT>    Sets the path to write the scanner results to (stdout by default)
-//!         --authtoken <BEARERTOKEN>    Slack API Token (or API token)
-//!         --regex <REGEX>          Sets a custom regex JSON file
+//!     -a, --allowlist <ALLOWLIST>                                    Sets a custom allowlist JSON file
+//!         --authtoken <BEARERTOKEN>                                  Slack basic auth bearer token
+//!         --channelid <CHANNELID>
+//!             The ID (e.g. C12345) of the Slack channel you want to scan
 //!
-//! ARGS:
-//!     <CHANNEL_ID>    The ID (e.g. C12345) of the Slack channel you want to scan
+//!         --default_entropy_threshold <DEFAULT_ENTROPY_THRESHOLD>    Default entropy threshold (0.6 by default)
+//!         --latest <LATEST>                                          End of time range of messages to include in search
+//!         --oldest <OLDEST>                                          Start of time range of messages to include in search
+//!     -o, --outputfile <OUTPUT>
+//!             Sets the path to write the scanner results to (stdout by default)
+//!
+//!         --regex <REGEX>                                            Sets a custom regex JSON file
+//!         --url <SLACKURL>
+//!             Base URL of Slack Workspace (e.g. https://[WORKSPACE NAME].slack.com)
 
 #[macro_use]
 extern crate clap;
@@ -60,12 +65,12 @@ pub struct SlackFinding {
 /// Main entry function that uses the [clap crate](https://docs.rs/clap/2.33.0/clap/)
 #[tokio::main]
 async fn main() {
-    let matches: ArgMatches = clap_app!(slack_hog =>
+    let matches: ArgMatches = clap_app!(hante_hog =>
         (version: "0.0.1")
         (author: "Joao Henrique Machado Silva <joaoh82@gmail.com>")
         (about: "Slack secret scanner in Rust.")
         (@arg REGEX: --regex +takes_value "Sets a custom regex JSON file")
-        (@arg CHANNELID: +required "The ID (e.g. C12345) of the Slack channel you want to scan")
+        (@arg CHANNELID: --channelid +required +takes_value "The ID (e.g. C12345) of the Slack channel you want to scan")
         (@arg VERBOSE: -v --verbose ... "Sets the level of debugging information")
         (@arg ENTROPY: --entropy ... "Enables entropy scanning")
         (@arg DEFAULT_ENTROPY_THRESHOLD: --default_entropy_threshold +takes_value "Default entropy threshold (0.6 by default)")
@@ -75,6 +80,8 @@ async fn main() {
         (@arg BEARERTOKEN: --authtoken +takes_value +required  "Slack basic auth bearer token")
         (@arg SLACKURL: --url +takes_value +required  "Base URL of Slack Workspace (e.g. https://[WORKSPACE NAME].slack.com)")
         (@arg ALLOWLIST: -a --allowlist +takes_value "Sets a custom allowlist JSON file")
+        (@arg LATEST: --latest +takes_value "End of time range of messages to include in search")
+        (@arg OLDEST: --oldest +takes_value "Start of time range of messages to include in search")
     )
         .get_matches();
     match run(matches).await {
@@ -106,6 +113,14 @@ async fn run<'b>(arg_matches: ArgMatches<'b>) -> Result<(), SimpleError> {
     let base_url_as_url = Url::parse(base_url_input).unwrap();
     let base_url = base_url_as_url.as_str();
 
+    // Reading the latest timestamp from the command line
+    let latest_input = arg_matches
+        .value_of("LATEST");
+
+    // Reading the latest timestamp from the command line
+    let oldest_input = arg_matches
+        .value_of("OLDEST");
+
     // Still inside `async fn main`...
     let https = hyper_rustls::HttpsConnector::with_native_roots();
     let hyper_client: client::Client<_, hyper::Body> = client::Client::builder().build(https);
@@ -114,35 +129,40 @@ async fn run<'b>(arg_matches: ArgMatches<'b>) -> Result<(), SimpleError> {
     let auth_string = format!("Bearer {}", slackauthtoken.unwrap());
 
     // Building URL to request conversation history for the channel
+    // TODO: Construct the URL using a URL library to avoid weird input issues?
     let full_url = format!("{}/api/conversations.history?channel={}", base_url, channel_id);
 
     // Retrieving the history of the channel
-    let json_results = get_channel_history_json(hyper_client, auth_string, &full_url).await;
-
-    // Parsing the messages as an array
-    let messages = json_results
-        .get("messages")
-        .unwrap()
-        .as_array()
-        .unwrap();
+    let json_results_array = get_channel_history_json(hyper_client, auth_string, &full_url, latest_input, oldest_input).await;
+    // WARNING: This method requires storing ALL the slack channel history JSON in memory at once
+    // TODO: Re-write these methods to scan each JSON API request - to conserve memory usage
 
     // Defining and initializing the vector of found secrets
     let mut secrets: Vec<SlackFinding> = Vec::new();
 
-    // find secrets in each message
-    for message in messages {
-        // ts stands for timestamp
-        let ts = message.get("ts").unwrap().as_str().unwrap(); 
-        let location = format!(
-            "message type {} by {} on {}",
-            message.get("type").unwrap(),
-            message.get("user").unwrap(),
-            message.get("ts").unwrap()
-        );
-        let message_text = message.get("text").unwrap().as_str().unwrap().as_bytes();
+    for json_results in json_results_array.iter() {
+        // Parsing the messages as an array
+        let messages = json_results
+            .get("messages")
+            .unwrap()
+            .as_array()
+            .unwrap();
 
-        let message_findings = get_findings(&secret_scanner, base_url, channel_id, ts, message_text, location);
-        secrets.extend(message_findings);
+        // find secrets in each message
+        for message in messages {
+            // ts stands for timestamp
+            let ts = message.get("ts").unwrap().as_str().unwrap();
+            let location = format!(
+                "message type {} by {} on {}",
+                message.get("type").unwrap(),
+                message.get("user").unwrap_or(&Value::String("<UNKNOWN>".to_string())),
+                message.get("ts").unwrap()
+            );
+            let message_text = message.get("text").unwrap().as_str().unwrap().as_bytes();
+
+            let message_findings = get_findings(&secret_scanner, base_url, channel_id, ts, message_text, location);
+            secrets.extend(message_findings);
+        }
     }
 
     // combine and output the results
@@ -157,47 +177,82 @@ async fn run<'b>(arg_matches: ArgMatches<'b>) -> Result<(), SimpleError> {
     }
 }
 
-// TODO: Deal with Slack API Pagination in case of too many messages
-// TODO: Deal with Slack API messages per date range
+
 // TODO: move this to a separate file
 /// get_channel_history_json uses a hyper::client object to perform a POST on the full_url and return parsed serde JSON data
 async fn get_channel_history_json<'a, C>(
     hyper_client: Client<C>,
     auth_headers: String,
     full_url: &str,
-) -> Map<String, Value>
+    latest: Option<&str>,
+    oldest: Option<&str>,
+) -> Vec<Map<String, Value>>
 where
     C: hyper::client::connect::Connect + Clone + Send + Sync + 'static,
 {
     debug!("auth header: {}", auth_headers);
+    let mut full_url_mod: String = String::from(full_url);
 
-    let req_builder = Request::builder()
-        .method(Method::POST)
-        .header(AUTHORIZATION, auth_headers)
-        .header("content-type", "application/json")
-        .uri(full_url);
-
-    let r = req_builder.body(Body::empty()).unwrap();
-    let resp = hyper_client.request(r).await.unwrap();
-    
-    debug!("sending request to {}", full_url);
-
-    let status = resp.status().clone();
-    debug!("Response: {:?}", status);
-
-    let data = body::to_bytes(resp.into_body()).await.unwrap();
-    let data_vec: Vec<u8> = data.to_vec();
-    let response_body: String = String::from(std::str::from_utf8(&data_vec).unwrap());
-    if status != StatusCode::OK {
-        panic!(
-            "Request to {} failed with code {:?}: {}",
-            full_url, status, response_body
-        )
+    if latest.is_some() {
+        full_url_mod += format!("&latest={}", latest.unwrap()).as_str();
     }
 
-    let json_results = serde_json::from_str(&response_body).unwrap();
-    debug!("Response JSON: \n{:?}", json_results);
-    json_results
+    if oldest.is_some() {
+        full_url_mod += format!("&oldest={}", oldest.unwrap()).as_str();
+    }
+
+    let mut has_more = true;
+    let mut output: Vec<Map<String, Value>> = Vec::new();
+    let mut cursor: Option<String> = None;
+
+    while has_more {
+        if cursor.is_some() {
+            debug!("Adding a cursor to the URL {}", cursor.as_ref().unwrap());
+            full_url_mod += format!("&cursor={}", cursor.as_ref().unwrap()).as_str();
+        }
+
+        let req_builder = Request::builder()
+            .method(Method::POST)
+            .header(AUTHORIZATION, auth_headers.clone())
+            .header("content-type", "application/json")
+            .uri(full_url_mod.clone());
+
+        let r = req_builder.body(Body::empty()).unwrap();
+        let resp = hyper_client.request(r).await.unwrap();
+
+        debug!("sending request to {}", full_url_mod.clone());
+
+        let status = resp.status().clone();
+        debug!("Response: {:?}", status);
+
+        let data = body::to_bytes(resp.into_body()).await.unwrap();
+        let data_vec: Vec<u8> = data.to_vec();
+        let response_body: String = String::from(std::str::from_utf8(&data_vec).unwrap());
+        if status != StatusCode::OK {
+            panic!(
+                "Request to {} failed with code {:?}: {}",
+                full_url_mod.clone(), status, response_body
+            )
+        }
+
+        let json_results: Map<String, Value> = serde_json::from_str(&response_body).unwrap();
+        debug!("Response JSON (data): \n{:?}", json_results);
+        let ok: bool = json_results.get("ok").unwrap().as_bool().unwrap();
+        if !ok {
+            panic!(
+                "Request to {} failed with error {:?}: {}",
+                full_url_mod.clone(), json_results["error"], response_body
+            )
+        }
+        has_more = json_results.get("has_more").unwrap().as_bool().unwrap();
+        if has_more { // TODO: Cleanup weird borrowing issues?
+            let rm = json_results.get("response_metadata").unwrap().as_object().unwrap().clone();
+            cursor = Some(String::from(rm.get("next_cursor").unwrap().as_str().unwrap()));
+        }
+        output.push(json_results);
+
+    }
+    output
 }
 
 /// Takes the Slack finding data (base_url, channel_id, ts(timestamp) description, location) and a `SecretScanner`

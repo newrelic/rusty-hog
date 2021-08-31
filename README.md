@@ -26,7 +26,7 @@ in Python. Rusty Hog provides the following binaries:
   - [Duroc Hog (file system scanner) usage](#duroc-hog-file-system-scanner-usage)
   - [Essex Hog (Confluence scanner) usage](#essex-hog-confluence-scanner-usage)
   - [Gottingen Hog (JIRA scanner) usage](#gottingen-hog-jira-scanner-usage)
-  - [Slack Hog (SLACK scanner) usage](#slack-hog-slack-scanner-usage)
+  - [Hante Hog (SLACK scanner) usage](#slack-hog-slack-scanner-usage)
   - [Regex JSON file format](#regex-json-file-format)
   - [Allowlist JSON file format](#allowlist-json-file-format)
 - [Project information](#project-information)
@@ -278,30 +278,36 @@ ARGS:
     <JIRAID>    The ID (e.g. PROJECT-123) of the Jira issue you want to scan
 ```
 
-## Slack Hog (SLACK scanner) usage
+## Hante Hog (SLACK scanner) usage
 ```
 Slack secret scanner in Rust.
 
- USAGE:
-     slack_hog [FLAGS] [OPTIONS] <CHANNEL_ID> --authtoken <BEARERTOKEN>
+USAGE:
+    hante_hog [FLAGS] [OPTIONS] --authtoken <BEARERTOKEN> --channelid <CHANNELID> --url <SLACKURL>
 
- FLAGS:
-         --caseinsensitive    Sets the case insensitive flag for all regexes
-         --entropy            Enables entropy scanning
-         --prettyprint        Outputs the JSON in human readable format
-     -v, --verbose            Sets the level of debugging information
-     -h, --help               Prints help information
-     -V, --version            Prints version information
+FLAGS:
+        --caseinsensitive    Sets the case insensitive flag for all regexes
+        --entropy            Enables entropy scanning
+        --prettyprint        Outputs the JSON in human readable format
+    -v, --verbose            Sets the level of debugging information
+    -h, --help               Prints help information
+    -V, --version            Prints version information
 
- OPTIONS:
-         --default_entropy_threshold <DEFAULT_ENTROPY_THRESHOLD>    Default entropy threshold (0.6 by default)
-         --url <SLACKURL> Base URL of Slack Workspace (e.g. https://[WORKSPACE NAME].slack.com)
-     -o, --outputfile <OUTPUT>    Sets the path to write the scanner results to (stdout by default)
-         --authtoken <BEARERTOKEN>    Slack API Token (or API token)
-         --regex <REGEX>          Sets a custom regex JSON file
+OPTIONS:
+    -a, --allowlist <ALLOWLIST>                                    Sets a custom allowlist JSON file
+        --authtoken <BEARERTOKEN>                                  Slack basic auth bearer token
+        --channelid <CHANNELID>
+            The ID (e.g. C12345) of the Slack channel you want to scan
 
- ARGS:
-     <CHANNEL_ID>    The ID (e.g. C12345) of the Slack channel you want to scan
+        --default_entropy_threshold <DEFAULT_ENTROPY_THRESHOLD>    Default entropy threshold (0.6 by default)
+        --latest <LATEST>                                          End of time range of messages to include in search
+        --oldest <OLDEST>                                          Start of time range of messages to include in search
+    -o, --outputfile <OUTPUT>
+            Sets the path to write the scanner results to (stdout by default)
+
+        --regex <REGEX>                                            Sets a custom regex JSON file
+        --url <SLACKURL>
+            Base URL of Slack Workspace (e.g. https://[WORKSPACE NAME].slack.com)
 ```
 
 ## Regex JSON file format
