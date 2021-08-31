@@ -9,32 +9,34 @@ in Python. Rusty Hog provides the following binaries:
 * Duroc Hog: Scans for secrets in a directory, file, and archive.
 * Essex Hog: Scans for secrets in a Confluence wiki page.
 * Gottingen Hog: Scans for secrets in a JIRA issue.
+* Slack Hog: Scans for secrets in a Slack Channel.
 
 ## Table of contents
 <!-- TOC depthFrom:1 depthTo:6 withLinks:1 updateOnSave:1 orderedList:0 -->
 
-- [Rusty Hogs](#rusty-hogs)
-	- [Table of contents](#table-of-contents)
 - [Usage](#usage)
-	- [How to install](#how-to-install)
-	- [How to build](#how-to-build)
-	- [How to build on Windows](#how-to-build-on-Windows)
-	- [Anakamali Hog (GDoc Scanner) usage](#anakamali-hog-gdoc-scanner-usage)
-	- [Berkshire Hog (S3 Scanner - CLI) usage](#berkshire-hog-s3-scanner-cli-usage)
-	- [Berkshire Hog (S3 Scanner - Lambda) usage](#berkshire-hog-s3-scanner-lambda-usage)
-	- [Choctaw Hog (Git Scanner) usage](#choctaw-hog-git-scanner-usage)
-	- [Duroc Hog (file system scanner) usage](#duroc-hog-file-system-scanner-usage)
-	- [Gottingen Hog (JIRA scanner) usage](#gottingen-hog-jira-scanner-usage)
-    - [Regex JSON file format](#regex-json-file-format)
-    - [Allowlist JSON file format](#allowlist-json-file-format)
+  - [How to install using downloaded binaries](#how-to-install-using-downloaded-binaries)
+  - [How to run using DockerHub](#how-to-run-using-dockerhub)
+  - [How to build](#how-to-build)
+  - [How to build on Windows](#how-to-build-on-windows)
+  - [Anakamali Hog (GDoc Scanner) usage](#anakamali-hog-gdoc-scanner-usage)
+  - [Berkshire Hog (S3 Scanner - CLI) usage](#berkshire-hog-s3-scanner---cli-usage)
+  - [Berkshire Hog (S3 Scanner - Lambda) usage](#berkshire-hog-s3-scanner---lambda-usage)
+  - [Choctaw Hog (Git Scanner) usage](#choctaw-hog-git-scanner-usage)
+  - [Duroc Hog (file system scanner) usage](#duroc-hog-file-system-scanner-usage)
+  - [Essex Hog (Confluence scanner) usage](#essex-hog-confluence-scanner-usage)
+  - [Gottingen Hog (JIRA scanner) usage](#gottingen-hog-jira-scanner-usage)
+  - [Hante Hog (SLACK scanner) usage](#slack-hog-slack-scanner-usage)
+  - [Regex JSON file format](#regex-json-file-format)
+  - [Allowlist JSON file format](#allowlist-json-file-format)
 - [Project information](#project-information)
-	- [Open source license](#open-source-license)
-	- [Support](#support)
-	- [Community](#community)
-	- [Issues / enhancement requests](#issues-enhancement-requests)
-	- [Contributing](#contributing)
-	- [Feature Roadmap](#feature-roadmap)
-	- [What does the name mean?](#what-does-the-name-mean)
+  - [Open source license](#open-source-license)
+  - [Support](#support)
+  - [Community](#community)
+  - [Issues / enhancement requests](#issues--enhancement-requests)
+  - [Contributing](#contributing)
+  - [Feature Roadmap](#feature-roadmap)
+  - [What does the name mean?](#what-does-the-name-mean)
 
 <!-- /TOC -->
 
@@ -274,6 +276,38 @@ OPTIONS:
 
 ARGS:
     <JIRAID>    The ID (e.g. PROJECT-123) of the Jira issue you want to scan
+```
+
+## Hante Hog (SLACK scanner) usage
+```
+Slack secret scanner in Rust.
+
+USAGE:
+    hante_hog [FLAGS] [OPTIONS] --authtoken <BEARERTOKEN> --channelid <CHANNELID> --url <SLACKURL>
+
+FLAGS:
+        --caseinsensitive    Sets the case insensitive flag for all regexes
+        --entropy            Enables entropy scanning
+        --prettyprint        Outputs the JSON in human readable format
+    -v, --verbose            Sets the level of debugging information
+    -h, --help               Prints help information
+    -V, --version            Prints version information
+
+OPTIONS:
+    -a, --allowlist <ALLOWLIST>                                    Sets a custom allowlist JSON file
+        --authtoken <BEARERTOKEN>                                  Slack basic auth bearer token
+        --channelid <CHANNELID>
+            The ID (e.g. C12345) of the Slack channel you want to scan
+
+        --default_entropy_threshold <DEFAULT_ENTROPY_THRESHOLD>    Default entropy threshold (0.6 by default)
+        --latest <LATEST>                                          End of time range of messages to include in search
+        --oldest <OLDEST>                                          Start of time range of messages to include in search
+    -o, --outputfile <OUTPUT>
+            Sets the path to write the scanner results to (stdout by default)
+
+        --regex <REGEX>                                            Sets a custom regex JSON file
+        --url <SLACKURL>
+            Base URL of Slack Workspace (e.g. https://[WORKSPACE NAME].slack.com)
 ```
 
 ## Regex JSON file format
