@@ -35,14 +35,14 @@
 //! use rusty_hogs::SecretScannerBuilder;
 //! use rusty_hogs::aws_scanning::{S3Scanner, S3Finding};
 //! use s3::region::Region;
-//! use s3::credentials::Credentials;
+//! use s3::creds::Credentials;
 //! use s3::bucket::Bucket;
 //!
 //! let s3s = S3Scanner::new();
 //! let bucket_string = "testbucket1";
-//! let credentials = Credentials::new(None, None, None, None);
+//! let credentials = Credentials::default().unwrap();
 //! let region: Region = Region::UsWest2;
-//! let bucket: Bucket = match Bucket::new(bucket_string, region, credentials.clone()) {
+//! let bucket: Bucket = match Bucket::new(bucket_string, region, credentials) {
 //! Ok(r) => r,
 //! Err(e) => panic!(e)
 //! };

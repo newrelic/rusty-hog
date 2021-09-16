@@ -30,9 +30,11 @@
 //! Lastly, pass all these objects to the [`perform_scan`] method of [`GDriveScanner`].
 //!
 //! ```no_run
+//! # extern crate hyper_rustls;
+//! # extern crate yup_oauth2 as oauth2;
 //! use rusty_hogs::SecretScannerBuilder;
 //! use rusty_hogs::google_scanning::{GDriveScanner, GDriveFileInfo};
-//! # use yup_oauth2::{ApplicationSecret, DiskTokenStorage, Authenticator, DefaultAuthenticatorDelegate, FlowType};
+//! # use oauth2::{InstalledFlowAuthenticator, InstalledFlowReturnMethod};
 //! # use std::path::Path;
 //! use google_drive3::DriveHub;
 //!
@@ -41,32 +43,27 @@
 //! # let oauthtokenfile = "temp_token";
 //! let gdrive_scanner = GDriveScanner::new();
 //!
+//! # let rt = tokio::runtime::Runtime::new().unwrap();
+//! # let handle = rt.handle();
+//! # rt.block_on(async {
 //! // Start with GDrive auth - based on example code from drive3 API and yup-oauth2
-//! # let secret: ApplicationSecret =
-//! #     yup_oauth2::read_application_secret(Path::new(oauthsecretfile)).expect(oauthsecretfile);
-//! # let token_storage = DiskTokenStorage::new(&String::from(oauthtokenfile)).unwrap();
-//! # let auth = Authenticator::new(
-//! #     &secret,
-//! #     DefaultAuthenticatorDelegate,
-//! #     hyper::Client::with_connector(hyper::net::HttpsConnector::new(
-//! #         hyper_rustls::TlsClient::new(),
-//! #     )),
-//! #     token_storage,
-//! #     Some(FlowType::InstalledInteractive),
-//! # );
-//! let hub = DriveHub::new(
-//!     hyper::Client::with_connector(hyper::net::HttpsConnector::new(
-//!         hyper_rustls::TlsClient::new(),
-//!     )),
-//!     auth,
-//! );
+//! # let secret = yup_oauth2::read_application_secret(Path::new(oauthsecretfile))
+//! # .await
+//! # .expect(oauthsecretfile);
+//! # let auth = InstalledFlowAuthenticator::builder(secret, InstalledFlowReturnMethod::HTTPRedirect)
+//! # .persist_tokens_to_disk(Path::new(oauthtokenfile))
+//! # .build()
+//! # .await
+//! # .expect("failed to create authenticator (try deleting temp_token and restarting)");
+//! let hub = DriveHub::new(hyper::Client::builder().build(hyper_rustls::HttpsConnector::with_native_roots()), auth);
 //!
 //! // get some initial info about the file
-//! let gdriveinfo = GDriveFileInfo::new("gdrive_file_id", &hub).unwrap();
+//! let gdriveinfo = GDriveFileInfo::new("1FCdv-FQAgfNenGbvXfiplT7S5OFj0oqrFQ1_KwD_n90", &hub).await.unwrap();
 //!
 //! // Do the scan
-//! let findings = gdrive_scanner.perform_scan(&gdriveinfo, &hub);
+//! let findings = gdrive_scanner.perform_scan(&gdriveinfo, &hub).await;
 //! gdrive_scanner.secret_scanner.output_findings(&findings);
+//! # });
 //! ```
 //!
 //! [`SecretScanner`]: ../struct.SecretScanner.html

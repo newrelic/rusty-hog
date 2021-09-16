@@ -169,6 +169,9 @@ impl GitScanner {
             // based on https://github.com/alexcrichton/git2-rs/blob/master/examples/log.rs
             let commit: Commit = commit.unwrap();
             info!("Scanning commit {}", commit.id());
+            if &commit.id().to_string() == "04bd867ad782daa532e28bcfe45f18a66b9aa90a" {
+                debug!("breakpoint");
+            }
             if commit.parents().len() > 1 {
                 continue;
             }
@@ -187,7 +190,8 @@ impl GitScanner {
             };
             let b = commit.tree().unwrap();
             let mut diffopts = DiffOptions::new();
-            diffopts.force_binary(true);
+            diffopts.force_text(true);
+            // diffopts.show_binary(true);
             diffopts.context_lines(0);
 
             let diff = repo
@@ -200,6 +204,7 @@ impl GitScanner {
                     return true;
                 };
                 let new_line = line.content();
+                debug!("new_line: {:?}",String::from_utf8_lossy(new_line));
                 let matches_map: BTreeMap<String, Vec<RustyHogMatch>> =
                     self.secret_scanner.matches_entropy(new_line);
                 if matches_map.contains_key("Entropy") {
