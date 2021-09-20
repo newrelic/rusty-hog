@@ -66,7 +66,7 @@ pub struct SlackFinding {
 #[tokio::main]
 async fn main() {
     let matches: ArgMatches = clap_app!(hante_hog =>
-        (version: "0.0.1")
+        (version: "1.0.11")
         (author: "Joao Henrique Machado Silva <joaoh82@gmail.com>")
         (about: "Slack secret scanner in Rust.")
         (@arg REGEX: --regex +takes_value "Sets a custom regex JSON file")

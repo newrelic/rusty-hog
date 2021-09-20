@@ -27,11 +27,11 @@ mv scripts/.idea ../
 strip darwin_releases/*
 for f in darwin_releases/*; do
 ft=$(echo $f | awk -F/ '{print $2}');
-zip -r rustyhogs-darwin-$ft-1.0.10.zip $f;
+zip -r rustyhogs-darwin-$ft-1.0.11.zip $f;
 done
 for f in musl_releases/*; do
 ft=$(echo $f | awk -F/ '{print $2}');
-zip -r rustyhogs-musl-$ft-1.0.10.zip $f;
+zip -r rustyhogs-musl-$ft-1.0.11.zip $f;
 done
 zip -r rustyhogs-lambda_$1.zip berkshire_lambda.zip
 zip -r rustyhogs-scripts_$1.zip scripts

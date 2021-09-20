@@ -51,8 +51,8 @@ Download and unzip the [latest ZIP](https://github.com/newrelic/rusty-hog/releas
 on the releases tab. Then, run each binary with `-h` to see the usage.
 
 ```shell script
-wget https://github.com/newrelic/rusty-hog/releases/download/v1.0.10/rustyhogs-darwin-choctaw_hog-1.0.10.zip
-unzip rustyhogs-darwin-choctaw_hog-1.0.10.zip
+wget https://github.com/newrelic/rusty-hog/releases/download/v1.0.11/rustyhogs-darwin-choctaw_hog-1.0.11.zip
+unzip rustyhogs-darwin-choctaw_hog-1.0.11.zip
 darwin_releases/choctaw_hog -h
 ```
 
@@ -61,8 +61,8 @@ Rusty Hog Docker images can be found at the authors personal DockerHub page [her
 A Docker Image is built for each Hog and for each release. So to use choctaw_hog you would run the following commands:
 
 ```shell script
-docker pull wetfeet2000/choctaw_hog:1.0.10
-docker run -it --rm wetfeet2000/choctaw_hog:1.0.10 --help
+docker pull wetfeet2000/choctaw_hog:1.0.11
+docker run -it --rm wetfeet2000/choctaw_hog:1.0.11 --help
 ```
 
 ## How to build
@@ -358,7 +358,7 @@ An example of this format is here:
 ```
 
 
-As of version 1.0.10, the current default regex JSON used is as follows:
+As of version 1.0.11, the current default regex JSON used is as follows:
 
 ```json
 {
