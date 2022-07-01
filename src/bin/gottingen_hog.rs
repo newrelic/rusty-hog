@@ -121,7 +121,7 @@ async fn run<'b>(arg_matches: ArgMatches<'b>) -> Result<(), SimpleError> {
         }
         // otherwise use AUTHTOKEN to craft the auth header
         None => {
-            format!("Bearer {}", base64::encode(jiraauthtoken.unwrap()))
+            format!("Bearer {}", jiraauthtoken.unwrap())
         }
     };
 
