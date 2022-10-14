@@ -36,7 +36,7 @@ use log::{self, error, info};
 use simple_error::SimpleError;
 use std::path::Path;
 use rusty_hogs::google_scanning::{GDriveFileInfo, GDriveScanner};
-use rusty_hogs::{SecretScanner, SecretScannerBuilder};
+use rusty_hog_scanner::{SecretScanner, SecretScannerBuilder};
 use oauth2::{InstalledFlowAuthenticator, InstalledFlowReturnMethod};
 
 /// Main entry function that uses the [clap crate](https://docs.rs/clap/2.33.0/clap/)
