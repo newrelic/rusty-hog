@@ -11,7 +11,7 @@
 //! Basic usage requires you to create a `S3Scanner` object...
 //!
 //! ```
-//! use rusty_hogs::SecretScannerBuilder;
+//! use rusty_hog_scanner::SecretScannerBuilder;
 //! use rusty_hogs::aws_scanning::S3Scanner;
 //! let s3s = S3Scanner::new();
 //! ```
@@ -20,7 +20,7 @@
 //! contructor...
 //!
 //! ```
-//! use rusty_hogs::SecretScannerBuilder;
+//! use rusty_hog_scanner::SecretScannerBuilder;
 //! use rusty_hogs::aws_scanning::S3Scanner;
 //! let ss = SecretScannerBuilder::new().set_pretty_print(true).build();
 //! let s3s = S3Scanner::new_from_scanner(ss);
@@ -32,7 +32,7 @@
 //! `Vec` of findings. In this example the string values are contrived.
 //!
 //! ```no_run
-//! use rusty_hogs::SecretScannerBuilder;
+//! use rusty_hog_scanner::SecretScannerBuilder;
 //! use rusty_hogs::aws_scanning::{S3Scanner, S3Finding};
 //! use s3::region::Region;
 //! use s3::creds::Credentials;

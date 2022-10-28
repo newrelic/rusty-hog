@@ -10,7 +10,7 @@
 //! Basic usage requires you to create a `GitScanner` object...
 //!
 //! ```
-//! use rusty_hogs::SecretScannerBuilder;
+//! use rusty_hog_scanner::SecretScannerBuilder;
 //! use rusty_hogs::git_scanning::GitScanner;
 //! let gs = GitScanner::new();
 //! ```
@@ -19,7 +19,7 @@
 //! contructor...
 //!
 //! ```
-//! use rusty_hogs::SecretScannerBuilder;
+//! use rusty_hog_scanner::SecretScannerBuilder;
 //! use rusty_hogs::git_scanning::GitScanner;
 //! let ss = SecretScannerBuilder::new().set_pretty_print(true).build();
 //! let gs = GitScanner::new_from_scanner(ss);
@@ -30,7 +30,7 @@
 //! (801360e) so we can have a reliable result.
 //!
 //! ```
-//! use rusty_hogs::SecretScannerBuilder;
+//! use rusty_hog_scanner::SecretScannerBuilder;
 //! use rusty_hogs::git_scanning::{GitScanner, GitFinding};
 //! use std::collections::HashSet;
 //! use std::path::Path;

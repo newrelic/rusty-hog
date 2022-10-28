@@ -18,7 +18,7 @@
 //! a [`SecretScanner`] object and supplying it to the [`GDriveScanner`] constructor:
 //!
 //! ```
-//! use rusty_hogs::SecretScannerBuilder;
+//! use rusty_hog_scanner::SecretScannerBuilder;
 //! use rusty_hogs::google_scanning::GDriveScanner;
 //! let ss = SecretScannerBuilder::new().set_pretty_print(true).build();
 //! let gs = GDriveScanner::new_from_scanner(ss);
@@ -32,7 +32,7 @@
 //! ```no_run
 //! # extern crate hyper_rustls;
 //! # extern crate yup_oauth2 as oauth2;
-//! use rusty_hogs::SecretScannerBuilder;
+//! use rusty_hog_scanner::SecretScannerBuilder;
 //! use rusty_hogs::google_scanning::{GDriveScanner, GDriveFileInfo};
 //! # use oauth2::{InstalledFlowAuthenticator, InstalledFlowReturnMethod};
 //! # use std::path::Path;
