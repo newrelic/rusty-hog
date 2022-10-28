@@ -47,7 +47,7 @@ use walkdir::WalkDir;
 use encoding::all::ASCII;
 use encoding::{DecoderTrap, Encoding};
 use path_clean::PathClean;
-use rusty_hogs::{SecretScanner, SecretScannerBuilder};
+use rusty_hog_scanner::{SecretScanner, SecretScannerBuilder};
 use std::collections::HashSet;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, Clone, Default)]

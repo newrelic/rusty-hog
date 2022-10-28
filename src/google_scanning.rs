@@ -73,7 +73,6 @@
 //! [`GDriveFileInfo`]: struct.GDriveFileInfo.html
 //! [`perform_scan`]: struct.GDriveScanner.html#method.perform_scan
 
-use crate::SecretScanner;
 extern crate google_drive3 as drive3;
 extern crate yup_oauth2 as oauth2;
 use drive3::DriveHub;
@@ -84,6 +83,7 @@ use hyper::body;
 use serde_derive::{Deserialize, Serialize};
 use simple_error::SimpleError;
 use std::collections::HashSet;
+use rusty_hog_scanner::SecretScanner;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, Clone, Default)]
 /// `serde_json` object that represents a single found secret - finding

@@ -42,7 +42,6 @@
 //! assert_eq!(findings.len(), 8);
 //! ```
 
-use crate::{RustyHogMatch, SecretScanner};
 use chrono::NaiveDateTime;
 use chrono::Utc;
 use encoding::all::ASCII;
@@ -55,6 +54,7 @@ use std::collections::{BTreeMap, HashSet};
 use std::hash::{Hash, Hasher};
 use std::path::Path;
 use std::{fmt, str};
+use rusty_hog_scanner::{RustyHogMatch, SecretScanner};
 use url::{ParseError, Url};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, Clone, Default)]

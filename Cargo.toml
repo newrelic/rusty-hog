@@ -1,3 +1,8 @@
+[workspace]
+members = [
+    "crates/rusty-hog-scanner",
+]
+
 [package]
 name = "rusty_hogs"
 version = "1.0.11"
@@ -10,13 +15,8 @@ categories = ["command-line-utilities", "development-tools::build-utils", "files
 readme = "README.md"
 license = "Apache-2.0"
 
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-[lib]
-name = "rusty_hogs"
-path = "src/lib.rs"
-
 [dependencies]
+rusty_hog_scanner = { path = "crates/rusty-hog-scanner" }
 tokio = { version = "1", features = ["full"] }
 git2 = "0.13"
 serde = "1.0"

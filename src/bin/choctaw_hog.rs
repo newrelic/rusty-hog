@@ -47,7 +47,7 @@ use std::str;
 use tempdir::TempDir;
 
 use rusty_hogs::git_scanning::GitScanner;
-use rusty_hogs::{SecretScanner, SecretScannerBuilder};
+use rusty_hog_scanner::{SecretScanner, SecretScannerBuilder};
 
 /// Main entry function that uses the [clap crate](https://docs.rs/clap/2.33.0/clap/)
 fn main() {
