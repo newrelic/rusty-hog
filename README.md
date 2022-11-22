@@ -61,8 +61,8 @@ Rusty Hog Docker images can be found at the authors personal DockerHub page [her
 A Docker Image is built for each Hog and for each release. So to use choctaw_hog you would run the following commands:
 
 ```shell script
-docker pull wetfeet2000/choctaw_hog:1.0.11
-docker run -it --rm wetfeet2000/choctaw_hog:1.0.11 --help
+docker pull wetfeet2000/choctaw_hog:1.0.10
+docker run -it --rm wetfeet2000/choctaw_hog:1.0.10 --help
 ```
 
 ## How to build
