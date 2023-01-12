@@ -13,11 +13,11 @@
 //!
 //! OPTIONS:
 //!         --default_entropy_threshold <DEFAULT_ENTROPY_THRESHOLD>    Default entropy threshold (0.6 by default)
-//!         --authtoken <BEARERTOKEN>    Confluence basic auth bearer token (instead of user & pass)
+//!         --authtoken <BEARERTOKEN>    Confluence PAT (instead of user & pass, crafts basic auth header)
 //!     -o, --outputfile <OUTPUT>        Sets the path to write the scanner results to (stdout by default)
-//!         --password <PASSWORD>        Confluence password (crafts basic auth header)
+//!         --password <PASSWORD>        Confluence password or PAT (crafts basic auth header)
 //!         --regex <REGEX>              Sets a custom regex JSON file
-//!         --username <USERNAME>        Confluence username (crafts basic auth header)
+//!         --username <USERNAME>        Confluence username or email address (crafts basic auth header)
 //!
 //! ARGS:
 //!     <PAGEID>    The ID (e.g. 1234) of the confluence page you want to scan
@@ -73,7 +73,7 @@ pub struct ConfluencePage {
 /// Main entry function that uses the [clap crate](https://docs.rs/clap/2.33.0/clap/)
 #[tokio::main]
 async fn main() {
-    let matches = clap_app!(gottingen_hog =>
+    let matches = clap_app!(essex_hog =>
         (version: "1.0.11")
         (author: "Emily Cain <ecain@newrelic.com>, Scott Cutler")
         (about: "Confluence secret scanner in Rust.")
@@ -86,9 +86,9 @@ async fn main() {
         (@arg CASE: --caseinsensitive "Sets the case insensitive flag for all regexes")
         (@arg OUTPUT: -o --outputfile +takes_value "Sets the path to write the scanner results to (stdout by default)")
         (@arg PRETTYPRINT: --prettyprint "Outputs the JSON in human readable format")
-        (@arg USERNAME: --username +takes_value conflicts_with[AUTHTOKEN] "Confluence username (crafts basic auth header)")
-        (@arg PASSWORD: --password +takes_value conflicts_with[AUTHTOKEN] "Confluence password (crafts basic auth header)")
-        (@arg BEARERTOKEN: --authtoken +takes_value conflicts_with[USERNAME PASSWORD] "Confluence basic auth bearer token (instead of user & pass)")
+        (@arg USERNAME: --username +takes_value conflicts_with[AUTHTOKEN] "Confluence username or email for cloud (crafts basic auth header)")
+        (@arg PASSWORD: --password +takes_value conflicts_with[AUTHTOKEN] "Confluence password or PAT for cloud (crafts basic auth header)")
+        (@arg BEARERTOKEN: --authtoken +takes_value conflicts_with[USERNAME PASSWORD] "Confluence PAT (instead of user & pass, crafts basic auth header)")
         (@arg ALLOWLIST: -a --allowlist +takes_value "Sets a custom allowlist JSON file")
     )
         .get_matches();
@@ -107,9 +107,9 @@ async fn run<'b>(arg_matches: ArgMatches<'b>) -> Result<(), SimpleError> {
     let ssb = SecretScannerBuilder::new().conf_argm(&arg_matches);
     let secret_scanner = ssb.build();
 
-    let jirausername = arg_matches.value_of("USERNAME");
-    let jirapassword = arg_matches.value_of("PASSWORD");
-    let jiraauthtoken = arg_matches.value_of("BEARERTOKEN");
+    let confluenceusername = arg_matches.value_of("USERNAME");
+    let confluencepassword = arg_matches.value_of("PASSWORD");
+    let confluenceauthtoken = arg_matches.value_of("BEARERTOKEN");
     let base_url_input = arg_matches
         .value_of("URL")
         .unwrap_or("https://confluence.atlassian.com")
@@ -125,18 +125,18 @@ async fn run<'b>(arg_matches: ArgMatches<'b>) -> Result<(), SimpleError> {
     let https = hyper_rustls::HttpsConnector::with_native_roots();
     let hyper_client: client::Client<_, hyper::Body> = client::Client::builder().build(https);
 
-    // TODO: Support other modes of JIRA authentication
-    let auth_string = match jirausername {
-        // craft auth header using username and password if present
+    // TODO: Support other modes of Confluence authentication
+    let auth_string = match confluenceusername {
+        // craft auth header using username and password (or PAT) if present
         Some(u) => {
             format!(
                 "Basic {}",
-                base64::encode(format!("{}:{}", u, jirapassword.unwrap()))
+                base64::encode(format!("{}:{}", u, confluencepassword.unwrap()))
             )
         }
         // otherwise use AUTHTOKEN to craft the auth header
         None => {
-            format!("Bearer {}", jiraauthtoken.unwrap())
+            format!("Bearer {}", confluenceauthtoken.unwrap())
         }
     };
 

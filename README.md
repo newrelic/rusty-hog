@@ -236,13 +236,13 @@ FLAGS:
 
 OPTIONS:
     -a, --allowlist <ALLOWLIST>                                    Sets a custom allowlist JSON file
-        --authtoken <BEARERTOKEN>                                  Confluence basic auth bearer token (instead of user & pass)
+        --authtoken <BEARERTOKEN>                                  Confluence basic auth bearer token containing a PAT (instead of user & pass)
 
         --default_entropy_threshold <DEFAULT_ENTROPY_THRESHOLD>    Default entropy threshold (0.6 by default)
     -o, --outputfile <OUTPUT>                                      Sets the path to write the scanner results to (stdout by default)
-        --password <PASSWORD>                                      Confluence password (crafts basic auth header)
+        --password <PASSWORD>                                      Confluence password or PAT (crafts basic auth header)
         --regex <REGEX>                                            Sets a custom regex JSON file
-        --username <USERNAME>                                      Confluence username (crafts basic auth header)
+        --username <USERNAME>                                      Confluence username or email address (crafts basic auth header)
 
 ARGS:
     <PAGEID>    The ID (e.g. 1234) of the confluence page you want to scan
@@ -266,13 +266,13 @@ FLAGS:
 
 OPTIONS:
     -a, --allowlist <ALLOWLIST>                                    Sets a custom allowlist JSON file
-        --authtoken <BEARERTOKEN>                                  Jira basic auth bearer token (instead of user & pass)
+        --authtoken <BEARERTOKEN>                                  Jira basic auth bearer token containing a PAT (instead of user & pass)
         --default_entropy_threshold <DEFAULT_ENTROPY_THRESHOLD>    Default entropy threshold (0.6 by default)
         --url <JIRAURL>                                            Base URL of JIRA instance (e.g. https://jira.atlassian.net/)
     -o, --outputfile <OUTPUT>                                      Sets the path to write the scanner results to (stdout by default)
-        --password <PASSWORD>                                      Jira password (crafts basic auth header)
+        --password <PASSWORD>                                      Jira password or PAT (crafts basic auth header)
         --regex <REGEX>                                            Sets a custom regex JSON file
-        --username <USERNAME>                                      Jira username (crafts basic auth header)
+        --username <USERNAME>                                      Jira username or email address (crafts basic auth header)
 
 ARGS:
     <JIRAID>    The ID (e.g. PROJECT-123) of the Jira issue you want to scan
