@@ -34,7 +34,7 @@ extern crate chrono;
 
 extern crate encoding;
 
-use clap::ArgMatches;
+use clap::{Arg, ArgAction, ArgMatches, Command};
 use log::{self, debug, error, info};
 use serde::{Deserialize, Serialize};
 use simple_error::SimpleError;
@@ -68,22 +68,21 @@ const GZEXTENSIONS: &[&str] = &["gz", "tgz"];
 
 /// Main entry function that uses the [clap crate](https://docs.rs/clap/2.33.0/clap/)
 fn main() {
-    let matches = clap_app!(duroc_hog =>
-        (version: "1.0.11")
-        (author: "Scott Cutler <scutler@newrelic.com>")
-        (about: "File system secret scanner in Rust")
-        (@arg REGEX: -r --regex +takes_value "Sets a custom regex JSON file")
-        (@arg FSPATH: +required "Sets the path of the directory or file to scan.")
-        (@arg NORECURSIVE: --norecursive "Disable recursive scanning of all subdirectories underneath the supplied path")
-        (@arg VERBOSE: -v --verbose ... "Sets the level of debugging information")
-        (@arg ENTROPY: --entropy ... "Enables entropy scanning")
-        (@arg DEFAULT_ENTROPY_THRESHOLD: --default_entropy_threshold +takes_value "Default entropy threshold (0.6 by default)")
-        (@arg UNZIP: -z --unzip "Recursively scans archives (ZIP and TAR) in memory (dangerous)")
-        (@arg CASE: --caseinsensitive "Sets the case insensitive flag for all regexes")
-        (@arg OUTPUT: -o --outputfile +takes_value "Sets the path to write the scanner results to (stdout by default)")
-        (@arg PRETTYPRINT: --prettyprint "Outputs the JSON in human readable format")
-        (@arg ALLOWLIST: -a --allowlist +takes_value "Sets a custom allowlist JSON file")
-    )
+    let matches = Command::new("duroc_hog")
+        .version("1.0.11")
+        .author("Scott Cutler <scutler@newrelic.com>")
+        .about("File system secret scanner in Rust")
+        .arg(Arg::new("REGEX").short('r').long("regex").action(ArgAction::Set).value_name("REGEX").help("Sets a custom regex JSON file"))
+        .arg(Arg::new("FSPATH").required(true).action(ArgAction::Set).value_name("PATH").help("Sets the path of the directory or file to scan."))
+        .arg(Arg::new("NORECURSIVE").long("norecursive").action(ArgAction::SetTrue).help("Disable recursive scanning of all subdirectories underneath the supplied path"))
+        .arg(Arg::new("VERBOSE").short('v').long("verbose").action(ArgAction::Count).help("Sets the level of debugging information"))
+        .arg(Arg::new("ENTROPY").long("entropy").action(ArgAction::SetTrue).help("Enables entropy scanning"))
+        .arg(Arg::new("DEFAULT_ENTROPY_THRESHOLD").long("default_entropy_threshold").action(ArgAction::Set).default_value("0.6").help("Default entropy threshold (0.6 by default)"))
+        .arg(Arg::new("UNZIP").short('z').long("unzip").action(ArgAction::SetTrue).help("Recursively scans archives (ZIP and TAR) in memory (dangerous)"))
+        .arg(Arg::new("CASE").long("caseinsensitive").action(ArgAction::SetTrue).help("Sets the case insensitive flag for all regexes"))
+        .arg(Arg::new("OUTPUT").short('o').long("outputfile").action(ArgAction::Set).help("Sets the path to write the scanner results to (stdout by default)"))
+        .arg(Arg::new("PRETTYPRINT").long("prettyprint").action(ArgAction::SetTrue).help("Outputs the JSON in human readable format"))
+        .arg(Arg::new("ALLOWLIST").short('a').long("allowlist").action(ArgAction::Set).help("Sets a custom allowlist JSON file"))
         .get_matches();
     match run(&matches) {
         Ok(()) => {}
@@ -94,15 +93,16 @@ fn main() {
 /// Main logic contained here. Get the CLI variables, and use them to initialize a GitScanner
 fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     // Set logging
-    SecretScanner::set_logging(arg_matches.occurrences_of("VERBOSE"));
+    SecretScanner::set_logging(arg_matches.get_count("VERBOSE").into());
 
     // Initialize some more variables
     let secret_scanner = SecretScannerBuilder::new().conf_argm(arg_matches).build();
     // let scan_entropy = arg_matches.is_present("ENTROPY");
-    let recursive = !arg_matches.is_present("NORECURSIVE");
-    let fspath = Path::new(arg_matches.value_of("FSPATH").unwrap());
-    let output_file = Path::new(arg_matches.value_of("OUTPUT").unwrap_or(""));
-    let unzip: bool = arg_matches.is_present("UNZIP");
+    let recursive = !arg_matches.get_flag("NORECURSIVE");
+    let fspath = Path::new(arg_matches.get_one::<String>("FSPATH").unwrap());
+    let default_path = String::from("");
+    let output_file = Path::new(arg_matches.get_one("OUTPUT").unwrap_or(&default_path));
+    let unzip: bool = arg_matches.get_flag("UNZIP");
 
     debug!("fspath: {:?}", fspath);
 
