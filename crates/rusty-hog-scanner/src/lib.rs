@@ -65,10 +65,11 @@
 //! assert_eq!(secrets.pop().unwrap(), "Email address");
 //! ```
 
-#[macro_use]
+//#[macro_use]
 extern crate clap;
 
 use anyhow::Result;
+use base64::{Engine as _, engine::general_purpose as Base64Engine};
 use clap::ArgMatches;
 use log::{self, debug, error, info, LevelFilter};
 use regex::bytes::{Match, Matches, Regex, RegexBuilder};
@@ -372,26 +373,26 @@ impl SecretScannerBuilder {
     /// Configure multiple values using the clap library's `ArgMatches` object.
     /// This function looks for a "CASE" flag and "REGEX", "ALLOWLIST", "DEFAULT_ENTROPY_THRESHOLD" values.
     pub fn conf_argm(mut self, arg_matches: &ArgMatches) -> Self {
-        self.case_insensitive = arg_matches.is_present("CASE");
-        self.regex_json_path = match arg_matches.value_of("REGEX") {
+        self.case_insensitive = arg_matches.get_flag("CASE");
+        self.regex_json_path = match arg_matches.get_one::<String>("REGEX") {
             Some(s) => Some(String::from(s)),
             None => None,
         };
-        self.pretty_print = arg_matches.is_present("PRETTYPRINT");
-        self.output_path = match arg_matches.value_of("OUTPUT") {
+        self.pretty_print = arg_matches.get_flag("PRETTYPRINT");
+        self.output_path = match arg_matches.get_one::<String>("OUTPUT") {
             Some(s) => Some(String::from(s)),
             None => None,
         };
-        self.allowlist_json_path = match arg_matches.value_of("ALLOWLIST") {
+        self.allowlist_json_path = match arg_matches.get_one::<String>("ALLOWLIST") {
             Some(s) => Some(String::from(s)),
             None => None,
         };
         self.default_entropy_threshold =
-            match value_t!(arg_matches.value_of("DEFAULT_ENTROPY_THRESHOLD"), f32) {
-                Ok(t) => t,
-                Err(_) => DEFAULT_ENTROPY_THRESHOLD,
+            match arg_matches.get_one::<f32>("DEFAULT_ENTROPY_THRESHOLD") {
+                Some(t) => *t,
+                None => DEFAULT_ENTROPY_THRESHOLD,
             };
-        self.add_entropy_findings = arg_matches.is_present("ENTROPY");
+        self.add_entropy_findings = arg_matches.get_flag("ENTROPY");
         self
     }
 
@@ -838,11 +839,11 @@ impl SecretScanner {
         let b64_words: Vec<String> = words
             .iter()
             .filter(|word| word.len() >= 20 && Self::is_base64_string(word))
-            .filter_map(|x| base64::decode(x).ok())
+            .filter_map(|x| Base64Engine::STANDARD_NO_PAD.decode(x).ok())
             .filter(|word| {
                 Self::calc_normalized_entropy(word, Some(255), false) > entropy_threshold
             })
-            .map(|word| String::from(base64::encode(&word).as_str()))
+            .map(|word| String::from(Base64Engine::STANDARD_NO_PAD.encode(&word).as_str()))
             .collect();
         let hex_words: Vec<String> = words
             .iter() // there must be a better way
