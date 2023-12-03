@@ -40,7 +40,7 @@ extern crate chrono;
 
 extern crate encoding;
 
-use clap::ArgMatches;
+use clap::{Arg, ArgAction, ArgMatches, Command};
 use log::{self, error, info};
 use simple_error::SimpleError;
 use std::str;
@@ -51,28 +51,27 @@ use rusty_hog_scanner::{SecretScanner, SecretScannerBuilder};
 
 /// Main entry function that uses the [clap crate](https://docs.rs/clap/2.33.0/clap/)
 fn main() {
-    let matches = clap_app!(choctaw_hog =>
-        (version: "1.0.11")
-        (author: "Scott Cutler <scutler@newrelic.com>")
-        (about: "Git secret scanner in Rust")
-        (@arg REGEX: -r --regex +takes_value "Sets a custom regex JSON file")
-        (@arg GITPATH: +required "Sets the path (or URL) of the Git repo to scan. SSH links must include username (git@)")
-        (@arg VERBOSE: -v --verbose ... "Sets the level of debugging information")
-        (@arg ENTROPY: --entropy ... "Enables entropy scanning")
-        (@arg DEFAULT_ENTROPY_THRESHOLD: --default_entropy_threshold +takes_value "Default entropy threshold (0.6 by default)")
-        (@arg CASE: --caseinsensitive "Sets the case insensitive flag for all regexes")
-        (@arg OUTPUT: -o --outputfile +takes_value "Sets the path to write the scanner results to (stdout by default)")
-        (@arg PRETTYPRINT: --prettyprint "Outputs the JSON in human readable format")
-        (@arg SINCECOMMIT: --since_commit +takes_value "Filters commits based on date committed (branch agnostic)")
-        (@arg UNTILCOMMIT: --until_commit +takes_value "Filters commits based on date committed (branch agnostic)")
-        (@arg SSHKEYPATH: --sshkeypath +takes_value "Takes a path to a private SSH key for git authentication, defaults to ssh-agent")
-        (@arg SSHKEYPHRASE: --sshkeyphrase +takes_value "Takes a passphrase to a private SSH key for git authentication, defaults to none")
-        (@arg HTTPSUSER: --httpsuser +takes_value "Takes a username for HTTPS-based authentication")
-        (@arg HTTPSPASS: --httpspass +takes_value "Takes a password for HTTPS-based authentication")
-        (@arg RECENTDAYS: --recent_days +takes_value conflicts_with[SINCECOMMIT] "Filters commits to the last number of days (branch agnostic)")
-        (@arg ALLOWLIST: -a --allowlist +takes_value "Sets a custom allowlist JSON file")
-    )
-    .get_matches();
+    let matches = Command::new("choctaw_hog")
+        .version("1.0.11")
+        .author("Scott Cutler <scutler@newrelic.com>")
+        .about("Git secret scanner in Rust")
+        .arg(Arg::new("REGEX").short('r').long("regex").action(ArgAction::Set).value_name("REGEX").help("Sets a custom regex JSON file"))
+        .arg(Arg::new("GITPATH").required(true).action(ArgAction::Set).value_name("GIT_PATH").help("Sets the path (or URL) of the Git repo to scan. SSH links must include username (git@)"))
+        .arg(Arg::new("VERBOSE").short('v').long("verbose").action(ArgAction::Count).help("Sets the level of debugging information"))
+        .arg(Arg::new("ENTROPY").long("entropy").action(ArgAction::SetTrue).help("Enables entropy scanning"))
+        .arg(Arg::new("DEFAULT_ENTROPY_THRESHOLD").long("default_entropy_threshold").action(ArgAction::Set).default_value("0.6").help("Default entropy threshold (0.6 by default)"))
+        .arg(Arg::new("CASE").long("caseinsensitive").action(ArgAction::SetTrue).help("Sets the case insensitive flag for all regexes"))
+        .arg(Arg::new("OUTPUT").short('o').long("outputfile").action(ArgAction::Set).help("Sets the path to write the scanner results to (stdout by default)"))
+        .arg(Arg::new("PRETTYPRINT").long("prettyprint").action(ArgAction::SetTrue).help("Outputs the JSON in human readable format"))
+        .arg(Arg::new("SINCECOMMIT").long("since_commit").action(ArgAction::Set).help("Filters commits based on date committed (branch agnostic)"))
+        .arg(Arg::new("UNTILCOMMIT").long("until_commit").action(ArgAction::Set).help("Filters commits based on date committed (branch agnostic)"))
+        .arg(Arg::new("SSHKEYPATH").long("sshkeypath").action(ArgAction::Set).help("Takes a path to a private SSH key for git authentication, defaults to ssh-agent"))
+        .arg(Arg::new("SSHKEYPHRASE").long("sshkeyphrase").action(ArgAction::Set).help("Takes a passphrase to a private SSH key for git authentication, defaults to none"))
+        .arg(Arg::new("HTTPSUSER").long("httpsuser").action(ArgAction::Set).help("Takes a username for HTTPS-based authentication"))
+        .arg(Arg::new("HTTPSPASS").long("httpspass").action(ArgAction::Set).help("Takes a password for HTTPS-based authentication"))
+        .arg(Arg::new("RECENTDAYS").long("recent_days").action(ArgAction::Set).conflicts_with("SINCECOMMIT").help("Filters commits to the last number of days (branch agnostic)"))
+        .arg(Arg::new("ALLOWLIST").short('a').long("allowlist").action(ArgAction::Set).help("Sets a custom allowlist JSON file"))
+        .get_matches();
     match run(&matches) {
         Ok(()) => {}
         Err(e) => error!("Error running command: {}", e),
@@ -82,31 +81,31 @@ fn main() {
 /// Main logic contained here. Get the CLI variables, and use them to initialize a GitScanner
 fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     // Set logging
-    SecretScanner::set_logging(arg_matches.occurrences_of("VERBOSE"));
+    SecretScanner::set_logging(arg_matches.get_count("VERBOSE").into());
 
     // Initialize some more variables
     let secret_scanner = SecretScannerBuilder::new().conf_argm(arg_matches).build();
-    let sshkeypath = arg_matches.value_of("SSHKEYPATH");
-    let sshkeyphrase = arg_matches.value_of("SSHKEYPHRASE");
-    let httpsuser = arg_matches.value_of("HTTPSUSER");
-    let httpspass = arg_matches.value_of("HTTPSPASS");
-    let since_commit = arg_matches.value_of("SINCECOMMIT");
-    let until_commit = arg_matches.value_of("UNTILCOMMIT");
-    let recent_days: Option<u32> = match value_t!(arg_matches.value_of("RECENTDAYS"), u32) {
-        Ok(d) => {
-            if d == 0 {
+    let sshkeypath = arg_matches.get_one::<String>("SSHKEYPATH").map(|s| s.as_str());
+    let sshkeyphrase = arg_matches.get_one::<String>("SSHKEYPHRASE").map(|s| s.as_str());
+    let httpsuser = arg_matches.get_one::<String>("HTTPSUSER").map(|s| s.as_str());
+    let httpspass = arg_matches.get_one::<String>("HTTPSPASS").map(|s| s.as_str());
+    let since_commit = arg_matches.get_one::<String>("SINCECOMMIT").map(|s| s.as_str());
+    let until_commit = arg_matches.get_one::<String>("UNTILCOMMIT").map(|s| s.as_str());
+    let recent_days: Option<u32> = match arg_matches.get_one::<u32>("RECENTDAYS") {
+        Some(d) => {
+            if *d == 0 {
                 None
             } else {
-                Some(d)
+                Some(*d)
             }
         }
-        Err(_e) => None,
+        None => None,
     };
 
     // Get Git objects
     let dest_dir = TempDir::new("rusty_hogs").unwrap();
     let dest_dir_path = dest_dir.path();
-    let source_path: &str = arg_matches.value_of("GITPATH").unwrap();
+    let source_path: &str = arg_matches.get_one::<String>("GITPATH").map(|s| s.as_str()).unwrap();
 
     // Do the scan
     let git_scanner = GitScanner::new_from_scanner(secret_scanner).init_git_repo(
