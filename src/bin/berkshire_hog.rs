@@ -28,7 +28,7 @@
 #[macro_use]
 extern crate clap;
 
-use clap::ArgMatches;
+use clap::{Arg, ArgAction, ArgMatches, Command};
 use log::{self, debug, error, info};
 use s3::bucket::Bucket;
 use s3::creds::Credentials;
@@ -44,25 +44,22 @@ use std::collections::HashSet;
 
 /// Main entry function that uses the [clap crate](https://docs.rs/clap/2.33.0/clap/)
 fn main() {
-    let matches = clap_app!(berkshire_hog =>
-        (version: "1.0.11")
-        (author: "Scott Cutler <scutler@newrelic.com>")
-        (about: "S3 secret hunter in Rust. Avoid bandwidth costs, run this within a VPC!")
-        (@arg REGEX: --regex +takes_value "Sets a custom regex JSON file")
-        (@arg S3URI: +required "The location of a S3 bucket and optional prefix or filename to scan. This must be written in the form s3://mybucket[/prefix_or_file]")
-        (@arg S3REGION: +required "Sets the region of the S3 bucket to scan")
-        (@arg RECURSIVE: -r --recursive "Recursively scans files under the prefix")
-        (@arg VERBOSE: -v --verbose ... "Sets the level of debugging information")
-        (@arg ENTROPY: --entropy ... "Enables entropy scanning")
-        (@arg DEFAULT_ENTROPY_THRESHOLD: --default_entropy_threshold +takes_value "Default entropy threshold (0.6 by default)")
-        (@arg CASE: --caseinsensitive "Sets the case insensitive flag for all regexes")
-        (@arg OUTPUT: -o --outputfile +takes_value "Sets the path to write the scanner results to (stdout by default)")
-        (@arg PRETTYPRINT: --prettyprint "Outputs the JSON in human readable format")
-        (@arg PROFILE: --profile +takes_value "When using a configuration file, enables a non-default profile")
-        (@arg ALLOWLIST: -a --allowlist +takes_value "Sets a custom allowlist JSON file")
-//        (@arg AWS_ACCESS_KEY_ID: --awsaccesskeyid +takes_value "Forces manual AWS authentication")
-//        (@arg AWS_SECRET_ACCESS_KEY: --awssecretaccesskey +takes_value "Forces manual AWS authentication")
-    )
+    let matches = Command::new("berkshire_hog")
+        .version("1.0.11")
+        .author("Scott Cutler <scutler@newrelic.com>")
+        .about("S3 secret hunter in Rust. Avoid bandwidth costs, run this within a VPC!")
+        .arg(Arg::new("REGEX").long("regex").action(ArgAction::Set).help("Sets a custom regex JSON file"))
+        .arg(Arg::new("S3URI").required(true).action(ArgAction::Set).help("The location of a S3 bucket and optional prefix or filename to scan. This must be written in the form s3://mybucket[/prefix_or_file]"))
+        .arg(Arg::new("S3REGION").required(true).action(ArgAction::Set).help("Sets the region of the S3 bucket to scan"))
+        .arg(Arg::new("RECURSIVE").short('r').long("recursive").action(ArgAction::SetTrue).help("Recursively scans files under the prefix"))
+        .arg(Arg::new("VERBOSE").short('v').long("verbose").action(ArgAction::Count).help("Sets the level of debugging information"))
+        .arg(Arg::new("ENTROPY").long("entropy").action(ArgAction::SetTrue).help("Enables entropy scanning"))
+        .arg(Arg::new("DEFAULT_ENTROPY_THRESHOLD").long("default_entropy_threshold").action(ArgAction::Set).default_value("0.6").help("Default entropy threshold (0.6 by default)"))
+        .arg(Arg::new("CASE").long("caseinsensitive").action(ArgAction::SetTrue).help("Sets the case insensitive flag for all regexes"))
+        .arg(Arg::new("OUTPUT").short('o').long("outputfile").action(ArgAction::Set).help("Sets the path to write the scanner results to (stdout by default)"))
+        .arg(Arg::new("PRETTYPRINT").long("prettyprint").action(ArgAction::SetTrue).help("Outputs the JSON in human readable format"))
+        .arg(Arg::new("PROFILE").long("profile").action(ArgAction::Set).help("When using a configuration file, enables a non-default profile"))
+        .arg(Arg::new("ALLOWLIST").short('a').long("allowlist").action(ArgAction::Set).help("Sets a custom allowlist JSON file"))
         .get_matches();
     match run(&matches) {
         Ok(()) => {}
@@ -73,7 +70,7 @@ fn main() {
 /// Main logic contained here. Initialize S3Scanner, parse the URL and objects, then run the scan.
 fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     // Set logging
-    SecretScanner::set_logging(arg_matches.occurrences_of("VERBOSE"));
+    SecretScanner::set_logging(arg_matches.get_count("VERBOSE").into());
 
     // Get regex objects
     let ss = SecretScannerBuilder::new().conf_argm(arg_matches).build();
@@ -81,7 +78,7 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
 
     // Parse the S3URI
     let url: Url = try_with!(
-        Url::parse(arg_matches.value_of("S3URI").unwrap()),
+        Url::parse(arg_matches.get_one::<String>("S3URI").unwrap().as_str()),
         "Failed to parse S3URI"
     );
     let bucket_string = require_with!(url.host_str(), "Bucket name not detected in S3 URI");
@@ -92,13 +89,13 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     };
 
     // Initialize our S3 variables
-    let profile = arg_matches.value_of("PROFILE").map(|x| x.to_string());
+    let profile = arg_matches.get_one::<String>("PROFILE").map(|s| s.as_str());
     let credentials = Credentials::new(None, None, None, None, profile.as_deref()).unwrap();
     debug!(
         "credentials: {:?} {:?} {:?}",
         credentials.access_key, credentials.secret_key, credentials.security_token
     );
-    let region_str = arg_matches.value_of("S3REGION").unwrap();
+    let region_str = arg_matches.get_one::<String>("S3REGION").unwrap();
     let region: Region = match region_str.parse() {
         Ok(r) => r,
         Err(e) => return Err(SimpleError::new(e.to_string())),
@@ -108,7 +105,7 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
         Err(e) => return Err(SimpleError::new(e.to_string())),
     };
 
-    let delimiter = if arg_matches.is_present("RECURSIVE") {
+    let delimiter = if arg_matches.get_flag("RECURSIVE") {
         None
     } else {
         Some(String::from("/"))
