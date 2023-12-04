@@ -31,7 +31,6 @@
 //!    <GITPATH>    Sets the path (or URL) of the Git repo to scan. SSH links must include username (git@)
 //! ```
 
-#[macro_use]
 extern crate clap;
 
 extern crate tempdir;

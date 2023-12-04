@@ -25,7 +25,6 @@
 //!    <FSPATH>    Sets the path of the file system to scan.
 //! ```
 
-#[macro_use]
 extern crate clap;
 
 extern crate tempdir;

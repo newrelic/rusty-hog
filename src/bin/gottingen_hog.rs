@@ -22,12 +22,11 @@
 //! ARGS:
 //!     <JIRAID>    The ID (e.g. PROJECT-123) of the Jira issue you want to scan
 
-#[macro_use]
 extern crate clap;
 extern crate hyper;
 extern crate hyper_rustls;
 
-use clap::ArgMatches;
+use clap::{Arg, ArgAction, ArgMatches, Command};
 use encoding::all::ASCII;
 use encoding::types::Encoding;
 use encoding::DecoderTrap;
@@ -59,24 +58,23 @@ pub struct JiraFinding {
 /// Main entry function that uses the [clap crate](https://docs.rs/clap/2.33.0/clap/)
 #[tokio::main]
 async fn main() {
-    let matches: ArgMatches = clap_app!(gottingen_hog =>
-        (version: "1.0.11")
-        (author: "Emily Cain <ecain@newrelic.com>")
-        (about: "Jira secret scanner in Rust.")
-        (@arg REGEX: --regex +takes_value "Sets a custom regex JSON file")
-        (@arg JIRAID: +required "The ID (e.g. PROJECT-123) of the Jira issue you want to scan")
-        (@arg VERBOSE: -v --verbose ... "Sets the level of debugging information")
-        (@arg ENTROPY: --entropy ... "Enables entropy scanning")
-        (@arg DEFAULT_ENTROPY_THRESHOLD: --default_entropy_threshold +takes_value "Default entropy threshold (0.6 by default)")
-        (@arg CASE: --caseinsensitive "Sets the case insensitive flag for all regexes")
-        (@arg OUTPUT: -o --outputfile +takes_value "Sets the path to write the scanner results to (stdout by default)")
-        (@arg PRETTYPRINT: --prettyprint "Outputs the JSON in human readable format")
-        (@arg USERNAME: --username +takes_value conflicts_with[AUTHTOKEN] "Jira username (crafts basic auth header)")
-        (@arg PASSWORD: --password +takes_value conflicts_with[AUTHTOKEN] "Jira password (crafts basic auth header)")
-        (@arg BEARERTOKEN: --authtoken +takes_value conflicts_with[USERNAME PASSWORD] "Jira basic auth bearer token (instead of user & pass)")
-        (@arg JIRAURL: --url +takes_value  "Base URL of JIRA instance (e.g. https://jira.atlassian.net/)")
-        (@arg ALLOWLIST: -a --allowlist +takes_value "Sets a custom allowlist JSON file")
-    )
+    let matches: ArgMatches = Command::new("gottingen_hog")
+        .version("1.0.11")
+        .author("Emily Cain <ecain@newrelic.com>")
+        .about("Jira secret scanner in Rust.")
+        .arg(Arg::new("REGEX").long("regex").action(ArgAction::Set).help("Sets a custom regex JSON file"))
+        .arg(Arg::new("JIRAID").required(true).action(ArgAction::Set).help("The ID (e.g. PROJECT-123) of the Jira issue you want to scan"))
+        .arg(Arg::new("VERBOSE").short('v').long("verbose").action(ArgAction::Count).help("Sets the level of debugging information"))
+        .arg(Arg::new("ENTROPY").long("entropy").action(ArgAction::SetTrue).help("Enables entropy scanning"))
+        .arg(Arg::new("DEFAULT_ENTROPY_THRESHOLD").long("default_entropy_threshold").action(ArgAction::Set).default_value("0.6").help("Default entropy threshold (0.6 by default)"))
+        .arg(Arg::new("CASE").long("caseinsensitive").action(ArgAction::SetTrue).help("Sets the case insensitive flag for all regexes"))
+        .arg(Arg::new("OUTPUT").short('o').long("outputfile").action(ArgAction::Set).help("Sets the path to write the scanner results to (stdout by default)"))
+        .arg(Arg::new("PRETTYPRINT").long("prettyprint").action(ArgAction::SetTrue).help("Outputs the JSON in human readable format"))
+        .arg(Arg::new("USERNAME").long("username").action(ArgAction::Set).conflicts_with("BEARERTOKEN").help("Jira username (crafts basic auth header)"))
+        .arg(Arg::new("PASSWORD").long("password").action(ArgAction::Set).conflicts_with("BEARERTOKEN").help("Jira password (crafts basic auth header)"))
+        .arg(Arg::new("BEARERTOKEN").long("authtoken").action(ArgAction::Set).conflicts_with_all(["USERNAME","PASSWORD"]).help("Jira basic auth bearer token (instead of user & pass)"))
+        .arg(Arg::new("JIRAURL").long("url").action(ArgAction::Set).help("Base URL of JIRA instance (e.g. https://jira.atlassian.net/)"))
+        .arg(Arg::new("ALLOWLIST").short('a').long("allowlist").action(ArgAction::Set).help("Sets a custom allowlist JSON file"))
         .get_matches();
     match run(matches).await {
         Ok(()) => {}
@@ -86,22 +84,23 @@ async fn main() {
 
 /// Main logic contained here. Get the CLI variables, create the appropriate TLS objects,
 /// make the TLS calls, and scan the result..
-async fn run<'b>(arg_matches: ArgMatches<'b>) -> Result<(), SimpleError> {
-    SecretScanner::set_logging(arg_matches.occurrences_of("VERBOSE"));
+async fn run(arg_matches: ArgMatches) -> Result<(), SimpleError> {
+    SecretScanner::set_logging(arg_matches.get_count("VERBOSE").into());
 
     // initialize the basic variables and CLI options
     let ssb = SecretScannerBuilder::new().conf_argm(&arg_matches);
     let secret_scanner = ssb.build();
 
-    let jirausername = arg_matches.value_of("USERNAME");
-    let jirapassword = arg_matches.value_of("PASSWORD");
-    let jiraauthtoken = arg_matches.value_of("BEARERTOKEN");
+    let jirausername = arg_matches.get_one::<String>("USERNAME");
+    let jirapassword = arg_matches.get_one::<String>("PASSWORD");
+    let jiraauthtoken = arg_matches.get_one::<String>("BEARERTOKEN");
     let base_url_input = arg_matches
-        .value_of("JIRAURL")
+        .get_one::<String>("JIRAURL")
+        .map(|s| s.as_str())
         .unwrap_or("https://jira.atlassian.com/");
     let base_url_as_url = Url::parse(base_url_input).unwrap();
     let issue_id = arg_matches
-        .value_of("JIRAID") // TODO validate the format somehow
+        .get_one::<String>("JIRAID") // TODO validate the format somehow
         .unwrap();
 
     let base_url = base_url_as_url.as_str();

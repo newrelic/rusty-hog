@@ -27,7 +27,6 @@
 //!         --url <SLACKURL>
 //!             Base URL of Slack Workspace (e.g. https://[WORKSPACE NAME].slack.com)
 
-#[macro_use]
 extern crate clap;
 extern crate hyper;
 extern crate hyper_rustls;

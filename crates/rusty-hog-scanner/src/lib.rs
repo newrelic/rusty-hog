@@ -65,7 +65,6 @@
 //! assert_eq!(secrets.pop().unwrap(), "Email address");
 //! ```
 
-//#[macro_use]
 extern crate clap;
 
 use anyhow::Result;

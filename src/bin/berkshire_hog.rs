@@ -25,7 +25,6 @@
 //!    <S3REGION>    Sets the region of the S3 bucket to scan.
 //! ```
 
-#[macro_use]
 extern crate clap;
 
 use clap::{Arg, ArgAction, ArgMatches, Command};
