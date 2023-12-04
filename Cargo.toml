@@ -40,11 +40,11 @@ hyper = "^0.14"
 hyper-rustls = "^0.22"
 yup-oauth2 = "^5.0"
 walkdir = "2"
-zip = "0.5"
+zip = "0.6"
 tar = "0.4"
 flate2 = "1.0"
 tempfile = "3.2"
-path-clean = "0.1.0"
+path-clean = "1.0"
 anyhow = "1.0"
 
 [dev-dependencies]
