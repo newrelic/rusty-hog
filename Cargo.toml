@@ -7,7 +7,7 @@ members = [
 name = "rusty_hogs"
 version = "1.0.11"
 authors = ["Scott Cutler <scutler@newrelic.com>"]
-edition = "2018"
+edition = "2021"
 description = "This project provides a set of scanners that will use regular expressions to try and detect the presence of sensitive information such as API keys, passwords, and personal information. It includes a set of regular expressions by default, but will also accept a JSON object containing your custom regular expressions."
 homepage = "https://github.com/newrelic/rusty-hog"
 keywords = ["secret", "scanner", "regex", "rusty", "hog"]
@@ -35,10 +35,10 @@ encoding = "0.2"
 hex = "0.4"
 lambda_runtime = "0.8"
 rust-s3 = { version = "0.33", features = ["blocking"] }
-google-drive3 = "2.0.4"
-hyper = "^0.14"
-hyper-rustls = "^0.22"
-yup-oauth2 = "^5.0"
+google-drive3 = "5.0"
+hyper = { version = "^0.14", features = ["client"] }
+hyper-rustls = "^0.24"
+yup-oauth2 = "^8.3"
 walkdir = "2"
 zip = "0.6"
 tar = "0.4"
