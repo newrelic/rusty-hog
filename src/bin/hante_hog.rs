@@ -124,7 +124,11 @@ async fn run(arg_matches: ArgMatches) -> Result<(), SimpleError> {
         .map(|s| s.as_str());
 
     // Still inside `async fn main`...
-    let https = hyper_rustls::HttpsConnector::with_native_roots();
+    let https = hyper_rustls::HttpsConnectorBuilder::new()
+        .with_native_roots()
+        .https_only()
+        .enable_all_versions()
+        .build();
     let hyper_client: client::Client<_, hyper::Body> = client::Client::builder().build(https);
 
     // Construction Authentication header

@@ -75,6 +75,7 @@
 
 extern crate google_drive3 as drive3;
 extern crate yup_oauth2 as oauth2;
+use chrono::{Utc, DateTime};
 use drive3::DriveHub;
 use encoding::all::ASCII;
 use encoding::{DecoderTrap, Encoding};
@@ -101,7 +102,7 @@ use rusty_hog_scanner::SecretScanner;
 /// };
 /// ```
 pub struct GDriveFinding {
-    pub date: String,
+    pub date: DateTime<Utc>,
     pub diff: String,
     pub path: String,
     #[serde(rename = "stringsFound")]
@@ -140,7 +141,7 @@ pub struct GDriveScanner {
 pub struct GDriveFileInfo {
     pub file_id: String,
     pub mime_type: String,
-    pub modified_time: String,
+    pub modified_time: DateTime<Utc>,
     pub web_link: String,
     pub parents: Vec<String>,
     pub name: String,
@@ -149,7 +150,7 @@ pub struct GDriveFileInfo {
 
 impl GDriveFileInfo {
     /// Construct a `GDriveFileInfo` object from a Google Drive File ID and an authorized `DriveHub` object
-    pub async fn new(file_id: &str, hub: &DriveHub) -> Result<Self, SimpleError> {
+    pub async fn new(file_id: &str, hub: &DriveHub<hyper_rustls::HttpsConnector<hyper::client::connect::HttpConnector>>) -> Result<Self, SimpleError> {
         let fields = "kind, id, name, mimeType, webViewLink, modifiedTime, parents";
         let hub_result = hub
             .files()
@@ -211,7 +212,7 @@ impl GDriveScanner {
     /// Google Drive. Expect authorization issues here if you don't have access to the file.
     async fn gdrive_file_contents(
         gdrivefile: &GDriveFileInfo,
-        hub: &DriveHub,
+        hub: &DriveHub<hyper_rustls::HttpsConnector<hyper::client::connect::HttpConnector>>,
     ) -> Result<Vec<u8>, SimpleError> {
         let resp_obj = hub
             .files()
@@ -232,7 +233,7 @@ impl GDriveScanner {
     pub async fn perform_scan(
         &self,
         gdrivefile: &GDriveFileInfo,
-        hub: &DriveHub,
+        hub: &DriveHub<hyper_rustls::HttpsConnector<hyper::client::connect::HttpConnector>>,
     ) -> HashSet<GDriveFinding> {
         // download an export of the file, split on new lines, store in lines
         let buffer = Self::gdrive_file_contents(gdrivefile, hub).await.unwrap();

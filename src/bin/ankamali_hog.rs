@@ -90,7 +90,14 @@ async fn run(arg_matches: ArgMatches) -> Result<(), SimpleError> {    // Set log
         .build()
         .await
         .expect("failed to create authenticator (try deleting temp_token and restarting)");
-    let hub = DriveHub::new(hyper::Client::builder().build(hyper_rustls::HttpsConnector::with_native_roots()), auth);
+    let hub = DriveHub::new(
+        hyper::Client::builder().build(
+            hyper_rustls::HttpsConnectorBuilder::new()
+            .with_native_roots()
+            .https_only()
+            .enable_all_versions()
+            .build()
+        ), auth);
 
     // get some initial info about the file
     let gdriveinfo = GDriveFileInfo::new(file_id, &hub).await.unwrap();
