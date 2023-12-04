@@ -37,8 +37,8 @@ use simple_error::{require_with, try_with};
 use std::str;
 use url::Url;
 
-use rusty_hogs::aws_scanning::{S3Finding, S3Scanner};
 use rusty_hog_scanner::{SecretScanner, SecretScannerBuilder};
+use rusty_hogs::aws_scanning::{S3Finding, S3Scanner};
 use std::collections::HashSet;
 
 /// Main entry function that uses the [clap crate](https://docs.rs/clap/2.33.0/clap/)

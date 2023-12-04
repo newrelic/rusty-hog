@@ -32,11 +32,11 @@ extern crate yup_oauth2 as oauth2;
 use clap::{Arg, ArgAction, ArgMatches, Command};
 use drive3::DriveHub;
 use log::{self, error, info};
+use oauth2::{InstalledFlowAuthenticator, InstalledFlowReturnMethod};
+use rusty_hog_scanner::{SecretScanner, SecretScannerBuilder};
+use rusty_hogs::google_scanning::{GDriveFileInfo, GDriveScanner};
 use simple_error::SimpleError;
 use std::path::Path;
-use rusty_hogs::google_scanning::{GDriveFileInfo, GDriveScanner};
-use rusty_hog_scanner::{SecretScanner, SecretScannerBuilder};
-use oauth2::{InstalledFlowAuthenticator, InstalledFlowReturnMethod};
 
 /// Main entry function that uses the [clap crate](https://docs.rs/clap/2.33.0/clap/)
 #[tokio::main]
@@ -45,17 +45,77 @@ async fn main() {
         .version("1.0.11")
         .author("Scott Cutler <scutler@newrelic.com>")
         .about("Google Drive secret scanner in Rust.")
-        .arg(Arg::new("REGEX").long("regex").action(ArgAction::Set).help("Sets a custom regex JSON file"))
-        .arg(Arg::new("GDRIVEID").required(true).action(ArgAction::Set).help("The ID of the Google drive file you want to scan"))
-        .arg(Arg::new("VERBOSE").short('v').long("verbose").action(ArgAction::Count).help("Sets the level of debugging information"))
-        .arg(Arg::new("ENTROPY").long("entropy").action(ArgAction::SetTrue).help("Enables entropy scanning"))
-        .arg(Arg::new("DEFAULT_ENTROPY_THRESHOLD").long("default_entropy_threshold").action(ArgAction::Set).help("Default entropy threshold (0.6 by default)"))
-        .arg(Arg::new("CASE").long("caseinsensitive").action(ArgAction::SetTrue).help("Sets the case insensitive flag for all regexes"))
-        .arg(Arg::new("OUTPUT").short('o').long("outputfile").action(ArgAction::Set).help("Sets the path to write the scanner results to (stdout by default)"))
-        .arg(Arg::new("PRETTYPRINT").long("prettyprint").action(ArgAction::SetTrue).help("Outputs the JSON in human readable format"))
-        .arg(Arg::new("OAUTHSECRETFILE").long("oauthsecret").action(ArgAction::Set).default_value("./clientsecret.json").help("Path to an OAuth secret file (JSON) ./clientsecret.json by default"))
-        .arg(Arg::new("OAUTHTOKENFILE").long("oauthtoken").action(ArgAction::Set).default_value("./temp_token").help("Path to an OAuth token storage file ./temp_token by default"))
-        .arg(Arg::new("ALLOWLIST").short('a').long("allowlist").action(ArgAction::Set).help("Sets a custom allowlist JSON file"))
+        .arg(
+            Arg::new("REGEX")
+                .long("regex")
+                .action(ArgAction::Set)
+                .help("Sets a custom regex JSON file"),
+        )
+        .arg(
+            Arg::new("GDRIVEID")
+                .required(true)
+                .action(ArgAction::Set)
+                .help("The ID of the Google drive file you want to scan"),
+        )
+        .arg(
+            Arg::new("VERBOSE")
+                .short('v')
+                .long("verbose")
+                .action(ArgAction::Count)
+                .help("Sets the level of debugging information"),
+        )
+        .arg(
+            Arg::new("ENTROPY")
+                .long("entropy")
+                .action(ArgAction::SetTrue)
+                .help("Enables entropy scanning"),
+        )
+        .arg(
+            Arg::new("DEFAULT_ENTROPY_THRESHOLD")
+                .long("default_entropy_threshold")
+                .action(ArgAction::Set)
+                .help("Default entropy threshold (0.6 by default)"),
+        )
+        .arg(
+            Arg::new("CASE")
+                .long("caseinsensitive")
+                .action(ArgAction::SetTrue)
+                .help("Sets the case insensitive flag for all regexes"),
+        )
+        .arg(
+            Arg::new("OUTPUT")
+                .short('o')
+                .long("outputfile")
+                .action(ArgAction::Set)
+                .help("Sets the path to write the scanner results to (stdout by default)"),
+        )
+        .arg(
+            Arg::new("PRETTYPRINT")
+                .long("prettyprint")
+                .action(ArgAction::SetTrue)
+                .help("Outputs the JSON in human readable format"),
+        )
+        .arg(
+            Arg::new("OAUTHSECRETFILE")
+                .long("oauthsecret")
+                .action(ArgAction::Set)
+                .default_value("./clientsecret.json")
+                .help("Path to an OAuth secret file (JSON) ./clientsecret.json by default"),
+        )
+        .arg(
+            Arg::new("OAUTHTOKENFILE")
+                .long("oauthtoken")
+                .action(ArgAction::Set)
+                .default_value("./temp_token")
+                .help("Path to an OAuth token storage file ./temp_token by default"),
+        )
+        .arg(
+            Arg::new("ALLOWLIST")
+                .short('a')
+                .long("allowlist")
+                .action(ArgAction::Set)
+                .help("Sets a custom allowlist JSON file"),
+        )
         .get_matches();
     match run(matches).await {
         Ok(()) => {}
@@ -65,7 +125,8 @@ async fn main() {
 
 /// Main logic contained here. Get the CLI variables, setup OAuth, setup GDriveScanner and output
 /// the results.
-async fn run(arg_matches: ArgMatches) -> Result<(), SimpleError> {    // Set logging
+async fn run(arg_matches: ArgMatches) -> Result<(), SimpleError> {
+    // Set logging
     SecretScanner::set_logging(arg_matches.get_count("VERBOSE").into());
 
     // Initialize some variables
@@ -93,11 +154,13 @@ async fn run(arg_matches: ArgMatches) -> Result<(), SimpleError> {    // Set log
     let hub = DriveHub::new(
         hyper::Client::builder().build(
             hyper_rustls::HttpsConnectorBuilder::new()
-            .with_native_roots()
-            .https_only()
-            .enable_all_versions()
-            .build()
-        ), auth);
+                .with_native_roots()
+                .https_only()
+                .enable_all_versions()
+                .build(),
+        ),
+        auth,
+    );
 
     // get some initial info about the file
     let gdriveinfo = GDriveFileInfo::new(file_id, &hub).await.unwrap();

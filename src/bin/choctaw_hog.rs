@@ -45,8 +45,8 @@ use simple_error::SimpleError;
 use std::str;
 use tempdir::TempDir;
 
-use rusty_hogs::git_scanning::GitScanner;
 use rusty_hog_scanner::{SecretScanner, SecretScannerBuilder};
+use rusty_hogs::git_scanning::GitScanner;
 
 /// Main entry function that uses the [clap crate](https://docs.rs/clap/2.33.0/clap/)
 fn main() {
@@ -84,12 +84,24 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
 
     // Initialize some more variables
     let secret_scanner = SecretScannerBuilder::new().conf_argm(arg_matches).build();
-    let sshkeypath = arg_matches.get_one::<String>("SSHKEYPATH").map(|s| s.as_str());
-    let sshkeyphrase = arg_matches.get_one::<String>("SSHKEYPHRASE").map(|s| s.as_str());
-    let httpsuser = arg_matches.get_one::<String>("HTTPSUSER").map(|s| s.as_str());
-    let httpspass = arg_matches.get_one::<String>("HTTPSPASS").map(|s| s.as_str());
-    let since_commit = arg_matches.get_one::<String>("SINCECOMMIT").map(|s| s.as_str());
-    let until_commit = arg_matches.get_one::<String>("UNTILCOMMIT").map(|s| s.as_str());
+    let sshkeypath = arg_matches
+        .get_one::<String>("SSHKEYPATH")
+        .map(|s| s.as_str());
+    let sshkeyphrase = arg_matches
+        .get_one::<String>("SSHKEYPHRASE")
+        .map(|s| s.as_str());
+    let httpsuser = arg_matches
+        .get_one::<String>("HTTPSUSER")
+        .map(|s| s.as_str());
+    let httpspass = arg_matches
+        .get_one::<String>("HTTPSPASS")
+        .map(|s| s.as_str());
+    let since_commit = arg_matches
+        .get_one::<String>("SINCECOMMIT")
+        .map(|s| s.as_str());
+    let until_commit = arg_matches
+        .get_one::<String>("UNTILCOMMIT")
+        .map(|s| s.as_str());
     let recent_days: Option<u32> = match arg_matches.get_one::<u32>("RECENTDAYS") {
         Some(d) => {
             if *d == 0 {
@@ -104,7 +116,10 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     // Get Git objects
     let dest_dir = TempDir::new("rusty_hogs").unwrap();
     let dest_dir_path = dest_dir.path();
-    let source_path: &str = arg_matches.get_one::<String>("GITPATH").map(|s| s.as_str()).unwrap();
+    let source_path: &str = arg_matches
+        .get_one::<String>("GITPATH")
+        .map(|s| s.as_str())
+        .unwrap();
 
     // Do the scan
     let git_scanner = GitScanner::new_from_scanner(secret_scanner).init_git_repo(

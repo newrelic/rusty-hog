@@ -68,19 +68,91 @@ async fn main() {
         .version("1.0.11")
         .author("Joao Henrique Machado Silva <joaoh82@gmail.com>")
         .about("Slack secret scanner in Rust.")
-        .arg(Arg::new("REGEX").long("regex").action(ArgAction::Set).help("Sets a custom regex JSON file"))
-        .arg(Arg::new("CHANNELID").long("channelid").required(true).action(ArgAction::Set).help("The ID (e.g. C12345) of the Slack channel you want to scan"))
-        .arg(Arg::new("VERBOSE").short('v').long("verbose").action(ArgAction::Count).help("Sets the level of debugging information"))
-        .arg(Arg::new("ENTROPY").long("entropy").action(ArgAction::SetTrue).help("Enables entropy scanning"))
-        .arg(Arg::new("DEFAULT_ENTROPY_THRESHOLD").long("default_entropy_threshold").action(ArgAction::Set).default_value("0.6").help("Default entropy threshold (0.6 by default)"))
-        .arg(Arg::new("CASE").long("caseinsensitive").action(ArgAction::SetTrue).help("Sets the case insensitive flag for all regexes"))
-        .arg(Arg::new("OUTPUT").short('o').long("outputfile").action(ArgAction::Set).help("Sets the path to write the scanner results to (stdout by default)"))
-        .arg(Arg::new("PRETTYPRINT").long("prettyprint").action(ArgAction::SetTrue).help("Outputs the JSON in human readable format"))
-        .arg(Arg::new("BEARERTOKEN").long("authtoken").required(true).action(ArgAction::Set).help("Slack basic auth bearer token"))
-        .arg(Arg::new("SLACKURL").long("url").required(true).action(ArgAction::Set).help("Base URL of Slack Workspace (e.g. https://[WORKSPACE NAME].slack.com)"))
-        .arg(Arg::new("ALLOWLIST").short('a').long("allowlist").action(ArgAction::Set).help("Sets a custom allowlist JSON file"))
-        .arg(Arg::new("LATEST").long("latest").action(ArgAction::Set).help("End of time range of messages to include in search"))
-        .arg(Arg::new("OLDEST").long("oldest").action(ArgAction::Set).help("Start of time range of messages to include in search"))
+        .arg(
+            Arg::new("REGEX")
+                .long("regex")
+                .action(ArgAction::Set)
+                .help("Sets a custom regex JSON file"),
+        )
+        .arg(
+            Arg::new("CHANNELID")
+                .long("channelid")
+                .required(true)
+                .action(ArgAction::Set)
+                .help("The ID (e.g. C12345) of the Slack channel you want to scan"),
+        )
+        .arg(
+            Arg::new("VERBOSE")
+                .short('v')
+                .long("verbose")
+                .action(ArgAction::Count)
+                .help("Sets the level of debugging information"),
+        )
+        .arg(
+            Arg::new("ENTROPY")
+                .long("entropy")
+                .action(ArgAction::SetTrue)
+                .help("Enables entropy scanning"),
+        )
+        .arg(
+            Arg::new("DEFAULT_ENTROPY_THRESHOLD")
+                .long("default_entropy_threshold")
+                .action(ArgAction::Set)
+                .default_value("0.6")
+                .help("Default entropy threshold (0.6 by default)"),
+        )
+        .arg(
+            Arg::new("CASE")
+                .long("caseinsensitive")
+                .action(ArgAction::SetTrue)
+                .help("Sets the case insensitive flag for all regexes"),
+        )
+        .arg(
+            Arg::new("OUTPUT")
+                .short('o')
+                .long("outputfile")
+                .action(ArgAction::Set)
+                .help("Sets the path to write the scanner results to (stdout by default)"),
+        )
+        .arg(
+            Arg::new("PRETTYPRINT")
+                .long("prettyprint")
+                .action(ArgAction::SetTrue)
+                .help("Outputs the JSON in human readable format"),
+        )
+        .arg(
+            Arg::new("BEARERTOKEN")
+                .long("authtoken")
+                .required(true)
+                .action(ArgAction::Set)
+                .help("Slack basic auth bearer token"),
+        )
+        .arg(
+            Arg::new("SLACKURL")
+                .long("url")
+                .required(true)
+                .action(ArgAction::Set)
+                .help("Base URL of Slack Workspace (e.g. https://[WORKSPACE NAME].slack.com)"),
+        )
+        .arg(
+            Arg::new("ALLOWLIST")
+                .short('a')
+                .long("allowlist")
+                .action(ArgAction::Set)
+                .help("Sets a custom allowlist JSON file"),
+        )
+        .arg(
+            Arg::new("LATEST")
+                .long("latest")
+                .action(ArgAction::Set)
+                .help("End of time range of messages to include in search"),
+        )
+        .arg(
+            Arg::new("OLDEST")
+                .long("oldest")
+                .action(ArgAction::Set)
+                .help("Start of time range of messages to include in search"),
+        )
         .get_matches();
     match run(matches).await {
         Ok(()) => {}
@@ -98,7 +170,9 @@ async fn run(arg_matches: ArgMatches) -> Result<(), SimpleError> {
     let secret_scanner = ssb.build();
 
     // Reading the Slack API token from the command line
-    let slackauthtoken = arg_matches.get_one::<String>("BEARERTOKEN").map(|s| s.as_str());
+    let slackauthtoken = arg_matches
+        .get_one::<String>("BEARERTOKEN")
+        .map(|s| s.as_str());
     // Reading Slack Channel ID from the command line
     let channel_id = arg_matches
         .get_one::<String>("CHANNELID") // TODO validate the format somehow
@@ -114,14 +188,10 @@ async fn run(arg_matches: ArgMatches) -> Result<(), SimpleError> {
     let base_url = base_url_as_url.as_str();
 
     // Reading the latest timestamp from the command line
-    let latest_input = arg_matches
-        .get_one::<String>("LATEST")
-        .map(|s| s.as_str());
+    let latest_input = arg_matches.get_one::<String>("LATEST").map(|s| s.as_str());
 
     // Reading the latest timestamp from the command line
-    let oldest_input = arg_matches
-        .get_one::<String>("OLDEST")
-        .map(|s| s.as_str());
+    let oldest_input = arg_matches.get_one::<String>("OLDEST").map(|s| s.as_str());
 
     // Still inside `async fn main`...
     let https = hyper_rustls::HttpsConnectorBuilder::new()
@@ -136,10 +206,20 @@ async fn run(arg_matches: ArgMatches) -> Result<(), SimpleError> {
 
     // Building URL to request conversation history for the channel
     // TODO: Construct the URL using a URL library to avoid weird input issues?
-    let full_url = format!("{}/api/conversations.history?channel={}", base_url, channel_id);
+    let full_url = format!(
+        "{}/api/conversations.history?channel={}",
+        base_url, channel_id
+    );
 
     // Retrieving the history of the channel
-    let json_results_array = get_channel_history_json(hyper_client, auth_string, &full_url, latest_input, oldest_input).await;
+    let json_results_array = get_channel_history_json(
+        hyper_client,
+        auth_string,
+        &full_url,
+        latest_input,
+        oldest_input,
+    )
+    .await;
     // WARNING: This method requires storing ALL the slack channel history JSON in memory at once
     // TODO: Re-write these methods to scan each JSON API request - to conserve memory usage
 
@@ -148,11 +228,7 @@ async fn run(arg_matches: ArgMatches) -> Result<(), SimpleError> {
 
     for json_results in json_results_array.iter() {
         // Parsing the messages as an array
-        let messages = json_results
-            .get("messages")
-            .unwrap()
-            .as_array()
-            .unwrap();
+        let messages = json_results.get("messages").unwrap().as_array().unwrap();
 
         // find secrets in each message
         for message in messages {
@@ -161,12 +237,21 @@ async fn run(arg_matches: ArgMatches) -> Result<(), SimpleError> {
             let location = format!(
                 "message type {} by {} on {}",
                 message.get("type").unwrap(),
-                message.get("user").unwrap_or(&Value::String("<UNKNOWN>".to_string())),
+                message
+                    .get("user")
+                    .unwrap_or(&Value::String("<UNKNOWN>".to_string())),
                 message.get("ts").unwrap()
             );
             let message_text = message.get("text").unwrap().as_str().unwrap().as_bytes();
 
-            let message_findings = get_findings(&secret_scanner, base_url, channel_id, ts, message_text, location);
+            let message_findings = get_findings(
+                &secret_scanner,
+                base_url,
+                channel_id,
+                ts,
+                message_text,
+                location,
+            );
             secrets.extend(message_findings);
         }
     }
@@ -182,7 +267,6 @@ async fn run(arg_matches: ArgMatches) -> Result<(), SimpleError> {
         )),
     }
 }
-
 
 // TODO: move this to a separate file
 /// get_channel_history_json uses a hyper::client object to perform a POST on the full_url and return parsed serde JSON data
@@ -237,7 +321,9 @@ where
         if status != StatusCode::OK {
             panic!(
                 "Request to {} failed with code {:?}: {}",
-                full_url_mod.clone(), status, response_body
+                full_url_mod.clone(),
+                status,
+                response_body
             )
         }
 
@@ -247,16 +333,25 @@ where
         if !ok {
             panic!(
                 "Request to {} failed with error {:?}: {}",
-                full_url_mod.clone(), json_results["error"], response_body
+                full_url_mod.clone(),
+                json_results["error"],
+                response_body
             )
         }
         has_more = json_results.get("has_more").unwrap().as_bool().unwrap();
-        if has_more { // TODO: Cleanup weird borrowing issues?
-            let rm = json_results.get("response_metadata").unwrap().as_object().unwrap().clone();
-            cursor = Some(String::from(rm.get("next_cursor").unwrap().as_str().unwrap()));
+        if has_more {
+            // TODO: Cleanup weird borrowing issues?
+            let rm = json_results
+                .get("response_metadata")
+                .unwrap()
+                .as_object()
+                .unwrap()
+                .clone();
+            cursor = Some(String::from(
+                rm.get("next_cursor").unwrap().as_str().unwrap(),
+            ));
         }
         output.push(json_results);
-
     }
     output
 }
@@ -271,12 +366,11 @@ fn get_findings(
     description: &[u8],
     location: String,
 ) -> Vec<SlackFinding> {
-
     let lines = description.split(|&x| (x as char) == '\n');
     let mut secrets: Vec<SlackFinding> = Vec::new();
 
     // Building web links for Slack messages
-    // https://<WORKSPACE>.slack.com/archives/<CHANNEL_ID/<MESSAGE TIMESTAMP> 
+    // https://<WORKSPACE>.slack.com/archives/<CHANNEL_ID/<MESSAGE TIMESTAMP>
     let msg_id = str::replace(ts, ".", "");
     let web_link = format!("{}/archives/{}/p{}", base_url, channel_id, msg_id);
 
@@ -284,7 +378,8 @@ fn get_findings(
     for new_line in lines {
         debug!("{:?}", std::str::from_utf8(new_line));
         // Builds a BTreeMap of the findings
-        let matches_map: BTreeMap<String, Vec<RustyHogMatch>> = secret_scanner.matches_entropy(new_line);
+        let matches_map: BTreeMap<String, Vec<RustyHogMatch>> =
+            secret_scanner.matches_entropy(new_line);
 
         // Iterate over the findings and add them to the list of findings to return
         for (reason, match_iterator) in matches_map {

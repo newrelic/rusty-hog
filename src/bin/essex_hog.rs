@@ -33,7 +33,7 @@ extern crate clap;
 extern crate hyper;
 extern crate hyper_rustls;
 
-use base64::{Engine as _, engine::general_purpose as Base64Engine};
+use base64::{engine::general_purpose as Base64Engine, Engine as _};
 use clap::{Arg, ArgAction, ArgMatches, Command};
 use encoding::all::ASCII;
 use encoding::types::Encoding;
@@ -77,19 +77,91 @@ async fn main() {
         .version("1.0.11")
         .author("Emily Cain <ecain@newrelic.com>, Scott Cutler")
         .about("Confluence secret scanner in Rust.")
-        .arg(Arg::new("REGEX").long("regex").action(ArgAction::Set).help("Sets a custom regex JSON file"))
-        .arg(Arg::new("PAGEID").required(true).action(ArgAction::Set).help("The ID (e.g. 1234) of the confluence page you want to scan"))
-        .arg(Arg::new("URL").required(true).action(ArgAction::Set).help("Base URL of Confluence instance (e.g. https://newrelic.atlassian.net/)"))
-        .arg(Arg::new("VERBOSE").short('v').long("verbose").action(ArgAction::Count).help("Sets the level of debugging information"))
-        .arg(Arg::new("ENTROPY").long("entropy").action(ArgAction::Set).help("Enables entropy scanning"))
-        .arg(Arg::new("DEFAULT_ENTROPY_THRESHOLD").long("default_entropy_threshold").action(ArgAction::Set).default_value("0.6").help("Default entropy threshold (0.6 by default)"))
-        .arg(Arg::new("CASE").long("caseinsensitive").action(ArgAction::SetTrue).help("Sets the case insensitive flag for all regexes"))
-        .arg(Arg::new("OUTPUT").short('o').long("outputfile").action(ArgAction::SetTrue).help("Sets the path to write the scanner results to (stdout by default)"))
-        .arg(Arg::new("PRETTYPRINT").long("prettyprint").action(ArgAction::SetTrue).help("Outputs the JSON in human readable format"))
-        .arg(Arg::new("USERNAME").long("username").action(ArgAction::Set).conflicts_with("BEARERTOKEN").help("Confluence username (crafts basic auth header)"))
-        .arg(Arg::new("PASSWORD").long("password").action(ArgAction::Set).conflicts_with("BEARERTOKEN").help("Confluence password (crafts basic auth header)"))
-        .arg(Arg::new("BEARERTOKEN").long("authtoken").action(ArgAction::Set).conflicts_with_all(["USERNAME","PASSWORD"]).help("Confluence basic auth bearer token (instead of user & pass)"))
-        .arg(Arg::new("ALLOWLIST").short('a').long("allowlist").action(ArgAction::Set).help("Sets a custom allowlist JSON file"))
+        .arg(
+            Arg::new("REGEX")
+                .long("regex")
+                .action(ArgAction::Set)
+                .help("Sets a custom regex JSON file"),
+        )
+        .arg(
+            Arg::new("PAGEID")
+                .required(true)
+                .action(ArgAction::Set)
+                .help("The ID (e.g. 1234) of the confluence page you want to scan"),
+        )
+        .arg(
+            Arg::new("URL")
+                .required(true)
+                .action(ArgAction::Set)
+                .help("Base URL of Confluence instance (e.g. https://newrelic.atlassian.net/)"),
+        )
+        .arg(
+            Arg::new("VERBOSE")
+                .short('v')
+                .long("verbose")
+                .action(ArgAction::Count)
+                .help("Sets the level of debugging information"),
+        )
+        .arg(
+            Arg::new("ENTROPY")
+                .long("entropy")
+                .action(ArgAction::Set)
+                .help("Enables entropy scanning"),
+        )
+        .arg(
+            Arg::new("DEFAULT_ENTROPY_THRESHOLD")
+                .long("default_entropy_threshold")
+                .action(ArgAction::Set)
+                .default_value("0.6")
+                .help("Default entropy threshold (0.6 by default)"),
+        )
+        .arg(
+            Arg::new("CASE")
+                .long("caseinsensitive")
+                .action(ArgAction::SetTrue)
+                .help("Sets the case insensitive flag for all regexes"),
+        )
+        .arg(
+            Arg::new("OUTPUT")
+                .short('o')
+                .long("outputfile")
+                .action(ArgAction::SetTrue)
+                .help("Sets the path to write the scanner results to (stdout by default)"),
+        )
+        .arg(
+            Arg::new("PRETTYPRINT")
+                .long("prettyprint")
+                .action(ArgAction::SetTrue)
+                .help("Outputs the JSON in human readable format"),
+        )
+        .arg(
+            Arg::new("USERNAME")
+                .long("username")
+                .action(ArgAction::Set)
+                .conflicts_with("BEARERTOKEN")
+                .help("Confluence username (crafts basic auth header)"),
+        )
+        .arg(
+            Arg::new("PASSWORD")
+                .long("password")
+                .action(ArgAction::Set)
+                .conflicts_with("BEARERTOKEN")
+                .help("Confluence password (crafts basic auth header)"),
+        )
+        .arg(
+            Arg::new("BEARERTOKEN")
+                .long("authtoken")
+                .action(ArgAction::Set)
+                .conflicts_with_all(["USERNAME", "PASSWORD"])
+                .help("Confluence basic auth bearer token (instead of user & pass)"),
+        )
+        .arg(
+            Arg::new("ALLOWLIST")
+                .short('a')
+                .long("allowlist")
+                .action(ArgAction::Set)
+                .help("Sets a custom allowlist JSON file"),
+        )
         .get_matches();
     match run(matches).await {
         Ok(()) => {}

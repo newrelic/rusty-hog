@@ -71,17 +71,82 @@ fn main() {
         .version("1.0.11")
         .author("Scott Cutler <scutler@newrelic.com>")
         .about("File system secret scanner in Rust")
-        .arg(Arg::new("REGEX").short('r').long("regex").action(ArgAction::Set).value_name("REGEX").help("Sets a custom regex JSON file"))
-        .arg(Arg::new("FSPATH").required(true).action(ArgAction::Set).value_name("PATH").help("Sets the path of the directory or file to scan."))
-        .arg(Arg::new("NORECURSIVE").long("norecursive").action(ArgAction::SetTrue).help("Disable recursive scanning of all subdirectories underneath the supplied path"))
-        .arg(Arg::new("VERBOSE").short('v').long("verbose").action(ArgAction::Count).help("Sets the level of debugging information"))
-        .arg(Arg::new("ENTROPY").long("entropy").action(ArgAction::SetTrue).help("Enables entropy scanning"))
-        .arg(Arg::new("DEFAULT_ENTROPY_THRESHOLD").long("default_entropy_threshold").action(ArgAction::Set).default_value("0.6").help("Default entropy threshold (0.6 by default)"))
-        .arg(Arg::new("UNZIP").short('z').long("unzip").action(ArgAction::SetTrue).help("Recursively scans archives (ZIP and TAR) in memory (dangerous)"))
-        .arg(Arg::new("CASE").long("caseinsensitive").action(ArgAction::SetTrue).help("Sets the case insensitive flag for all regexes"))
-        .arg(Arg::new("OUTPUT").short('o').long("outputfile").action(ArgAction::Set).help("Sets the path to write the scanner results to (stdout by default)"))
-        .arg(Arg::new("PRETTYPRINT").long("prettyprint").action(ArgAction::SetTrue).help("Outputs the JSON in human readable format"))
-        .arg(Arg::new("ALLOWLIST").short('a').long("allowlist").action(ArgAction::Set).help("Sets a custom allowlist JSON file"))
+        .arg(
+            Arg::new("REGEX")
+                .short('r')
+                .long("regex")
+                .action(ArgAction::Set)
+                .value_name("REGEX")
+                .help("Sets a custom regex JSON file"),
+        )
+        .arg(
+            Arg::new("FSPATH")
+                .required(true)
+                .action(ArgAction::Set)
+                .value_name("PATH")
+                .help("Sets the path of the directory or file to scan."),
+        )
+        .arg(
+            Arg::new("NORECURSIVE")
+                .long("norecursive")
+                .action(ArgAction::SetTrue)
+                .help(
+                    "Disable recursive scanning of all subdirectories underneath the supplied path",
+                ),
+        )
+        .arg(
+            Arg::new("VERBOSE")
+                .short('v')
+                .long("verbose")
+                .action(ArgAction::Count)
+                .help("Sets the level of debugging information"),
+        )
+        .arg(
+            Arg::new("ENTROPY")
+                .long("entropy")
+                .action(ArgAction::SetTrue)
+                .help("Enables entropy scanning"),
+        )
+        .arg(
+            Arg::new("DEFAULT_ENTROPY_THRESHOLD")
+                .long("default_entropy_threshold")
+                .action(ArgAction::Set)
+                .default_value("0.6")
+                .help("Default entropy threshold (0.6 by default)"),
+        )
+        .arg(
+            Arg::new("UNZIP")
+                .short('z')
+                .long("unzip")
+                .action(ArgAction::SetTrue)
+                .help("Recursively scans archives (ZIP and TAR) in memory (dangerous)"),
+        )
+        .arg(
+            Arg::new("CASE")
+                .long("caseinsensitive")
+                .action(ArgAction::SetTrue)
+                .help("Sets the case insensitive flag for all regexes"),
+        )
+        .arg(
+            Arg::new("OUTPUT")
+                .short('o')
+                .long("outputfile")
+                .action(ArgAction::Set)
+                .help("Sets the path to write the scanner results to (stdout by default)"),
+        )
+        .arg(
+            Arg::new("PRETTYPRINT")
+                .long("prettyprint")
+                .action(ArgAction::SetTrue)
+                .help("Outputs the JSON in human readable format"),
+        )
+        .arg(
+            Arg::new("ALLOWLIST")
+                .short('a')
+                .long("allowlist")
+                .action(ArgAction::Set)
+                .help("Sets a custom allowlist JSON file"),
+        )
         .get_matches();
     match run(&matches) {
         Ok(()) => {}

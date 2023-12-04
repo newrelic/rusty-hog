@@ -26,7 +26,7 @@ extern crate clap;
 extern crate hyper;
 extern crate hyper_rustls;
 
-use base64::{Engine as _, engine::general_purpose as Base64Engine};
+use base64::{engine::general_purpose as Base64Engine, Engine as _};
 use clap::{Arg, ArgAction, ArgMatches, Command};
 use encoding::all::ASCII;
 use encoding::types::Encoding;
@@ -63,19 +63,91 @@ async fn main() {
         .version("1.0.11")
         .author("Emily Cain <ecain@newrelic.com>")
         .about("Jira secret scanner in Rust.")
-        .arg(Arg::new("REGEX").long("regex").action(ArgAction::Set).help("Sets a custom regex JSON file"))
-        .arg(Arg::new("JIRAID").required(true).action(ArgAction::Set).help("The ID (e.g. PROJECT-123) of the Jira issue you want to scan"))
-        .arg(Arg::new("VERBOSE").short('v').long("verbose").action(ArgAction::Count).help("Sets the level of debugging information"))
-        .arg(Arg::new("ENTROPY").long("entropy").action(ArgAction::SetTrue).help("Enables entropy scanning"))
-        .arg(Arg::new("DEFAULT_ENTROPY_THRESHOLD").long("default_entropy_threshold").action(ArgAction::Set).default_value("0.6").help("Default entropy threshold (0.6 by default)"))
-        .arg(Arg::new("CASE").long("caseinsensitive").action(ArgAction::SetTrue).help("Sets the case insensitive flag for all regexes"))
-        .arg(Arg::new("OUTPUT").short('o').long("outputfile").action(ArgAction::Set).help("Sets the path to write the scanner results to (stdout by default)"))
-        .arg(Arg::new("PRETTYPRINT").long("prettyprint").action(ArgAction::SetTrue).help("Outputs the JSON in human readable format"))
-        .arg(Arg::new("USERNAME").long("username").action(ArgAction::Set).conflicts_with("BEARERTOKEN").help("Jira username (crafts basic auth header)"))
-        .arg(Arg::new("PASSWORD").long("password").action(ArgAction::Set).conflicts_with("BEARERTOKEN").help("Jira password (crafts basic auth header)"))
-        .arg(Arg::new("BEARERTOKEN").long("authtoken").action(ArgAction::Set).conflicts_with_all(["USERNAME","PASSWORD"]).help("Jira basic auth bearer token (instead of user & pass)"))
-        .arg(Arg::new("JIRAURL").long("url").action(ArgAction::Set).help("Base URL of JIRA instance (e.g. https://jira.atlassian.net/)"))
-        .arg(Arg::new("ALLOWLIST").short('a').long("allowlist").action(ArgAction::Set).help("Sets a custom allowlist JSON file"))
+        .arg(
+            Arg::new("REGEX")
+                .long("regex")
+                .action(ArgAction::Set)
+                .help("Sets a custom regex JSON file"),
+        )
+        .arg(
+            Arg::new("JIRAID")
+                .required(true)
+                .action(ArgAction::Set)
+                .help("The ID (e.g. PROJECT-123) of the Jira issue you want to scan"),
+        )
+        .arg(
+            Arg::new("VERBOSE")
+                .short('v')
+                .long("verbose")
+                .action(ArgAction::Count)
+                .help("Sets the level of debugging information"),
+        )
+        .arg(
+            Arg::new("ENTROPY")
+                .long("entropy")
+                .action(ArgAction::SetTrue)
+                .help("Enables entropy scanning"),
+        )
+        .arg(
+            Arg::new("DEFAULT_ENTROPY_THRESHOLD")
+                .long("default_entropy_threshold")
+                .action(ArgAction::Set)
+                .default_value("0.6")
+                .help("Default entropy threshold (0.6 by default)"),
+        )
+        .arg(
+            Arg::new("CASE")
+                .long("caseinsensitive")
+                .action(ArgAction::SetTrue)
+                .help("Sets the case insensitive flag for all regexes"),
+        )
+        .arg(
+            Arg::new("OUTPUT")
+                .short('o')
+                .long("outputfile")
+                .action(ArgAction::Set)
+                .help("Sets the path to write the scanner results to (stdout by default)"),
+        )
+        .arg(
+            Arg::new("PRETTYPRINT")
+                .long("prettyprint")
+                .action(ArgAction::SetTrue)
+                .help("Outputs the JSON in human readable format"),
+        )
+        .arg(
+            Arg::new("USERNAME")
+                .long("username")
+                .action(ArgAction::Set)
+                .conflicts_with("BEARERTOKEN")
+                .help("Jira username (crafts basic auth header)"),
+        )
+        .arg(
+            Arg::new("PASSWORD")
+                .long("password")
+                .action(ArgAction::Set)
+                .conflicts_with("BEARERTOKEN")
+                .help("Jira password (crafts basic auth header)"),
+        )
+        .arg(
+            Arg::new("BEARERTOKEN")
+                .long("authtoken")
+                .action(ArgAction::Set)
+                .conflicts_with_all(["USERNAME", "PASSWORD"])
+                .help("Jira basic auth bearer token (instead of user & pass)"),
+        )
+        .arg(
+            Arg::new("JIRAURL")
+                .long("url")
+                .action(ArgAction::Set)
+                .help("Base URL of JIRA instance (e.g. https://jira.atlassian.net/)"),
+        )
+        .arg(
+            Arg::new("ALLOWLIST")
+                .short('a')
+                .long("allowlist")
+                .action(ArgAction::Set)
+                .help("Sets a custom allowlist JSON file"),
+        )
         .get_matches();
     match run(matches).await {
         Ok(()) => {}

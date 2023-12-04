@@ -53,11 +53,11 @@
 use encoding::all::ASCII;
 use encoding::{DecoderTrap, Encoding};
 use log::{self, error, trace};
+use rusty_hog_scanner::SecretScanner;
 use s3::bucket::Bucket;
 use serde_derive::{Deserialize, Serialize};
 use simple_error::SimpleError;
 use std::str;
-use rusty_hog_scanner::SecretScanner;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, Clone, Default)]
 /// `serde_json` object that represents a single found secret - finding
