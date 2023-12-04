@@ -105,8 +105,8 @@ impl S3Scanner {
         let mut output: Vec<S3Finding> = Vec::new();
 
         // Get the actual data from S3
-        let (data, code) = match bucket.get_object_blocking(filepath) {
-            Ok(x) => (x.0, x.1),
+        let (code, data) = match bucket.get_object_blocking(filepath) {
+            Ok(x) => (x.status_code(), x.to_vec()),
             Err(e) => return Err(SimpleError::new(e.to_string())),
         };
         trace!("Code: {}\nData: {:?}", code, data);
