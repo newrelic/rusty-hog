@@ -131,7 +131,7 @@ fn run(arg_matches: &ArgMatches) -> Result<(), SimpleError> {
     };
     let mut keys: Vec<String> = results
         .into_iter()
-        .flat_map(|x| x.0.contents)
+        .flat_map(|x| x.contents)
         .map(|x| x.key)
         .filter(|x| !x.ends_with('/'))
         .collect();
