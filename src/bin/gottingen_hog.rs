@@ -26,6 +26,7 @@ extern crate clap;
 extern crate hyper;
 extern crate hyper_rustls;
 
+use base64::{Engine as _, engine::general_purpose as Base64Engine};
 use clap::{Arg, ArgAction, ArgMatches, Command};
 use encoding::all::ASCII;
 use encoding::types::Encoding;
@@ -115,7 +116,7 @@ async fn run(arg_matches: ArgMatches) -> Result<(), SimpleError> {
         Some(u) => {
             format!(
                 "Basic {}",
-                base64::encode(format!("{}:{}", u, jirapassword.unwrap()))
+                Base64Engine::STANDARD_NO_PAD.encode(format!("{}:{}", u, jirapassword.unwrap()))
             )
         }
         // otherwise use AUTHTOKEN to craft the auth header
