@@ -84,6 +84,8 @@ use hyper::body;
 use serde_derive::{Deserialize, Serialize};
 use simple_error::SimpleError;
 use std::collections::HashSet;
+use std::error::Error as StdError;
+use tokio::io::{AsyncRead, AsyncWrite};
 use rusty_hog_scanner::SecretScanner;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, Clone, Default)]
@@ -150,7 +152,13 @@ pub struct GDriveFileInfo {
 
 impl GDriveFileInfo {
     /// Construct a `GDriveFileInfo` object from a Google Drive File ID and an authorized `DriveHub` object
-    pub async fn new(file_id: &str, hub: &DriveHub<hyper_rustls::HttpsConnector<hyper::client::connect::HttpConnector>>) -> Result<Self, SimpleError> {
+    pub async fn new<S>(file_id: &str, hub: &DriveHub<S>) -> Result<Self, SimpleError> 
+    where
+        S: hyper::service::Service<hyper::Uri> + Clone + Send + Sync + 'static,
+        S::Response: hyper::client::connect::Connection + AsyncRead + AsyncWrite + Send + Unpin + 'static,
+        S::Future: Send + Unpin + 'static,
+        S::Error: Into<Box<dyn StdError + Send + Sync>>
+    {
         let fields = "kind, id, name, mimeType, webViewLink, modifiedTime, parents";
         let hub_result = hub
             .files()
@@ -210,10 +218,16 @@ impl GDriveScanner {
 
     /// Takes information about the file, and the DriveHub object, and retrieves the content from
     /// Google Drive. Expect authorization issues here if you don't have access to the file.
-    async fn gdrive_file_contents(
+    async fn gdrive_file_contents<S>(
         gdrivefile: &GDriveFileInfo,
-        hub: &DriveHub<hyper_rustls::HttpsConnector<hyper::client::connect::HttpConnector>>,
-    ) -> Result<Vec<u8>, SimpleError> {
+        hub: &DriveHub<S>,
+    ) -> Result<Vec<u8>, SimpleError>
+    where
+        S: hyper::service::Service<hyper::Uri> + Clone + Send + Sync + 'static,
+        S::Response: hyper::client::connect::Connection + AsyncRead + AsyncWrite + Send + Unpin + 'static,
+        S::Future: Send + Unpin + 'static,
+        S::Error: Into<Box<dyn StdError + Send + Sync>>
+    {
         let resp_obj = hub
             .files()
             .export(&gdrivefile.file_id, &gdrivefile.mime_type)
@@ -230,11 +244,17 @@ impl GDriveScanner {
 
     /// Takes information about the file, and the DriveHub object, and return a list of findings.
     /// This calls get_file_contents(), so expect an HTTPS call to GDrive.
-    pub async fn perform_scan(
+    pub async fn perform_scan<S>(
         &self,
         gdrivefile: &GDriveFileInfo,
-        hub: &DriveHub<hyper_rustls::HttpsConnector<hyper::client::connect::HttpConnector>>,
-    ) -> HashSet<GDriveFinding> {
+        hub: &DriveHub<S>,
+    ) -> HashSet<GDriveFinding> 
+    where
+        S: hyper::service::Service<hyper::Uri> + Clone + Send + Sync + 'static,
+        S::Response: hyper::client::connect::Connection + AsyncRead + AsyncWrite + Send + Unpin + 'static,
+        S::Future: Send + Unpin + 'static,
+        S::Error: Into<Box<dyn StdError + Send + Sync>>
+    {
         // download an export of the file, split on new lines, store in lines
         let buffer = Self::gdrive_file_contents(gdrivefile, hub).await.unwrap();
         let lines = buffer.split(|x| (*x as char) == '\n');
