@@ -1,0 +1,217 @@
+name: Release
+
+on:
+  push:
+    tags:
+    - "v[0-9]+.[0-9]+.[0-9]+"
+  workflow_call:
+    secrets:
+      DOCKER_PASSWORD:
+        required: true
+
+permissions:
+  contents: write
+
+env:
+  PROJECT_NAME: rustyhogs
+
+jobs:
+  dist-binaries:
+    name: Dist Binaries
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: true
+      matrix:
+        build: [x86_64-linux, x86_64-macos, x86_64-windows]
+        include:
+        - build: x86_64-linux
+          os: ubuntu-latest
+          rust: stable
+          target: x86_64-unknown-linux-gnu
+          cross: false
+        - build: x86_64-macos
+          os: macos-latest
+          rust: stable
+          target: x86_64-apple-darwin
+          cross: false
+        # - build: aarch64-macos
+        #   os: macos-13-xlarge
+        #   rust: stable
+        #   target: aarch64-apple-darwin
+        #   cross: false
+        - build: x86_64-windows
+          os: windows-2019
+          rust: stable
+          target: x86_64-pc-windows-msvc
+          cross: false
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v3
+      - name: Install ${{ matrix.rust }}-${{ matrix.target }} toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: ${{ matrix.rust }}
+          target: ${{ matrix.target }}
+          override: true
+      - name: Build release binaries
+        uses: actions-rs/cargo@v1
+        with:
+          use-cross: ${{ matrix.cross }}
+          command: build
+          args: --release --target ${{ matrix.target }}
+      - name: Build archive
+        shell: bash
+        run: |
+          mkdir dist
+          ls -lah target/${{ matrix.target }}/release
+          if [[ ${{ matrix.build }} =~ "windows" ]]; then
+              echo "${{ matrix.build }}: using .exe extension"
+              exe=".exe"
+          fi
+          cp ./target/${{ matrix.target }}/release/*_hog$exe dist
+      - uses: actions/upload-artifact@v3
+        with:
+          name: bins-${{ matrix.build }}
+          path: dist
+  dist-lambda:
+    name: Dist Lambda
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v3
+      - name: Install stable-x86_64-unknown-linux-musl toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          target: x86_64-unknown-linux-musl
+          override: true
+      - name: Build release binaries
+        uses: actions-rs/cargo@v1
+        with:
+          use-cross: true
+          command: build
+          args: --release --target x86_64-unknown-linux-musl
+      - name: Build archive
+        shell: bash
+        run: |
+          mkdir dist
+          cp ./target/x86_64-unknown-linux-musl/release/*_lambda dist
+      - uses: actions/upload-artifact@v3
+        with:
+          name: bins-lambda
+          path: dist
+  dist-docker:
+    name: Dist Docker
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v3
+      - name: Get tag name
+        id: tagname
+        run: |
+          name=dev
+          echo $GITHUB_REF
+          if [[ $GITHUB_REF == refs/tags/v* ]]; then
+            name=${GITHUB_REF:10}
+          fi
+          echo "tag=${name//v}" >> "$GITHUB_OUTPUT"
+      - name: Build Docker Images
+        shell: bash
+        run: make docker-build VERSION=${{ steps.tagname.outputs.tag }}
+      - name: Save Docker Images
+        shell: bash
+        run: make docker-save VERSION=${{ steps.tagname.outputs.tag }}
+      - uses: actions/upload-artifact@v3
+        with:
+          name: docker
+          path: images.tar
+  publish:
+    name: Publish Archive
+    needs: [dist-binaries, dist-lambda, dist-docker]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v3
+      - name: Download artifacts
+        uses: actions/download-artifact@v3
+      - name: List binaries
+        run: ls -lah bins-*
+      - name: Get tag name
+        id: tagname
+        run: |
+          name=dev
+          echo $GITHUB_REF
+          if [[ $GITHUB_REF == refs/tags/v* ]]; then
+            name=${GITHUB_REF:10}
+          fi
+          echo "tagname=${name}" >> "$GITHUB_OUTPUT"
+          echo "tag=${name//v}" >> "$GITHUB_OUTPUT"
+      - name: Build archive
+        shell: bash
+        run: |
+          set -ex
+          rm -rf tmp
+          mkdir tmp
+          mkdir dist
+          for dir in bins-*;
+          do
+              platform=${dir#"bins-"}
+              pkgname=$PROJECT_NAME-${{ steps.tagname.outputs.tag }}-$platform
+              ls -lah $dir
+              chmod +x $dir/*
+              mkdir tmp/$pkgname
+              mv $dir/* tmp/$pkgname
+              if [[ $platform =~ "windows" ]]; then
+                  (cd tmp && zip -r ../dist/$pkgname.zip $pkgname)
+              else
+                  tar czf dist/$pkgname.tar.gz -C tmp $pkgname
+              fi
+          done
+      - name: Add scripts to archive
+        shell: bash
+        run: |
+          pkgname=$PROJECT_NAME-${{ steps.tagname.outputs.tag }}-scripts
+          tar czf dist/$pkgname.tar.gz scripts
+      - name: Release archive
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: dist/*
+          file_glob: true
+          tag: ${{ steps.tagname.outputs.tagname }}
+          overwrite: true
+  publish-docker:
+    name: Publish Docker Images
+    needs: [dist-binaries, dist-lambda, dist-docker]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v3
+      - name: Download artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: docker
+      - name: Load Docker Images
+        shell: bash
+        run: make docker-load
+      - name: List Docker Images
+        shell: bash
+        run: docker images | grep hog
+      - name: Get tag name
+        id: tagname
+        run: |
+          name=dev
+          echo $GITHUB_REF
+          if [[ $GITHUB_REF == refs/tags/v* ]]; then
+            name=${GITHUB_REF:10}
+          fi
+          echo "tag=${name//v}" >> "$GITHUB_OUTPUT"
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: wetfeet2000
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      - name: Publish Docker Images
+        run: make docker-publish VERSION=${{ steps.tagname.outputs.tag }}

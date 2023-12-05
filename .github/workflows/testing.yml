@@ -1,0 +1,71 @@
+name: Testing
+
+on:
+  pull_request:
+    branches: [master]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Compile Check
+      run: cargo check
+    - name: Format check
+      run: cargo fmt --all --check
+    - name: Lint
+      run: cargo clippy
+  test:
+    name: Test
+    needs: lint
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        build: [x86_64-linux, x86_64-linux-musl, x86_64-macos, x86_64-windows]
+        include:
+        - build: x86_64-linux
+          os: ubuntu-latest
+          rust: stable
+          target: x86_64-unknown-linux-gnu
+          cross: false
+        - build: x86_64-linux-musl
+          os: ubuntu-latest
+          rust: stable
+          target: x86_64-unknown-linux-musl
+          cross: true
+        - build: x86_64-macos
+          os: macos-latest
+          rust: stable
+          target: x86_64-apple-darwin
+          cross: false
+        # - build: aarch64-macos
+        #   os: macos-13-xlarge
+        #   rust: stable
+        #   target: aarch64-apple-darwin
+        #   cross: false
+        - build: x86_64-windows
+          os: windows-2019
+          rust: stable
+          target: x86_64-pc-windows-msvc
+          cross: false
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v3
+      - name: Install ${{ matrix.rust }}-${{ matrix.target }} toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: ${{ matrix.rust }}
+          target: ${{ matrix.target }}
+          override: true
+      - name: Test
+        uses: actions-rs/cargo@v1
+        with:
+          use-cross: ${{ matrix.cross }}
+          command: test
+          args: --release --target ${{ matrix.target }} --verbose
