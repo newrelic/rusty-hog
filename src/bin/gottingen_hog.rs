@@ -1,4 +1,4 @@
-//! Jira secret scanner in Rust.
+//! JIRA secret scanner in Rust.
 //!
 //! USAGE:
 //!     gottingen_hog [FLAGS] [OPTIONS] <JIRAID> --password <PASSWORD> --username <USERNAME>
@@ -13,11 +13,11 @@
 //!
 //! OPTIONS:
 //!         --default_entropy_threshold <DEFAULT_ENTROPY_THRESHOLD>    Default entropy threshold (0.6 by default)
-//!         --url <JIRAURL>
-//!     -o, --outputfile <OUTPUT>    Sets the path to write the scanner results to (stdout by default)
-//!         --password <PASSWORD>    Jira password (or API token)
-//!         --regex <REGEX>          Sets a custom regex JSON file
-//!         --username <USERNAME>    Jira username
+//!         --authtoken <BEARERTOKEN>    JIRA PAT (instead of user & pass, crafts basic auth header)
+//!     -o, --outputfile <OUTPUT>        Sets the path to write the scanner results to (stdout by default)
+//!         --password <PASSWORD>        JIRA password or PAT (crafts basic auth header)
+//!         --regex <REGEX>              Sets a custom regex JSON file
+//!         --username <USERNAME>        JIRA username or email (crafts basic auth header)
 //!
 //! ARGS:
 //!     <JIRAID>    The ID (e.g. PROJECT-123) of the Jira issue you want to scan
@@ -71,9 +71,9 @@ async fn main() {
         (@arg CASE: --caseinsensitive "Sets the case insensitive flag for all regexes")
         (@arg OUTPUT: -o --outputfile +takes_value "Sets the path to write the scanner results to (stdout by default)")
         (@arg PRETTYPRINT: --prettyprint "Outputs the JSON in human readable format")
-        (@arg USERNAME: --username +takes_value conflicts_with[AUTHTOKEN] "Jira username (crafts basic auth header)")
-        (@arg PASSWORD: --password +takes_value conflicts_with[AUTHTOKEN] "Jira password (crafts basic auth header)")
-        (@arg BEARERTOKEN: --authtoken +takes_value conflicts_with[USERNAME PASSWORD] "Jira basic auth bearer token (instead of user & pass)")
+        (@arg USERNAME: --username +takes_value conflicts_with[AUTHTOKEN] "Jira username or email address (crafts basic auth header)")
+        (@arg PASSWORD: --password +takes_value conflicts_with[AUTHTOKEN] "Jira password or PAT (crafts basic auth header)")
+        (@arg BEARERTOKEN: --authtoken +takes_value conflicts_with[USERNAME PASSWORD] "Jira basic auth bearer token containing a PAT (instead of user & pass)")
         (@arg JIRAURL: --url +takes_value  "Base URL of JIRA instance (e.g. https://jira.atlassian.net/)")
         (@arg ALLOWLIST: -a --allowlist +takes_value "Sets a custom allowlist JSON file")
     )
@@ -112,7 +112,7 @@ async fn run<'b>(arg_matches: ArgMatches<'b>) -> Result<(), SimpleError> {
 
     // TODO: Support other modes of JIRA authentication
     let auth_string = match jirausername {
-        // craft auth header using username and password if present
+        // craft auth header using username and password (or PAT) if present
         Some(u) => {
             format!(
                 "Basic {}",
