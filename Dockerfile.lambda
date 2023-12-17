@@ -1,0 +1,16 @@
+ARG CROSS_BASE_IMAGE
+FROM ${CROSS_BASE_IMAGE}
+# Note that we're assuming an Ubuntu-based image in all cases though
+
+ARG CFLAGS=""
+ARG LDFLAGS=""
+
+ARG OPENSSL_BUILD_VER=3.0.12
+RUN cd /usr/local/src/ && curl -sLO https://www.openssl.org/source/openssl-${OPENSSL_BUILD_VER}.tar.gz && \
+    tar xzvf openssl-${OPENSSL_BUILD_VER}.tar.gz && cd openssl-${OPENSSL_BUILD_VER} && \
+    CROSS_COMPILE="x86_64-linux-musl-" ./Configure --prefix=/usr/local/openssl-${OPENSSL_BUILD_VER} linux-x86_64 && make && make install
+
+ENV OPENSSL_DIR="/usr/local/openssl-${OPENSSL_BUILD_VER}"
+ENV OPENSSL_STATIC="/usr/local/openssl-${OPENSSL_BUILD_VER}/lib"
+ENV CFLAGS="${CFLAGS} -I/usr/local/openssl-${OPENSSL_BUILD_VER}/include"
+ENV LDFLAGS="${LDFLAGS} -L/usr/local/openssl-${OPENSSL_BUILD_VER}/lib64"
