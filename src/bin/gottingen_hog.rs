@@ -207,7 +207,7 @@ where
     let r = req_builder.body(Body::empty()).unwrap();
     let resp = hyper_client.request(r).await.unwrap();
     debug!("sending request to {}", full_url);
-    let status = resp.status().clone();
+    let status = resp.status();
     debug!("Response: {:?}", status);
     let data = body::to_bytes(resp.into_body()).await.unwrap();
     let data_vec: Vec<u8> = data.to_vec();

@@ -33,11 +33,11 @@ extern crate yup_oauth2 as oauth2;
 use clap::ArgMatches;
 use drive3::DriveHub;
 use log::{self, error, info};
+use oauth2::{InstalledFlowAuthenticator, InstalledFlowReturnMethod};
+use rusty_hog_scanner::{SecretScanner, SecretScannerBuilder};
+use rusty_hogs::google_scanning::{GDriveFileInfo, GDriveScanner};
 use simple_error::SimpleError;
 use std::path::Path;
-use rusty_hogs::google_scanning::{GDriveFileInfo, GDriveScanner};
-use rusty_hog_scanner::{SecretScanner, SecretScannerBuilder};
-use oauth2::{InstalledFlowAuthenticator, InstalledFlowReturnMethod};
 
 /// Main entry function that uses the [clap crate](https://docs.rs/clap/2.33.0/clap/)
 #[tokio::main]
@@ -67,7 +67,8 @@ async fn main() {
 
 /// Main logic contained here. Get the CLI variables, setup OAuth, setup GDriveScanner and output
 /// the results.
-async fn run<'b>(arg_matches: ArgMatches<'b>) -> Result<(), SimpleError> {    // Set logging
+async fn run<'b>(arg_matches: ArgMatches<'b>) -> Result<(), SimpleError> {
+    // Set logging
     SecretScanner::set_logging(arg_matches.occurrences_of("VERBOSE"));
 
     // Initialize some variables
@@ -90,7 +91,10 @@ async fn run<'b>(arg_matches: ArgMatches<'b>) -> Result<(), SimpleError> {    //
         .build()
         .await
         .expect("failed to create authenticator (try deleting temp_token and restarting)");
-    let hub = DriveHub::new(hyper::Client::builder().build(hyper_rustls::HttpsConnector::with_native_roots()), auth);
+    let hub = DriveHub::new(
+        hyper::Client::builder().build(hyper_rustls::HttpsConnector::with_native_roots()),
+        auth,
+    );
 
     // get some initial info about the file
     let gdriveinfo = GDriveFileInfo::new(file_id, &hub).await.unwrap();

@@ -1,35 +1,45 @@
-<img src="RustyHogLogo_700x700.png" width=350 align=center>
+<p align="center">
+  <img src="RustyHogLogo_700x700.png" width=350>
+</p>
+</br>
 
-Rusty Hog is a secret scanner built in Rust for performance, and based on TruffleHog which is written
-in Python. Rusty Hog provides the following binaries:
+# rusty-hog
+Rusty Hog is a set of secret scanners built for performance using [Rust-lang](https://www.rust-lang.org/). It is based on [TruffleHog](https://github.com/trufflesecurity/trufflehog).
 
-* Ankamali Hog: Scans for secrets in a Google doc.
-* Berkshire Hog: Scans for secrets in an S3 bucket.
-* Choctaw Hog: Scans for secrets in a Git repository.
-* Duroc Hog: Scans for secrets in a directory, file, and archive.
-* Essex Hog: Scans for secrets in a Confluence wiki page.
-* Gottingen Hog: Scans for secrets in a JIRA issue.
-* Slack Hog: Scans for secrets in a Slack Channel.
+The secret scanners use regular expressions to detect the presence of sensitive information, such as API keys, passwords and personal information.
+
+Rusty Hog provides a default set of regular expressions for secret scanning, but also accepts a JSON object which contains custom regular expressions.
+
+## Contents
+Rusty Hog provides the following binaries:
+* Ankamali Hog: Google Docs secret scanner
+* Berkshire Hog: S3 bucket secret scanner
+* Choctaw Hog: Git repository secret scanner
+* Duroc Hog: Filesystem (directory, file and archive) secret scanner
+* Essex Hog: Confluence wiki page secret scanner
+* Gottingen Hog: JIRA issue secret scanner
+* Hante Hog: Slack Channel secret scanner
 
 ## Table of contents
-<!-- TOC depthFrom:1 depthTo:6 withLinks:1 updateOnSave:1 orderedList:0 -->
-
-- [Usage](#usage)
-  - [How to install using downloaded binaries](#how-to-install-using-downloaded-binaries)
-  - [How to run using DockerHub](#how-to-run-using-dockerhub)
-  - [How to build](#how-to-build)
-  - [How to build on Windows](#how-to-build-on-windows)
-  - [Anakamali Hog (GDoc Scanner) usage](#anakamali-hog-gdoc-scanner-usage)
-  - [Berkshire Hog (S3 Scanner - CLI) usage](#berkshire-hog-s3-scanner---cli-usage)
-  - [Berkshire Hog (S3 Scanner - Lambda) usage](#berkshire-hog-s3-scanner---lambda-usage)
-  - [Choctaw Hog (Git Scanner) usage](#choctaw-hog-git-scanner-usage)
-  - [Duroc Hog (file system scanner) usage](#duroc-hog-file-system-scanner-usage)
+- Usage
+  - [Run via pre-built binaries](#run-via-pre-built-binaries)
+  - [Run via Docker](#run-via-docker)
+  - [Build instructions](#build-instructions)
+  - [Build instructions (lambda)](#build-instructions-lambda)
+  - [Build instructions (docs)](#build-instructions-docs)
+  - [Testing](#testing)
+  - [Linting](#linting)
+  - [Ankamali Hog (Google Docs scanner) usage](#ankamali-hog-google-docs-scanner-usage)
+  - [Berkshire Hog (S3 scanner - CLI) usage](#berkshire-hog-s3-scanner---cli-usage)
+  - [Berkshire Hog (S3 scanner - Lambda) usage](#berkshire-hog-s3-scanner---lambda-usage)
+  - [Choctaw Hog (Git scanner) usage](#choctaw-hog-git-scanner-usage)
+  - [Duroc Hog (Filesystem scanner) usage](#duroc-hog-filesystem-scanner-usage)
   - [Essex Hog (Confluence scanner) usage](#essex-hog-confluence-scanner-usage)
   - [Gottingen Hog (JIRA scanner) usage](#gottingen-hog-jira-scanner-usage)
-  - [Hante Hog (SLACK scanner) usage](#slack-hog-slack-scanner-usage)
+  - [Hante Hog (Slack scanner) usage](#hante-hog-slack-scanner-usage)
   - [Regex JSON file format](#regex-json-file-format)
   - [Allowlist JSON file format](#allowlist-json-file-format)
-- [Project information](#project-information)
+- Project information
   - [Open source license](#open-source-license)
   - [Support](#support)
   - [Community](#community)
@@ -38,64 +48,93 @@ in Python. Rusty Hog provides the following binaries:
   - [Feature Roadmap](#feature-roadmap)
   - [What does the name mean?](#what-does-the-name-mean)
 
-<!-- /TOC -->
+## Run via pre-built binaries
+Download via `curl`:
+```shell script
+curl -O https://github.com/newrelic/rusty-hog/releases/download/v1.0.11/rustyhogs-darwin-choctaw_hog-1.0.11.zip
+```
 
-# Usage
-
-This project provides a set of scanners that use regular expressions to try and detect the presence of sensitive
-information, such as API keys, passwords, and personal information. It includes a set of regular expressions by
-default, but also accepts a JSON object containing your custom regular expressions.
-
-## How to install using downloaded binaries
-Download and unzip the [latest ZIP](https://github.com/newrelic/rusty-hog/releases/)
-on the releases tab. Then, run each binary with `-h` to see the usage.
-
+Or, download via `wget`:
 ```shell script
 wget https://github.com/newrelic/rusty-hog/releases/download/v1.0.11/rustyhogs-darwin-choctaw_hog-1.0.11.zip
+```
+
+Unzip binary and run the help command:
+```shell script
 unzip rustyhogs-darwin-choctaw_hog-1.0.11.zip
 darwin_releases/choctaw_hog -h
 ```
 
-## How to run using DockerHub
-Rusty Hog Docker images can be found at the authors personal DockerHub page [here](https://hub.docker.com/u/wetfeet2000)
-A Docker Image is built for each Hog and for each release. So to use choctaw_hog you would run the following commands:
+## Run via Docker
+Docker images for Rusty Hog are available through [DockerHub](https://hub.docker.com/u/wetfeet2000).
 
+Download and run choctaw_hog:
+```shell script
+docker pull wetfeet2000/choctaw_hog
+docker run -it --rm wetfeet2000/choctaw_hog --help
+```
+
+Hogs can also be downloaded at a specific version (e.g. `v1.0.10`):
 ```shell script
 docker pull wetfeet2000/choctaw_hog:1.0.10
 docker run -it --rm wetfeet2000/choctaw_hog:1.0.10 --help
 ```
 
-## How to build
-- Ensure you have [Rust](https://www.rust-lang.org/learn/get-started) installed and on your path.
-- Clone this repo, and then run `cargo build --release`. The binaries are located in `target/release`.
-- To build and view HTML documents, run ```cargo doc --no-deps --open```.
-- To run unit tests, run ```cargo test```.
-- To cross-compile Berkshire Hog for the AWS Lambda environment, run the following commands and upload berkshire_lambda.zip to
-your AWS Lambda dashboard:
+## Build instructions
+- Install [Rust-lang](https://www.rust-lang.org/learn/get-started)
+- Ensure that Rust is defined in your path environment variable
+
+Clone this repository:
+```
+git clone https://github.com/newrelic/rusty-hog.git
+```
+
+Build binary executables:
 ```shell script
-docker run --rm -it -v "$(pwd)":/home/rust/src ekidd/rust-musl-builder cargo build --release
-cp target/x86_64-unknown-linux-musl/release/berkshire_hog bootstrap
-zip -j berkshire_lambda.zip bootstrap
+cargo build --release
 ```
 
-## How to build on Windows
-You will need to compile static OpenSSL binaries and tell Rust/Cargo where to find them:
-```
-mkdir \Tools
-cd \Tools
-git clone https://github.com/Microsoft/vcpkg.git
-cd vcpkg
-.\bootstrap-vcpkg.bat
-.\vcpkg.exe install openssl:x64-windows-static
+Binary executables are located in `./target/release`
 
-$env:OPENSSL_DIR = 'C:\Tools\vcpkg\installed\x64-windows-static'
-$env:OPENSSL_STATIC = 'Yes'
-[System.Environment]::SetEnvironmentVariable('OPENSSL_DIR', $env:OPENSSL_DIR, [System.EnvironmentVariableTarget]::User)
-[System.Environment]::SetEnvironmentVariable('OPENSSL_STATIC', $env:OPENSSL_STATIC, [System.EnvironmentVariableTarget]::User)
+## Build instructions (lambda)
+Ensure that you have [Cross](https://github.com/cross-rs/cross) installed:
+```shell script
+cargo install cross --git https://github.com/cross-rs/cross
 ```
-You can now follow the main build instructions listed above.
 
-## Anakamali Hog (GDoc Scanner) usage
+Cross-compile Berkshire Hog for an AWS Lambda environment:
+```shell script
+cross build --release --target x86_64-unknown-linux-musl
+cp target/x86_64-unknown-linux-musl/release/berkshire_hog_lambda bootstrap
+zip berkshire_hog_lambda.zip bootstrap
+```
+
+Deploy berkshire_hog_lambda.zip to AWS Lambda.
+
+## Build instructions (docs)
+Build and view documentation:
+```shell script
+cargo doc --no-deps --open
+```
+
+## Testing
+Run unit tests:
+```shell script
+cargo test --release
+```
+
+## Linting
+Automatically format Rust code according to style guidelines:
+```shell script
+cargo fmt --all
+```
+
+Automatically lint Rust code to fix common mistakes:
+```shell script
+cargo clippy --fix
+```
+
+## Ankamali Hog (Google Docs scanner) usage
 ```
 USAGE:
     ankamali_hog [FLAGS] [OPTIONS] <GDRIVEID>
@@ -121,7 +160,7 @@ ARGS:
     <GDRIVEID>    The ID of the Google drive file you want to scan
 ```
 
-## Berkshire Hog (S3 Scanner - CLI) usage
+## Berkshire Hog (S3 scanner - CLI) usage
 ```
 USAGE:
     berkshire_hog [FLAGS] [OPTIONS] <S3URI> <S3REGION>
@@ -151,7 +190,7 @@ ARGS:
 ```
 
 
-## Berkshire Hog (S3 Scanner - Lambda) usage
+## Berkshire Hog (S3 scanner - Lambda) usage
 Berkshire Hog is currently designed to be used as a Lambda function. This is the basic data flow:
 <pre>
     ┌───────────┐              ┌───────┐     ┌────────────────┐     ┌────────────┐
@@ -166,7 +205,7 @@ In order to run Berkshire Hog this way, set up the following:
 2) Set up the SQS topic to accept events from S3, including IAM permissions.
 3) Run Berkshire Hog with IAM access to SQS and S3.
 
-## Choctaw Hog (Git Scanner) usage
+## Choctaw Hog (Git scanner) usage
 ```
 USAGE:
     choctaw_hog [FLAGS] [OPTIONS] <GITPATH>
@@ -196,7 +235,7 @@ ARGS:
     <GITPATH>    Sets the path (or URL) of the Git repo to scan. SSH links must include username (git@)
 ```
 
-## Duroc Hog (file system scanner) usage
+## Duroc Hog (Filesystem scanner) usage
 ```
 USAGE:
     duroc_hog [FLAGS] [OPTIONS] <FSPATH>
@@ -278,7 +317,7 @@ ARGS:
     <JIRAID>    The ID (e.g. PROJECT-123) of the Jira issue you want to scan
 ```
 
-## Hante Hog (SLACK scanner) usage
+## Hante Hog (Slack scanner) usage
 ```
 Slack secret scanner in Rust.
 
@@ -311,30 +350,28 @@ OPTIONS:
 ```
 
 ## Regex JSON file format
+The `--regex` option for each scanner allows users to provide the path of a customized JSON file containing regular expressions which match sensitive material.
 
-The regex option on scanners allows users to provide a path to their own JSON file of regular
-expressions that match sensitive material. Any provided file currently will replace, not append to, the default 
-regular expressions provided by SecretScanner. The expected format of the file is a single json object. 
+The provided JSON file will replace, not append to, the default regular expressions.
 
-The keys should be names for the type of secret each regex entry will detect, as the keys will be used for the reason 
-properties output by the scanner.
+The expected format of the provided JSON file is a single JSON object.
 
-Each value should be a string containing a valid [https://docs.rs/regex/1.3.9/regex/#syntax](regular expression for Rust) 
-that should match the type of secret described by its corresponding key.
+The keys represent the secret type that each value will detect, defined using Regex. The keys will be used for the reason property, which is output by the scanner.
 
-As of version 1.0.8, the Rusty Hog engine also supports objects as values for each secret. 
+Each value should be a string containing a valid [regular expression for Rust](https://docs.rs/regex/1.3.9/regex/#syntax), which matches the secret described by its corresponding key.
+
+As of version 1.0.8, the Rusty Hog engine also supports objects as values for each secret.
+
 The object can contain all of the following:
-
-- a pattern property with the matching regex expression (mandatory)
-- an entropy_filter property with a boolean value to enable entropy scanning for this information (mandatory)
+- a pattern property with the matching Regex (mandatory)
+- an entropy_filter property with a boolean value to enable entropy scanning for this secret (mandatory)
 - a threshold property to customize the entropy tolerance on a scale of 0 - 1 (optional, will adjust for old 1-8 format, default 0.6)
 - a keyspace property to indicate how many possible values are in the key, e.g. 16 for hex, 64 for base64, 128 for ASCII (optional, default 128)
 - a make_ascii_lowercase property to indicate whether Rust should perform .make_ascii_lowercase() on the key before calculating entropy (optional, default false)
 
-The higher the threshold, the more entropy is required in the secret to consider it a match.
+The higher the threshold, the more entropy is required in the secret for it to be considered a match.
 
 An example of this format is here:
-
 ```json
 {
     "Generic Secret": {
@@ -342,7 +379,7 @@ An example of this format is here:
         "entropy_filter": true,
         "threshold": "0.6"
     },
-    "Slack Token": { 
+    "Slack Token": {
         "pattern": "(xox[p|b|o|a]-[0-9]{12}-[0-9]{12}-[0-9]{12}-[a-z0-9]{32})",
         "entropy_filter": true,
         "threshold": "0.6",
@@ -357,9 +394,7 @@ An example of this format is here:
 }
 ```
 
-
 As of version 1.0.11, the current default regex JSON used is as follows:
-
 ```json
 {
 	"Slack Token": "(xox[p|b|o|a]-[0-9]{12}-[0-9]{12}-[0-9]{12}-[a-z0-9]{32})",
@@ -439,21 +474,19 @@ As of version 1.0.11, the current default regex JSON used is as follows:
 ```
 
 ## Allowlist JSON file format
+You can provide an allowlist to each secret scanner. An allowlist lets you specify a list of regular expressions for each pattern that will be ignored by the secret scanner.
 
-Scanners provide an allowlist feature. This allows you to specify a list of regular expressions for each pattern that
-will be ignored by the scanner. You can now optionally supply a list of regular expressions that are evaluated against 
-the file path as well. 
+You can also supply an optional list of regular expressions which are evaluated against the file path.
 
-The format for this allowlist file should be a single json object. Each key in the allowlist should match a key in the 
-regex json, and the value can be one of two things:
-1) An array of strings that are exceptions for that regex pattern. For example:
-2) An object with at least one key (patterns) and optionally a second key (paths). 
+The format for this allowlist file should be a single JSON object.
 
-In addition, you can specify the key `<GLOBAL>` which is evaluated against all patterns. 
+Each key in the allowlist should match a key in the Regex json. The value can be one of the following:
+- An array of strings that are exceptions for that Regex
+- An object with at least one key (patterns) and optionally a second key (paths)
+
+In addition, you can specify the `<GLOBAL>` key, which is evaluated against all patterns.
 
 The following is the default allowlist included in all scans:
-
-
 ```json
 {
 	"Email address": {
@@ -509,47 +542,41 @@ The following is the default allowlist included in all scans:
 }
 ```
 
-Be aware that in these are strings, not regex expressions, and the keys for this allowlist have to a key in the regex json.
+Be aware that the values in this JSON object are strings, not regular expressions.
+
+The keys for this allowlist have to be a key in the Regex JSON.
+
 Keys are case-sensitive.
 
-# Project information
 ## Open source license
-
 This project is distributed under the [Apache 2 license](LICENSE).
 
 ## Support
-
 New Relic has open-sourced this project. This project is provided AS-IS WITHOUT WARRANTY OR SUPPORT, although you can report issues and contribute to the project here on GitHub.
 
 _Please do not report issues with this software to New Relic Global Technical Support._
 
 ## Community
-
 New Relic hosts and moderates an online forum where customers can interact with New Relic employees as well as other customers to get help and share best practices. Like all official New Relic open source projects, there's a related Community topic in the New Relic Explorer's Hub. You can find this project's topic/threads here:
 
 https://discuss.newrelic.com/t/rusty-hog-multi-platform-secret-key-scanner/90117
 
 ## Issues / enhancement requests
-
 Submit issues and enhancement requests in the [Issues tab of this repository](../../issues). Please search for and review the existing open issues before submitting a new issue.
 
 ## Contributing
-
 Contributions are welcome (and if you submit a enhancement request, expect to be invited to contribute it yourself). Please review our [Contributors Guide](CONTRIBUTING.md).
 
 Keep in mind that when you submit your pull request, you'll need to sign the CLA via the click-through using CLA-Assistant. If you'd like to execute our corporate CLA, or if you have any questions, please drop us an email at opensource@newrelic.com.
 
 
 ## Feature Roadmap
-  
 - 1.1: Enterprise features
     - [ ] Support config files (instead of command line args)
     - [ ] Support environment variables instead of CLI args
     - [ ] Multi-threading
     - [ ] Better context detection and false positive filtering (GitHound, machine learning)
     - [ ] Use Rusoto instead of s3-rust
-    - [x] Add JIRA scanner
-    - [x] Add file-system & archive scanner
     - [ ] Use Rust features to reduce compilation dependencies?
 
 - 1.2: Integration with larger scripts and UIs
@@ -560,10 +587,9 @@ Keep in mind that when you submit your pull request, you'll need to sign the CLA
     - [ ] Agent/manager model
     - [ ] Scheduler process (blocked by save state support)
 
-
 ## What does the name mean?
-TruffleHog is considered the de facto standard / original secret scanner. I have been
-building a suite of secret scanning tools for various platforms based on TruffleHog
-and needed a naming scheme, so I started at the top of Wikipedia's
-[list of pig breeds](https://en.wikipedia.org/wiki/List_of_pig_breeds).
-Thus each tool name is a breed of pig starting at "A" and working up.
+[TruffleHog](https://github.com/trufflesecurity/trufflehog) is considered the de facto standard / original secret scanner.
+
+We have built a suite of secret scanning tools for various platforms based on TruffleHog and needed a naming schema.
+
+The naming schema is inspired by the [list of pig breeds](https://en.wikipedia.org/wiki/List_of_pig_breeds) from Wikipedia. Each tool name is a breed of pig starting at "A" and working down alphabetically.

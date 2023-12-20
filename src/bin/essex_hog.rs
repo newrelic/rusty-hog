@@ -141,7 +141,7 @@ async fn run<'b>(arg_matches: ArgMatches<'b>) -> Result<(), SimpleError> {
     };
 
     // fetch the content of confluence page along with the comments
-    let page = get_page(hyper_client, auth_string, &base_url, &page_id).await;
+    let page = get_page(hyper_client, auth_string, base_url, page_id).await;
 
     // find secrets in page body and comments
     let mut content = page.body;
@@ -240,7 +240,7 @@ where
     let r = req_builder.body(Body::empty()).unwrap();
     let resp = hyper_client.request(r).await.unwrap();
     debug!("sending request to {}", full_url);
-    let status = resp.status().clone();
+    let status = resp.status();
     debug!("Response: {:?}", status);
     let data = body::to_bytes(resp.into_body()).await.unwrap();
     let data_vec: Vec<u8> = data.to_vec();

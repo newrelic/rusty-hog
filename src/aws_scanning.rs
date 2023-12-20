@@ -53,11 +53,11 @@
 use encoding::all::ASCII;
 use encoding::{DecoderTrap, Encoding};
 use log::{self, error, trace};
+use rusty_hog_scanner::SecretScanner;
 use s3::bucket::Bucket;
 use serde_derive::{Deserialize, Serialize};
 use simple_error::SimpleError;
 use std::str;
-use rusty_hog_scanner::SecretScanner;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, Clone, Default)]
 /// `serde_json` object that represents a single found secret - finding
@@ -129,7 +129,7 @@ impl S3Scanner {
                 }
                 if !strings_found.is_empty() {
                     let new_line_string = ASCII
-                        .decode(&new_line, DecoderTrap::Ignore)
+                        .decode(new_line, DecoderTrap::Ignore)
                         .unwrap_or_else(|_| "<STRING DECODE ERROR>".parse().unwrap());
                     output.push(S3Finding {
                         diff: new_line_string,

@@ -97,7 +97,8 @@ jobs:
         shell: bash
         run: |
           mkdir dist
-          cp ./target/x86_64-unknown-linux-musl/release/*_lambda dist
+          cp ./target/x86_64-unknown-linux-musl/release/berkshire_hog_lambda bootstrap
+          zip dist/berkshire_hog_lambda.zip bootstrap
       - uses: actions/upload-artifact@v3
         with:
           name: bins-lambda
@@ -119,10 +120,10 @@ jobs:
           echo "tag=${name//v}" >> "$GITHUB_OUTPUT"
       - name: Build Docker Images
         shell: bash
-        run: make docker-build VERSION=${{ steps.tagname.outputs.tag }}
+        run: make docker-build
       - name: Save Docker Images
         shell: bash
-        run: make docker-save VERSION=${{ steps.tagname.outputs.tag }}
+        run: make docker-save
       - uses: actions/upload-artifact@v3
         with:
           name: docker
