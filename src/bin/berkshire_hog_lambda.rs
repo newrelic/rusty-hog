@@ -18,8 +18,8 @@ extern crate s3;
 
 use lambda_runtime::{handler_fn, Context, Error};
 use log::{self, warn, LevelFilter};
-use rusty_hogs::aws_scanning::{S3Finding, S3Scanner};
 use rusty_hog_scanner::SecretScannerBuilder;
+use rusty_hogs::aws_scanning::{S3Finding, S3Scanner};
 use s3::bucket::Bucket;
 use s3::creds::Credentials;
 use s3::region::Region;
@@ -160,7 +160,7 @@ async fn my_handler(event: CustomEvent, _: Context) -> Result<CustomOutput, Erro
         .as_secs();
     let dest = format!("{}/{}", output_bucket_keyprefix, epoch);
     output_bucket
-        .put_object_with_content_type_blocking(&dest, output_string.as_bytes(), "text/plain")
+        .put_object_with_content_type_blocking(dest, output_string.as_bytes(), "text/plain")
         .unwrap();
     Ok(CustomOutput {
         is_base64_encoded: false,

@@ -106,20 +106,16 @@ async fn run<'b>(arg_matches: ArgMatches<'b>) -> Result<(), SimpleError> {
         .value_of("CHANNELID") // TODO validate the format somehow
         .unwrap();
     // Reading the Slack URL from the command line
-    let base_url_input = arg_matches
-        .value_of("SLACKURL")
-        .unwrap();
+    let base_url_input = arg_matches.value_of("SLACKURL").unwrap();
     // Parse an absolute URL from a string.
     let base_url_as_url = Url::parse(base_url_input).unwrap();
     let base_url = base_url_as_url.as_str();
 
     // Reading the latest timestamp from the command line
-    let latest_input = arg_matches
-        .value_of("LATEST");
+    let latest_input = arg_matches.value_of("LATEST");
 
     // Reading the latest timestamp from the command line
-    let oldest_input = arg_matches
-        .value_of("OLDEST");
+    let oldest_input = arg_matches.value_of("OLDEST");
 
     // Still inside `async fn main`...
     let https = hyper_rustls::HttpsConnector::with_native_roots();
@@ -130,10 +126,20 @@ async fn run<'b>(arg_matches: ArgMatches<'b>) -> Result<(), SimpleError> {
 
     // Building URL to request conversation history for the channel
     // TODO: Construct the URL using a URL library to avoid weird input issues?
-    let full_url = format!("{}/api/conversations.history?channel={}", base_url, channel_id);
+    let full_url = format!(
+        "{}/api/conversations.history?channel={}",
+        base_url, channel_id
+    );
 
     // Retrieving the history of the channel
-    let json_results_array = get_channel_history_json(hyper_client, auth_string, &full_url, latest_input, oldest_input).await;
+    let json_results_array = get_channel_history_json(
+        hyper_client,
+        auth_string,
+        &full_url,
+        latest_input,
+        oldest_input,
+    )
+    .await;
     // WARNING: This method requires storing ALL the slack channel history JSON in memory at once
     // TODO: Re-write these methods to scan each JSON API request - to conserve memory usage
 
@@ -142,11 +148,7 @@ async fn run<'b>(arg_matches: ArgMatches<'b>) -> Result<(), SimpleError> {
 
     for json_results in json_results_array.iter() {
         // Parsing the messages as an array
-        let messages = json_results
-            .get("messages")
-            .unwrap()
-            .as_array()
-            .unwrap();
+        let messages = json_results.get("messages").unwrap().as_array().unwrap();
 
         // find secrets in each message
         for message in messages {
@@ -155,12 +157,21 @@ async fn run<'b>(arg_matches: ArgMatches<'b>) -> Result<(), SimpleError> {
             let location = format!(
                 "message type {} by {} on {}",
                 message.get("type").unwrap(),
-                message.get("user").unwrap_or(&Value::String("<UNKNOWN>".to_string())),
+                message
+                    .get("user")
+                    .unwrap_or(&Value::String("<UNKNOWN>".to_string())),
                 message.get("ts").unwrap()
             );
             let message_text = message.get("text").unwrap().as_str().unwrap().as_bytes();
 
-            let message_findings = get_findings(&secret_scanner, base_url, channel_id, ts, message_text, location);
+            let message_findings = get_findings(
+                &secret_scanner,
+                base_url,
+                channel_id,
+                ts,
+                message_text,
+                location,
+            );
             secrets.extend(message_findings);
         }
     }
@@ -176,7 +187,6 @@ async fn run<'b>(arg_matches: ArgMatches<'b>) -> Result<(), SimpleError> {
         )),
     }
 }
-
 
 // TODO: move this to a separate file
 /// get_channel_history_json uses a hyper::client object to perform a POST on the full_url and return parsed serde JSON data
@@ -222,7 +232,7 @@ where
 
         debug!("sending request to {}", full_url_mod.clone());
 
-        let status = resp.status().clone();
+        let status = resp.status();
         debug!("Response: {:?}", status);
 
         let data = body::to_bytes(resp.into_body()).await.unwrap();
@@ -231,7 +241,9 @@ where
         if status != StatusCode::OK {
             panic!(
                 "Request to {} failed with code {:?}: {}",
-                full_url_mod.clone(), status, response_body
+                full_url_mod.clone(),
+                status,
+                response_body
             )
         }
 
@@ -241,16 +253,25 @@ where
         if !ok {
             panic!(
                 "Request to {} failed with error {:?}: {}",
-                full_url_mod.clone(), json_results["error"], response_body
+                full_url_mod.clone(),
+                json_results["error"],
+                response_body
             )
         }
         has_more = json_results.get("has_more").unwrap().as_bool().unwrap();
-        if has_more { // TODO: Cleanup weird borrowing issues?
-            let rm = json_results.get("response_metadata").unwrap().as_object().unwrap().clone();
-            cursor = Some(String::from(rm.get("next_cursor").unwrap().as_str().unwrap()));
+        if has_more {
+            // TODO: Cleanup weird borrowing issues?
+            let rm = json_results
+                .get("response_metadata")
+                .unwrap()
+                .as_object()
+                .unwrap()
+                .clone();
+            cursor = Some(String::from(
+                rm.get("next_cursor").unwrap().as_str().unwrap(),
+            ));
         }
         output.push(json_results);
-
     }
     output
 }
@@ -265,12 +286,11 @@ fn get_findings(
     description: &[u8],
     location: String,
 ) -> Vec<SlackFinding> {
-
     let lines = description.split(|&x| (x as char) == '\n');
     let mut secrets: Vec<SlackFinding> = Vec::new();
 
     // Building web links for Slack messages
-    // https://<WORKSPACE>.slack.com/archives/<CHANNEL_ID/<MESSAGE TIMESTAMP> 
+    // https://<WORKSPACE>.slack.com/archives/<CHANNEL_ID/<MESSAGE TIMESTAMP>
     let msg_id = str::replace(ts, ".", "");
     let web_link = format!("{}/archives/{}/p{}", base_url, channel_id, msg_id);
 
@@ -278,7 +298,8 @@ fn get_findings(
     for new_line in lines {
         debug!("{:?}", std::str::from_utf8(new_line));
         // Builds a BTreeMap of the findings
-        let matches_map: BTreeMap<String, Vec<RustyHogMatch>> = secret_scanner.matches_entropy(new_line);
+        let matches_map: BTreeMap<String, Vec<RustyHogMatch>> =
+            secret_scanner.matches_entropy(new_line);
 
         // Iterate over the findings and add them to the list of findings to return
         for (reason, match_iterator) in matches_map {

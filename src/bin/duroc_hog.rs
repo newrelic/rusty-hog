@@ -154,7 +154,7 @@ fn scan_dir(
 
     let scanning_closure = |file_path: &Path| {
         let f = File::open(file_path).unwrap();
-        let mut inner_findings = scan_file(file_path, &ss, f, "", unzip);
+        let mut inner_findings = scan_file(file_path, ss, f, "", unzip);
         for d in inner_findings.drain() {
             output.insert(d);
         }
@@ -175,7 +175,7 @@ where
 {
     for entry in WalkDir::new(fspath).into_iter().filter_map(|e| e.ok()) {
         if entry.file_type().is_file() && PathBuf::from(entry.path()).clean() != output_file {
-            closure(&entry.path());
+            closure(entry.path());
         }
     }
 }
@@ -322,7 +322,7 @@ fn scan_bytes(input: Vec<u8>, ss: &SecretScanner, path: String) -> HashSet<FileF
             }
             if !strings_found.is_empty() {
                 let new_line_string = ASCII
-                    .decode(&new_line, DecoderTrap::Ignore)
+                    .decode(new_line, DecoderTrap::Ignore)
                     .unwrap_or_else(|_| "<STRING DECODE ERROR>".parse().unwrap());
                 findings.insert(FileFinding {
                     diff: new_line_string,
@@ -355,19 +355,20 @@ mod tests {
 
     fn write_temp_file(dir: &TempDir, filename: &str, contents: &str) {
         let file_path = dir.path().join(filename);
-        let mut tmp_file = File::create(&file_path).unwrap();
+        let mut tmp_file = File::create(file_path).unwrap();
         write!(tmp_file, "{}", contents).unwrap();
     }
 
     fn read_temp_file(dir: &TempDir, filename: &str) -> String {
         let mut contents = String::new();
         let file_path = dir.path().join(filename);
-        let mut file_handle = File::open(&file_path).unwrap();
+        let mut file_handle = File::open(file_path).unwrap();
         file_handle.read_to_string(&mut contents).unwrap();
         contents
     }
 
     #[test]
+    #[cfg(not(target_os = "windows"))]
     fn does_not_scan_output_file() {
         let temp_dir = TempDir::new().unwrap();
 

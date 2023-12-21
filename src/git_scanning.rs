@@ -29,7 +29,7 @@
 //! `HashSet` of findings. In this example we're specifying a specific commit to stop scanning at
 //! (801360e) so we can have a reliable result.
 //!
-//! ```
+//! ```no_run
 //! use rusty_hog_scanner::SecretScannerBuilder;
 //! use rusty_hogs::git_scanning::{GitScanner, GitFinding};
 //! use std::collections::HashSet;
@@ -49,12 +49,12 @@ use encoding::{DecoderTrap, Encoding};
 use git2::{Commit, DiffFormat, Tree};
 use git2::{DiffOptions, Repository, Time};
 use log::{self, debug, info};
+use rusty_hog_scanner::{RustyHogMatch, SecretScanner};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashSet};
 use std::hash::{Hash, Hasher};
 use std::path::Path;
 use std::{fmt, str};
-use rusty_hog_scanner::{RustyHogMatch, SecretScanner};
 use url::{ParseError, Url};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, Clone, Default)]
@@ -181,10 +181,7 @@ impl GitScanner {
                 Some(pc) => pc.id().to_string(),
                 None => String::from("None"),
             };
-            let a: Option<Tree> = match parent_commit_option {
-                Some(pc) => Some(pc.tree().unwrap()),
-                _ => None,
-            };
+            let a: Option<Tree> = parent_commit_option.map(|pc| pc.tree().unwrap());
             let b = commit.tree().unwrap();
             let mut diffopts = DiffOptions::new();
             diffopts.force_text(true);
@@ -241,7 +238,7 @@ impl GitScanner {
                                 commit_hash: commit.id().to_string(),
                                 commit: commit.message().unwrap().to_string(),
                                 diff: ASCII
-                                    .decode(&new_line, DecoderTrap::Ignore)
+                                    .decode(new_line, DecoderTrap::Ignore)
                                     .unwrap_or_else(|_| "<STRING DECODE ERROR>".parse().unwrap()),
                                 date: NaiveDateTime::from_timestamp(commit.time().seconds(), 0)
                                     .to_string(),
