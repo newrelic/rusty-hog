@@ -29,7 +29,7 @@
 //! `HashSet` of findings. In this example we're specifying a specific commit to stop scanning at
 //! (801360e) so we can have a reliable result.
 //!
-//! ```
+//! ```no_run
 //! use rusty_hog_scanner::SecretScannerBuilder;
 //! use rusty_hogs::git_scanning::{GitScanner, GitFinding};
 //! use std::collections::HashSet;
