@@ -111,7 +111,6 @@ fn main() {
             Arg::new("DEFAULT_ENTROPY_THRESHOLD")
                 .long("default_entropy_threshold")
                 .action(ArgAction::Set)
-                .default_value("0.6")
                 .help("Default entropy threshold (0.6 by default)"),
         )
         .arg(
@@ -408,7 +407,7 @@ mod tests {
     use std::io::Result;
     use std::io::Write;
     use std::process::Output;
-    use tempfile::{NamedTempFile, TempDir};
+    use tempfile::{NamedTempFile, TempDir, tempdir};
 
     fn run_command_in_dir(dir: &TempDir, command: &str, args: &[&str]) -> Result<Output> {
         let dir_path = dir.path().to_str().unwrap();
@@ -433,7 +432,7 @@ mod tests {
 
     #[test]
     fn does_not_scan_output_file() {
-        let temp_dir = TempDir::new().unwrap();
+        let temp_dir = tempdir().expect("couldn't make tempdir");
 
         write_temp_file(
             &temp_dir,
@@ -444,12 +443,12 @@ mod tests {
         let cmd_args = ["-o", "output_file.txt", "."];
 
         run_command_in_dir(&temp_dir, "duroc_hog", &cmd_args).unwrap();
-
         run_command_in_dir(&temp_dir, "duroc_hog", &cmd_args).unwrap();
 
         let text = read_temp_file(&temp_dir, "output_file.txt");
 
         println!("{}", text);
+        temp_dir.close().expect("couldn't close tempdir");
 
         assert!(text.contains("\"path\":\"./insecure-file.txt\""));
         assert!(!text.contains("output_file.txt"));
@@ -457,7 +456,7 @@ mod tests {
 
     #[test]
     fn allowlist_json_file_prevents_output() {
-        let temp_dir = TempDir::new().unwrap();
+        let temp_dir = tempdir().expect("couldn't make tempdir");
         let mut allowlist_temp_file = NamedTempFile::new().unwrap();
         let json = r#"
         {
@@ -480,7 +479,8 @@ mod tests {
         ];
 
         let output = run_command_in_dir(&temp_dir, "duroc_hog", &cmd_args).unwrap();
-
-        assert_eq!("[]\n", str::from_utf8(&output.stdout).unwrap());
+        temp_dir.close().expect("couldn't close tempdir");
+        let prg_out = str::from_utf8(&output.stdout).unwrap();
+        assert_eq!("[]\n", prg_out);
     }
 }
