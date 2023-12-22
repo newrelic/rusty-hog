@@ -99,6 +99,7 @@ async fn main() {
                 .long("default_entropy_threshold")
                 .action(ArgAction::Set)
                 .default_value("0.6")
+                .value_parser(clap::value_parser!(f32))
                 .help("Default entropy threshold (0.6 by default)"),
         )
         .arg(
