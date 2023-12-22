@@ -44,7 +44,7 @@
 //! let region: Region = Region::UsWest2;
 //! let bucket: Bucket = match Bucket::new(bucket_string, region, credentials) {
 //! Ok(r) => r,
-//! Err(e) => panic!(e)
+//! Err(e) => panic!("{}", e)
 //! };
 //! let results = s3s.scan_s3_file(bucket, "s3://testbucket1/727463.json").unwrap();
 //! assert_eq!(results.len(), 0);

@@ -409,7 +409,7 @@ mod tests {
     use std::io::Result;
     use std::io::Write;
     use std::process::Output;
-    use tempfile::{NamedTempFile, TempDir, tempdir};
+    use tempfile::{tempdir, NamedTempFile, TempDir};
 
     fn run_command_in_dir(dir: &TempDir, command: &str, args: &[&str]) -> Result<Output> {
         let dir_path = dir.path().to_str().unwrap();

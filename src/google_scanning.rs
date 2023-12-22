@@ -55,7 +55,7 @@
 //! # .build()
 //! # .await
 //! # .expect("failed to create authenticator (try deleting temp_token and restarting)");
-//! let hub = DriveHub::new(hyper::Client::builder().build(hyper_rustls::HttpsConnector::with_native_roots()), auth);
+//! let hub = DriveHub::new(hyper::Client::builder().build(hyper_rustls::HttpsConnectorBuilder::new().with_native_roots().https_only().enable_all_versions().build()), auth);
 //!
 //! // get some initial info about the file
 //! let gdriveinfo = GDriveFileInfo::new("1FCdv-FQAgfNenGbvXfiplT7S5OFj0oqrFQ1_KwD_n90", &hub).await.unwrap();
@@ -94,7 +94,7 @@ use tokio::io::{AsyncRead, AsyncWrite};
 /// ```
 /// # use rusty_hogs::google_scanning::GDriveFinding;
 /// let gdf: GDriveFinding = GDriveFinding {
-///    date: String::from("2019-12-21T16:32:31+00:00"),
+///    date: chrono::DateTime::parse_from_rfc3339("2019-12-21T16:32:31+00:00").unwrap().into(),
 ///    diff: String::from("context around finding"),
 ///    path: String::from("GDrive folder path"),
 ///    strings_found: Vec::new(),
@@ -133,7 +133,7 @@ pub struct GDriveScanner {
 /// let gdfi: GDriveFileInfo = GDriveFileInfo {
 ///   file_id: String::from("GDrive file ID"),
 ///    mime_type: String::from("MIME"),
-///    modified_time: String::from("context around finding"),
+///    modified_time: chrono::Utc::now(),
 ///    web_link: String::from("context around finding"),
 ///    parents: Vec::new(),
 ///    name: String::from("context around finding"),
