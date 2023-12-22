@@ -68,7 +68,7 @@
 extern crate clap;
 
 use anyhow::Result;
-use base64::{Engine as _, engine::general_purpose as Base64Engine};
+use base64::{engine::general_purpose as Base64Engine, Engine as _};
 use clap::ArgMatches;
 use log::{self, debug, error, info, LevelFilter};
 use regex::bytes::{Match, Matches, Regex, RegexBuilder};
@@ -1048,12 +1048,12 @@ impl PartialEq for SecretScanner {
             && self.regex_map.keys().eq(other.regex_map.keys())
             && self.pretty_print == other.pretty_print
             && match self.output_path.as_ref() {
-            None => other.output_path.is_none(),
-            Some(s) => match other.output_path.as_ref() {
-                None => false,
-                Some(t) => *s == *t,
-            },
-        }
+                None => other.output_path.is_none(),
+                Some(s) => match other.output_path.as_ref() {
+                    None => false,
+                    Some(t) => *s == *t,
+                },
+            }
     }
 }
 
@@ -1109,7 +1109,7 @@ mod tests {
             not_so_secret_but_has_the_word_secret_and_is_long
         "#,
         )
-            .into_bytes();
+        .into_bytes();
         let output = SecretScanner::entropy_findings(test_string.as_slice(), 0.6);
         // println!("{:?}", output);
         assert_eq!(output.len(), 1);
@@ -1164,7 +1164,7 @@ mod tests {
             not_so_secret_but_has_the_word_secret_and_is_long
         "#,
         )
-            .into_bytes();
+        .into_bytes();
         let mut findings: Vec<(String, String)> = Vec::new();
         // Main loop - split the data based on newlines, then run get_matches() on each line,
         // then make a list of findings in output
@@ -1209,7 +1209,7 @@ mod tests {
             <text>@<text>
         "#,
         )
-            .into_bytes();
+        .into_bytes();
         let mut findings: Vec<(String, String)> = Vec::new();
         // Main loop - split the data based on newlines, then run get_matches() on each line,
         // then make a list of findings in output
