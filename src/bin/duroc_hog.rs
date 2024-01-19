@@ -452,7 +452,10 @@ mod tests {
         println!("{}", text);
         temp_dir.close().expect("couldn't close tempdir");
 
-        assert!(text.contains("\"path\":\"./insecure-file.txt\"") || text.contains("\"path\":\".\\insecure-file.txt\""));
+        assert!(
+            text.contains("\"path\":\"./insecure-file.txt\"")
+                || text.contains("\"path\":\".\\insecure-file.txt\"")
+        );
         assert!(!text.contains("output_file.txt"));
     }
 
