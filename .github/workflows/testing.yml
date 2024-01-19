@@ -56,6 +56,9 @@ jobs:
     steps:
       - name: Checkout sources
         uses: actions/checkout@v3
+        with:
+          #  git-scanning tests need entire git history to work
+          fetch-depth: 0
       - name: Install ${{ matrix.rust }}-${{ matrix.target }} toolchain
         uses: actions-rs/toolchain@v1
         with:
