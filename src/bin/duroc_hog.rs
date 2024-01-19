@@ -454,7 +454,7 @@ mod tests {
 
         assert!(
             text.contains("\"path\":\"./insecure-file.txt\"")
-                || text.contains("\"path\":\".\\insecure-file.txt\"")
+                || text.contains("\"path\":\".\\\\insecure-file.txt\"")
         );
         assert!(!text.contains("output_file.txt"));
     }
