@@ -95,6 +95,31 @@ $env:OPENSSL_STATIC = 'Yes'
 ```
 You can now follow the main build instructions listed above.
 
+## How to build Berkshire Hog for Lambda
+
+### macOS
+
+Use [Homebrew](https://brew.sh) to get the dependencies:
+
+```
+brew install rpm2cpio FiloSottile/musl-cross/musl-cross
+```
+
+Then run `./build_lambda_macos.sh`.
+
+The build script will build against OpenSSL 3.0.12. Use `export OPENSSL_BUILD_VER=3.0.12` to override.
+
+The build script will build against Amazon Linux kernel headers
+provided by their RPM; `export AMAZON_KERNEL_HEADERS_RPM_URL=...` to override where the RPM is downloaded from. (There's nothing preventing a different distribution's linux-headers RPM from being used, we just need the linux-headers to build openssl for Linux)
+
+The build script will create a build-deps directory in your current source root. You can `rm -rf` this directory safely, but it will be recreated on the next build script run. It will also do various consistency checks to make sure the build should work and if those fail, might ask you to `rm -rf` that directory anyway to try again. 
+
+### Linux
+
+Make sure `cross` is installed (`cargo install cross`), then just `./build_lambda.sh`. 
+
+# Commands
+
 ## Anakamali Hog (GDoc Scanner) usage
 ```
 USAGE:
