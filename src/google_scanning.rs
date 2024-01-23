@@ -55,7 +55,7 @@
 //! # .build()
 //! # .await
 //! # .expect("failed to create authenticator (try deleting temp_token and restarting)");
-//! let hub = DriveHub::new(hyper::Client::builder().build(hyper_rustls::HttpsConnector::with_native_roots()), auth);
+//! let hub = DriveHub::new(hyper::Client::builder().build(hyper_rustls::HttpsConnectorBuilder::new().with_native_roots().https_only().enable_all_versions().build()), auth);
 //!
 //! // get some initial info about the file
 //! let gdriveinfo = GDriveFileInfo::new("1FCdv-FQAgfNenGbvXfiplT7S5OFj0oqrFQ1_KwD_n90", &hub).await.unwrap();
@@ -75,15 +75,18 @@
 
 extern crate google_drive3 as drive3;
 extern crate yup_oauth2 as oauth2;
+use chrono::{DateTime, Utc};
 use drive3::DriveHub;
 use encoding::all::ASCII;
 use encoding::{DecoderTrap, Encoding};
 use google_drive3::api::Scope;
 use hyper::body;
+use rusty_hog_scanner::SecretScanner;
 use serde_derive::{Deserialize, Serialize};
 use simple_error::SimpleError;
 use std::collections::HashSet;
-use rusty_hog_scanner::SecretScanner;
+use std::error::Error as StdError;
+use tokio::io::{AsyncRead, AsyncWrite};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, Clone, Default)]
 /// `serde_json` object that represents a single found secret - finding
@@ -91,7 +94,7 @@ use rusty_hog_scanner::SecretScanner;
 /// ```
 /// # use rusty_hogs::google_scanning::GDriveFinding;
 /// let gdf: GDriveFinding = GDriveFinding {
-///    date: String::from("2019-12-21T16:32:31+00:00"),
+///    date: chrono::DateTime::parse_from_rfc3339("2019-12-21T16:32:31+00:00").unwrap().into(),
 ///    diff: String::from("context around finding"),
 ///    path: String::from("GDrive folder path"),
 ///    strings_found: Vec::new(),
@@ -101,7 +104,7 @@ use rusty_hog_scanner::SecretScanner;
 /// };
 /// ```
 pub struct GDriveFinding {
-    pub date: String,
+    pub date: DateTime<Utc>,
     pub diff: String,
     pub path: String,
     #[serde(rename = "stringsFound")]
@@ -130,7 +133,7 @@ pub struct GDriveScanner {
 /// let gdfi: GDriveFileInfo = GDriveFileInfo {
 ///   file_id: String::from("GDrive file ID"),
 ///    mime_type: String::from("MIME"),
-///    modified_time: String::from("context around finding"),
+///    modified_time: chrono::Utc::now(),
 ///    web_link: String::from("context around finding"),
 ///    parents: Vec::new(),
 ///    name: String::from("context around finding"),
@@ -140,7 +143,7 @@ pub struct GDriveScanner {
 pub struct GDriveFileInfo {
     pub file_id: String,
     pub mime_type: String,
-    pub modified_time: String,
+    pub modified_time: DateTime<Utc>,
     pub web_link: String,
     pub parents: Vec<String>,
     pub name: String,
@@ -149,7 +152,14 @@ pub struct GDriveFileInfo {
 
 impl GDriveFileInfo {
     /// Construct a `GDriveFileInfo` object from a Google Drive File ID and an authorized `DriveHub` object
-    pub async fn new(file_id: &str, hub: &DriveHub) -> Result<Self, SimpleError> {
+    pub async fn new<S>(file_id: &str, hub: &DriveHub<S>) -> Result<Self, SimpleError>
+    where
+        S: hyper::service::Service<hyper::Uri> + Clone + Send + Sync + 'static,
+        S::Response:
+            hyper::client::connect::Connection + AsyncRead + AsyncWrite + Send + Unpin + 'static,
+        S::Future: Send + Unpin + 'static,
+        S::Error: Into<Box<dyn StdError + Send + Sync>>,
+    {
         let fields = "kind, id, name, mimeType, webViewLink, modifiedTime, parents";
         let hub_result = hub
             .files()
@@ -209,10 +219,17 @@ impl GDriveScanner {
 
     /// Takes information about the file, and the DriveHub object, and retrieves the content from
     /// Google Drive. Expect authorization issues here if you don't have access to the file.
-    async fn gdrive_file_contents(
+    async fn gdrive_file_contents<S>(
         gdrivefile: &GDriveFileInfo,
-        hub: &DriveHub,
-    ) -> Result<Vec<u8>, SimpleError> {
+        hub: &DriveHub<S>,
+    ) -> Result<Vec<u8>, SimpleError>
+    where
+        S: hyper::service::Service<hyper::Uri> + Clone + Send + Sync + 'static,
+        S::Response:
+            hyper::client::connect::Connection + AsyncRead + AsyncWrite + Send + Unpin + 'static,
+        S::Future: Send + Unpin + 'static,
+        S::Error: Into<Box<dyn StdError + Send + Sync>>,
+    {
         let resp_obj = hub
             .files()
             .export(&gdrivefile.file_id, &gdrivefile.mime_type)
@@ -229,11 +246,18 @@ impl GDriveScanner {
 
     /// Takes information about the file, and the DriveHub object, and return a list of findings.
     /// This calls get_file_contents(), so expect an HTTPS call to GDrive.
-    pub async fn perform_scan(
+    pub async fn perform_scan<S>(
         &self,
         gdrivefile: &GDriveFileInfo,
-        hub: &DriveHub,
-    ) -> HashSet<GDriveFinding> {
+        hub: &DriveHub<S>,
+    ) -> HashSet<GDriveFinding>
+    where
+        S: hyper::service::Service<hyper::Uri> + Clone + Send + Sync + 'static,
+        S::Response:
+            hyper::client::connect::Connection + AsyncRead + AsyncWrite + Send + Unpin + 'static,
+        S::Future: Send + Unpin + 'static,
+        S::Error: Into<Box<dyn StdError + Send + Sync>>,
+    {
         // download an export of the file, split on new lines, store in lines
         let buffer = Self::gdrive_file_contents(gdrivefile, hub).await.unwrap();
         let lines = buffer.split(|x| (*x as char) == '\n');

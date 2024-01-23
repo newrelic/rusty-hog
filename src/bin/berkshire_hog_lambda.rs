@@ -18,8 +18,8 @@ extern crate s3;
 
 use lambda_runtime::{handler_fn, Context, Error};
 use log::{self, warn, LevelFilter};
-use rusty_hogs::aws_scanning::{S3Finding, S3Scanner};
 use rusty_hog_scanner::SecretScannerBuilder;
+use rusty_hogs::aws_scanning::{S3Finding, S3Scanner};
 use s3::bucket::Bucket;
 use s3::creds::Credentials;
 use s3::region::Region;

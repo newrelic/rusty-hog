@@ -7,7 +7,7 @@ members = [
 name = "rusty_hogs"
 version = "1.0.11"
 authors = ["Scott Cutler <scutler@newrelic.com>"]
-edition = "2018"
+edition = "2021"
 description = "This project provides a set of scanners that will use regular expressions to try and detect the presence of sensitive information such as API keys, passwords, and personal information. It includes a set of regular expressions by default, but will also accept a JSON object containing your custom regular expressions."
 homepage = "https://github.com/newrelic/rusty-hog"
 keywords = ["secret", "scanner", "regex", "rusty", "hog"]
@@ -18,33 +18,33 @@ license = "Apache-2.0"
 [dependencies]
 rusty_hog_scanner = { path = "crates/rusty-hog-scanner" }
 tokio = { version = "1", features = ["full"] }
-git2 = "0.13"
+git2 = "0.18"
 serde = "1.0"
 serde_json = "1.0"
 serde_derive = "^1"
-clap = "2"
+clap = "4"
 regex = "1"
 url = "2"
 tempdir = "0.3"
-base64 = "0.13"
+base64 = "0.21"
 log = "0.4"
-simple_logger = "1.11"
-simple-error = "0.2"
+simple_logger = "4.3"
+simple-error = "0.3"
 chrono = "0.4"
 encoding = "0.2"
 hex = "0.4"
-lambda_runtime = "0.3"
-rust-s3 = "0.26"
-google-drive3 = "2.0.4"
-hyper = "^0.14"
-hyper-rustls = "^0.22"
-yup-oauth2 = "^5.0"
+lambda_runtime = "0.8"
+rust-s3 = { version = "0.33", features = ["blocking"] }
+google-drive3 = "5.0"
+hyper = { version = "^0.14", features = ["client"] }
+hyper-rustls = "^0.24"
+yup-oauth2 = "^8.3"
 walkdir = "2"
-zip = "0.5"
+zip = "0.6"
 tar = "0.4"
 flate2 = "1.0"
 tempfile = "3.2"
-path-clean = "0.1.0"
+path-clean = "1.0"
 anyhow = "1.0"
 
 [dev-dependencies]
@@ -53,3 +53,6 @@ escargot = "0.5.0"
 [profile.release]
 lto = true
 codegen-units = 1
+
+[package.metadata.cross.target.x86_64-unknown-linux-musl]
+dockerfile = "Dockerfile.lambda"

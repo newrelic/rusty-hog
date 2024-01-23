@@ -65,10 +65,10 @@
 //! assert_eq!(secrets.pop().unwrap(), "Email address");
 //! ```
 
-#[macro_use]
 extern crate clap;
 
 use anyhow::Result;
+use base64::{engine::general_purpose as Base64Engine, Engine as _};
 use clap::ArgMatches;
 use log::{self, debug, error, info, LevelFilter};
 use regex::bytes::{Match, Matches, Regex, RegexBuilder};
@@ -372,26 +372,26 @@ impl SecretScannerBuilder {
     /// Configure multiple values using the clap library's `ArgMatches` object.
     /// This function looks for a "CASE" flag and "REGEX", "ALLOWLIST", "DEFAULT_ENTROPY_THRESHOLD" values.
     pub fn conf_argm(mut self, arg_matches: &ArgMatches) -> Self {
-        self.case_insensitive = arg_matches.is_present("CASE");
-        self.regex_json_path = match arg_matches.value_of("REGEX") {
+        self.case_insensitive = arg_matches.get_flag("CASE");
+        self.regex_json_path = match arg_matches.get_one::<String>("REGEX") {
             Some(s) => Some(String::from(s)),
             None => None,
         };
-        self.pretty_print = arg_matches.is_present("PRETTYPRINT");
-        self.output_path = match arg_matches.value_of("OUTPUT") {
+        self.pretty_print = arg_matches.get_flag("PRETTYPRINT");
+        self.output_path = match arg_matches.get_one::<String>("OUTPUT") {
             Some(s) => Some(String::from(s)),
             None => None,
         };
-        self.allowlist_json_path = match arg_matches.value_of("ALLOWLIST") {
+        self.allowlist_json_path = match arg_matches.get_one::<String>("ALLOWLIST") {
             Some(s) => Some(String::from(s)),
             None => None,
         };
         self.default_entropy_threshold =
-            match value_t!(arg_matches.value_of("DEFAULT_ENTROPY_THRESHOLD"), f32) {
-                Ok(t) => t,
-                Err(_) => DEFAULT_ENTROPY_THRESHOLD,
+            match arg_matches.get_one::<f32>("DEFAULT_ENTROPY_THRESHOLD") {
+                Some(t) => *t,
+                None => DEFAULT_ENTROPY_THRESHOLD,
             };
-        self.add_entropy_findings = arg_matches.is_present("ENTROPY");
+        self.add_entropy_findings = arg_matches.get_flag("ENTROPY");
         self
     }
 
@@ -838,11 +838,11 @@ impl SecretScanner {
         let b64_words: Vec<String> = words
             .iter()
             .filter(|word| word.len() >= 20 && Self::is_base64_string(word))
-            .filter_map(|x| base64::decode(x).ok())
+            .filter_map(|x| Base64Engine::STANDARD_NO_PAD.decode(x).ok())
             .filter(|word| {
                 Self::calc_normalized_entropy(word, Some(255), false) > entropy_threshold
             })
-            .map(|word| String::from(base64::encode(&word).as_str()))
+            .map(|word| String::from(Base64Engine::STANDARD_NO_PAD.encode(&word).as_str()))
             .collect();
         let hex_words: Vec<String> = words
             .iter() // there must be a better way
@@ -1048,12 +1048,12 @@ impl PartialEq for SecretScanner {
             && self.regex_map.keys().eq(other.regex_map.keys())
             && self.pretty_print == other.pretty_print
             && match self.output_path.as_ref() {
-            None => other.output_path.is_none(),
-            Some(s) => match other.output_path.as_ref() {
-                None => false,
-                Some(t) => *s == *t,
-            },
-        }
+                None => other.output_path.is_none(),
+                Some(s) => match other.output_path.as_ref() {
+                    None => false,
+                    Some(t) => *s == *t,
+                },
+            }
     }
 }
 
@@ -1109,7 +1109,7 @@ mod tests {
             not_so_secret_but_has_the_word_secret_and_is_long
         "#,
         )
-            .into_bytes();
+        .into_bytes();
         let output = SecretScanner::entropy_findings(test_string.as_slice(), 0.6);
         // println!("{:?}", output);
         assert_eq!(output.len(), 1);
@@ -1164,7 +1164,7 @@ mod tests {
             not_so_secret_but_has_the_word_secret_and_is_long
         "#,
         )
-            .into_bytes();
+        .into_bytes();
         let mut findings: Vec<(String, String)> = Vec::new();
         // Main loop - split the data based on newlines, then run get_matches() on each line,
         // then make a list of findings in output
@@ -1209,7 +1209,7 @@ mod tests {
             <text>@<text>
         "#,
         )
-            .into_bytes();
+        .into_bytes();
         let mut findings: Vec<(String, String)> = Vec::new();
         // Main loop - split the data based on newlines, then run get_matches() on each line,
         // then make a list of findings in output

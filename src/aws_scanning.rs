@@ -44,7 +44,7 @@
 //! let region: Region = Region::UsWest2;
 //! let bucket: Bucket = match Bucket::new(bucket_string, region, credentials) {
 //! Ok(r) => r,
-//! Err(e) => panic!(e)
+//! Err(e) => panic!("{}", e)
 //! };
 //! let results = s3s.scan_s3_file(bucket, "s3://testbucket1/727463.json").unwrap();
 //! assert_eq!(results.len(), 0);
@@ -53,11 +53,11 @@
 use encoding::all::ASCII;
 use encoding::{DecoderTrap, Encoding};
 use log::{self, error, trace};
+use rusty_hog_scanner::SecretScanner;
 use s3::bucket::Bucket;
 use serde_derive::{Deserialize, Serialize};
 use simple_error::SimpleError;
 use std::str;
-use rusty_hog_scanner::SecretScanner;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, Clone, Default)]
 /// `serde_json` object that represents a single found secret - finding
@@ -105,8 +105,8 @@ impl S3Scanner {
         let mut output: Vec<S3Finding> = Vec::new();
 
         // Get the actual data from S3
-        let (data, code) = match bucket.get_object_blocking(filepath) {
-            Ok(x) => (x.0, x.1),
+        let (code, data) = match bucket.get_object_blocking(filepath) {
+            Ok(x) => (x.status_code(), x.to_vec()),
             Err(e) => return Err(SimpleError::new(e.to_string())),
         };
         trace!("Code: {}\nData: {:?}", code, data);

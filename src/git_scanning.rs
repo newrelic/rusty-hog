@@ -49,12 +49,12 @@ use encoding::{DecoderTrap, Encoding};
 use git2::{Commit, DiffFormat, Tree};
 use git2::{DiffOptions, Repository, Time};
 use log::{self, debug, info};
+use rusty_hog_scanner::{RustyHogMatch, SecretScanner};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashSet};
 use std::hash::{Hash, Hasher};
 use std::path::Path;
 use std::{fmt, str};
-use rusty_hog_scanner::{RustyHogMatch, SecretScanner};
 use url::{ParseError, Url};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, Clone, Default)]
