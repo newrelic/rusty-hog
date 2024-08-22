@@ -42,7 +42,7 @@
 //! assert_eq!(findings.len(), 8);
 //! ```
 
-use chrono::NaiveDateTime;
+use chrono::{DateTime};
 use chrono::Utc;
 use encoding::all::ASCII;
 use encoding::{DecoderTrap, Encoding};
@@ -243,8 +243,8 @@ impl GitScanner {
                                 diff: ASCII
                                     .decode(&new_line, DecoderTrap::Ignore)
                                     .unwrap_or_else(|_| "<STRING DECODE ERROR>".parse().unwrap()),
-                                date: NaiveDateTime::from_timestamp(commit.time().seconds(), 0)
-                                    .to_string(),
+                                date: DateTime::from_timestamp(commit.time().seconds(), 0)
+                                    .expect("Failed to parse timestamp").to_string(),
                                 strings_found: secrets.clone(),
                                 path,
                                 reason: reason.clone(),
