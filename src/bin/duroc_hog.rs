@@ -58,7 +58,7 @@ pub struct FileFinding {
     pub path: String,
     pub reason: String,
     pub linenum: usize,
-    pub diff: String,
+    pub lineindextuples: Vec<(usize, usize)>
 }
 
 const ZIPEXTENSIONS: &[&str] = &["zip"];
@@ -379,22 +379,21 @@ fn scan_bytes(input: Vec<u8>, ss: &SecretScanner, path: String) -> HashSet<FileF
         let results = ss.matches_entropy(new_line);
         for (r, matches) in results {
             let mut strings_found: Vec<String> = Vec::new();
+            let mut lineindextuples: Vec<(usize, usize)> = Vec::new();
             for m in matches {
                 let result = ASCII
                     .decode(&new_line[m.start()..m.end()], DecoderTrap::Ignore)
                     .unwrap_or_else(|_| "<STRING DECODE ERROR>".parse().unwrap());
                 strings_found.push(result);
+                lineindextuples.push((m.start(),m.end()));
             }
             if !strings_found.is_empty() {
-                let new_line_string = ASCII
-                    .decode(&new_line, DecoderTrap::Ignore)
-                    .unwrap_or_else(|_| "<STRING DECODE ERROR>".parse().unwrap());
                 findings.insert(FileFinding {
-                    diff: new_line_string,
                     strings_found,
                     reason: r.clone(),
                     path: path.clone(),
                     linenum: index + 1,
+                    lineindextuples
                 });
             }
         }
