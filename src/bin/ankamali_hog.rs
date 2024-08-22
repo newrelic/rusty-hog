@@ -32,7 +32,6 @@ extern crate yup_oauth2 as oauth2;
 use clap::{Arg, ArgAction, ArgMatches, Command};
 use drive3::DriveHub;
 use log::{self, error, info};
-use oauth2::{InstalledFlowAuthenticator, InstalledFlowReturnMethod};
 use rusty_hog_scanner::{SecretScanner, SecretScannerBuilder};
 use rusty_hogs::google_scanning::{GDriveFileInfo, GDriveScanner};
 use simple_error::SimpleError;
@@ -136,33 +135,25 @@ async fn run(arg_matches: ArgMatches) -> Result<(), SimpleError> {
         .get_one::<String>("OAUTHSECRETFILE")
         .map(|s| s.as_str())
         .unwrap_or("clientsecret.json");
-    let oauthtokenfile = arg_matches
-        .get_one::<String>("OAUTHTOKENFILE")
-        .map(|s| s.as_str())
-        .unwrap_or("temp_token");
     let file_id = arg_matches.get_one::<String>("GDRIVEID").unwrap();
     let secret_scanner = SecretScannerBuilder::new().conf_argm(&arg_matches).build();
     let gdrive_scanner = GDriveScanner::new_from_scanner(secret_scanner);
 
     // Start with GDrive auth - based on example code from drive3 API and yup-oauth2
-    let secret = yup_oauth2::read_application_secret(Path::new(oauthsecretfile))
+    // https://docs.rs/google-drive3/latest/google_drive3/
+    let secret = drive3::oauth2::read_application_secret(Path::new(oauthsecretfile))
         .await
         .expect(oauthsecretfile);
-    let auth = InstalledFlowAuthenticator::builder(secret, InstalledFlowReturnMethod::HTTPRedirect)
-        .persist_tokens_to_disk(Path::new(oauthtokenfile))
-        .build()
-        .await
-        .expect("failed to create authenticator (try deleting temp_token and restarting)");
-    let hub = DriveHub::new(
-        hyper::Client::builder().build(
-            hyper_rustls::HttpsConnectorBuilder::new()
-                .with_native_roots()
-                .https_only()
-                .enable_all_versions()
-                .build(),
-        ),
-        auth,
-    );
+    // Instantiate the authenticator. It will choose a suitable authentication flow for you,
+    // unless you replace  `None` with the desired Flow.
+    // Provide your own `AuthenticatorDelegate` to adjust the way it operates and get feedback about
+    // what's going on. You probably want to bring in your own `TokenStorage` to persist tokens and
+    // retrieve them from storage.
+    let auth = drive3::oauth2::InstalledFlowAuthenticator::builder(
+        secret,
+        drive3::oauth2::InstalledFlowReturnMethod::HTTPRedirect,
+    ).build().await.unwrap();
+    let mut hub = DriveHub::new(hyper::Client::builder().build(hyper_rustls::HttpsConnectorBuilder::new().with_native_roots().https_or_http().enable_http1().build()), auth);
 
     // get some initial info about the file
     let gdriveinfo = GDriveFileInfo::new(file_id, &hub).await.unwrap();
