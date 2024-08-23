@@ -3,6 +3,7 @@
 Rusty Hog is a secret scanner built in Rust for performance, and based on TruffleHog which is written
 in Python. Rusty Hog provides the following binaries:
 
+
 * Ankamali Hog: Scans for secrets in a Google doc.
 * Berkshire Hog: Scans for secrets in an S3 bucket.
 * Choctaw Hog: Scans for secrets in a Git repository.
@@ -44,7 +45,7 @@ in Python. Rusty Hog provides the following binaries:
 
 This project provides a set of scanners that use regular expressions to try and detect the presence of sensitive
 information, such as API keys, passwords, and personal information. It includes a set of regular expressions by
-default, but also accepts a JSON object containing your custom regular expressions.
+default, <I was here>  but also accepts a JSON object containing your custom regular expressions.
 
 ## How to install using downloaded binaries
 Download and unzip the [latest ZIP](https://github.com/newrelic/rusty-hog/releases/)
