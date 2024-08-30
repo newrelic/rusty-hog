@@ -9,6 +9,7 @@
   "Facebook Access Token": "EAACEdEose0cBA[0-9A-Za-z]+",
   "Facebook OAuth": "(?i)facebook[\\s[[:punct:]]]{1,4}[0-9a-f]{32}[\\s[[:punct:]]]?",
   "GitHub": "(?i)(github|access[[:punct:]]token)[\\s[[:punct:]]]{1,4}[0-9a-zA-Z]{35,40}",
+  "GitLab:" "(glpat|gloas|gldt|glrt|glcbt|glptt|glft|glimt|glagent|glsoat|glffct)-[0-9a-zA-Z_]{20,60}",
   "Generic API Key": {
     "pattern": "(?i)(api|access)[\\s[[:punct:]]]?key[\\s[[:punct:]]]{1,4}[0-9a-zA-Z\\-_]{16,64}[\\s[[:punct:]]]?",
     "entropy_filter": true,
