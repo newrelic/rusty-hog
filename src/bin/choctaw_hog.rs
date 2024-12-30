@@ -68,7 +68,7 @@ fn main() {
         .arg(Arg::new("SSHKEYPHRASE").long("sshkeyphrase").action(ArgAction::Set).help("Takes a passphrase to a private SSH key for git authentication, defaults to none"))
         .arg(Arg::new("HTTPSUSER").long("httpsuser").action(ArgAction::Set).help("Takes a username for HTTPS-based authentication"))
         .arg(Arg::new("HTTPSPASS").long("httpspass").action(ArgAction::Set).help("Takes a password for HTTPS-based authentication"))
-        .arg(Arg::new("RECENTDAYS").long("recent_days").action(ArgAction::Set).conflicts_with("SINCECOMMIT").help("Filters commits to the last number of days (branch agnostic)"))
+        .arg(Arg::new("RECENTDAYS").long("recent_days").action(ArgAction::Set).value_parser(clap::value_parser!(u32)).conflicts_with("SINCECOMMIT").help("Filters commits to the last number of days (branch agnostic)"))
         .arg(Arg::new("ALLOWLIST").short('a').long("allowlist").action(ArgAction::Set).help("Sets a custom allowlist JSON file"))
         .get_matches();
     match run(&matches) {
