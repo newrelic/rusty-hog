@@ -42,7 +42,7 @@ use std::path::Path;
 #[tokio::main]
 async fn main() {
     let matches = Command::new("ankamali_hog")
-        .version("1.0.11")
+        .version("1.0.12")
         .author("Scott Cutler <scutler@newrelic.com>")
         .about("Google Drive secret scanner in Rust.")
         .arg(
