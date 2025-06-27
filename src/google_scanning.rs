@@ -48,7 +48,7 @@
 //! # let handle = rt.handle();
 //! # rt.block_on(async {
 //! // Start with GDrive auth - based on example code from drive3 API and yup-oauth2
-//! # let secret = yup_oauth2::read_application_secret(Path::new(oauthsecretfile))
+//! # let secret = drive3::oauth2::read_application_secret(Path::new(oauthsecretfile))
 //! # .await
 //! # .expect(oauthsecretfile);
 //! # let auth = drive3::oauth2::InstalledFlowAuthenticator::builder(

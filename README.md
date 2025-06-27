@@ -107,7 +107,7 @@ brew install rpm2cpio FiloSottile/musl-cross/musl-cross
 
 Then run `./build_lambda_macos.sh`.
 
-The build script will build against OpenSSL 3.0.12. Use `export OPENSSL_BUILD_VER=3.0.12` to override.
+The build script will build against OpenSSL 3.0.16. Use `export OPENSSL_BUILD_VER=3.0.16` to override.
 
 The build script will build against Amazon Linux kernel headers
 provided by their RPM; `export AMAZON_KERNEL_HEADERS_RPM_URL=...` to override where the RPM is downloaded from. (There's nothing preventing a different distribution's linux-headers RPM from being used, we just need the linux-headers to build openssl for Linux)

@@ -5,7 +5,7 @@ if [[ "$(uname)" != "Darwin" ]]; then
     exit 1;
 fi
 
-[ -z "${OPENSSL_BUILD_VER}" ] && OPENSSL_BUILD_VER="3.0.12"
+[ -z "${OPENSSL_BUILD_VER}" ] && OPENSSL_BUILD_VER="3.0.16"
 [ -z "${AMAZON_KERNEL_HEADERS_RPM_URL}" ] && AMAZON_KERNEL_HEADERS_RPM_URL="http://packages.eu-central-1.amazonaws.com/2018.03/updates/adeeb554baf5/x86_64/Packages/kernel-headers-4.14.275-142.503.amzn1.x86_64.rpm"
 AMAZON_KERNEL_HEADERS_RPM="${AMAZON_KERNEL_HEADERS_RPM_URL##http*/}"
 
