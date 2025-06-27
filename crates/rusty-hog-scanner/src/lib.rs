@@ -68,9 +68,9 @@
 extern crate clap;
 
 use anyhow::Result;
-use base64::{engine::general_purpose as Base64Engine, Engine as _};
+use base64::{Engine as _, engine::general_purpose as Base64Engine};
 use clap::ArgMatches;
-use log::{self, debug, error, info, LevelFilter};
+use log::{self, LevelFilter, debug, error, info};
 use regex::bytes::{Match, Matches, Regex, RegexBuilder};
 use serde::Serialize;
 use serde_derive::Deserialize;
@@ -486,7 +486,10 @@ impl SecretScannerBuilder {
                 let json_string: String = match json_string_result {
                     Ok(s) => s,
                     Err(e) => {
-                        error!("Error reading allowlist JSON file, falling back to default allowlist rules: {:?}", e);
+                        error!(
+                            "Error reading allowlist JSON file, falling back to default allowlist rules: {:?}",
+                            e
+                        );
                         String::from(DEFAULT_ALLOWLIST_JSON)
                     }
                 };
@@ -557,7 +560,7 @@ impl SecretScannerBuilder {
                         return Err(SimpleError::with(
                             "Failed to parse the regex pattern from JSON",
                             e,
-                        ))
+                        ));
                     }
                 };
                 Ok((x.0, v))

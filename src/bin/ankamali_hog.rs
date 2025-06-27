@@ -41,7 +41,7 @@ use std::path::Path;
 #[tokio::main]
 async fn main() {
     let matches = Command::new("ankamali_hog")
-        .version("1.0.11")
+        .version("1.0.12")
         .author("Scott Cutler <scutler@newrelic.com>")
         .about("Google Drive secret scanner in Rust.")
         .arg(
@@ -152,8 +152,20 @@ async fn run(arg_matches: ArgMatches) -> Result<(), SimpleError> {
     let auth = drive3::oauth2::InstalledFlowAuthenticator::builder(
         secret,
         drive3::oauth2::InstalledFlowReturnMethod::HTTPRedirect,
-    ).build().await.unwrap();
-    let mut hub = DriveHub::new(hyper::Client::builder().build(hyper_rustls::HttpsConnectorBuilder::new().with_native_roots().https_or_http().enable_http1().build()), auth);
+    )
+    .build()
+    .await
+    .unwrap();
+    let mut hub = DriveHub::new(
+        hyper::Client::builder().build(
+            hyper_rustls::HttpsConnectorBuilder::new()
+                .with_native_roots()
+                .https_or_http()
+                .enable_http1()
+                .build(),
+        ),
+        auth,
+    );
 
     // get some initial info about the file
     let gdriveinfo = GDriveFileInfo::new(file_id, &hub).await.unwrap();

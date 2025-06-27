@@ -16,8 +16,8 @@
 
 extern crate s3;
 
-use lambda_runtime::{handler_fn, Context, Error};
-use log::{self, warn, LevelFilter};
+use lambda_runtime::{Context, Error, handler_fn};
+use log::{self, LevelFilter, warn};
 use rusty_hog_scanner::SecretScannerBuilder;
 use rusty_hogs::aws_scanning::{S3Finding, S3Scanner};
 use s3::bucket::Bucket;

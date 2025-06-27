@@ -174,7 +174,7 @@ impl GDriveFileInfo {
                 return Err(SimpleError::new(format!(
                     "failed accessing Google Metadata API {:?}",
                     e
-                )))
+                )));
             }
         };
 

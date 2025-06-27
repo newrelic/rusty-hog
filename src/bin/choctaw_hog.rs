@@ -51,7 +51,7 @@ use rusty_hogs::git_scanning::GitScanner;
 /// Main entry function that uses the [clap crate](https://docs.rs/clap/2.33.0/clap/)
 fn main() {
     let matches = Command::new("choctaw_hog")
-        .version("1.0.11")
+        .version("1.0.12")
         .author("Scott Cutler <scutler@newrelic.com>")
         .about("Git secret scanner in Rust")
         .arg(Arg::new("REGEX").short('r').long("regex").action(ArgAction::Set).value_name("REGEX").help("Sets a custom regex JSON file"))
