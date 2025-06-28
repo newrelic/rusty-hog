@@ -42,7 +42,7 @@ jobs:
           os: macos-latest
           rust: stable
           target: x86_64-apple-darwin
-          cross: false
+          cross: true
         # - build: aarch64-macos
         #   os: macos-13-xlarge
         #   rust: stable

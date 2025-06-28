@@ -120,7 +120,7 @@ if ! ( echo "int main(int argc, char *argv[]) { return 0; }" | x86_64-linux-musl
     export CFLAGS="${CFLAGS} -I${OPENSSL_DIR}/include -L${OPENSSL_DIR}"
     export LDFLAGS="${LDFLAGS} -L${OPENSSL_DIR} -lssl -lcrypto"
     export OPENSSL_LIB_DIR="${OPENSSL_DIR}/lib"
-    export X86_64_UNKNOWN_LINUX_GNU_OPENSSL_DIR="${OPENSSL_DIR}"
+    export X86_64_UNKNOWN_LINUX_MUSL_OPENSSL_DIR="${OPENSSL_DIR}"
     export X86_64_UNKNOWN_LINUX_MUSL_OPENSSL_LIB_DIR="${OPENSSL_DIR}/lib"
     export X86_64_UNKNOWN_LINUX_MUSL_OPENSSL_STATIC="${OPENSSL_DIR}"
 else
