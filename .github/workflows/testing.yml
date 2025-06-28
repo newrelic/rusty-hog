@@ -38,11 +38,11 @@ jobs:
           rust: stable
           target: x86_64-unknown-linux-musl
           cross: true
-        - build: x86_64-macos
-          os: macos-latest
-          rust: stable
-          target: x86_64-apple-darwin
-          cross: false
+#        - build: x86_64-macos
+#          os: macos-latest
+#          rust: stable
+#          target: x86_64-apple-darwin
+#          cross: false
         # - build: aarch64-macos
         #   os: macos-13-xlarge
         #   rust: stable
@@ -64,9 +64,6 @@ jobs:
         with:
           toolchain: ${{ matrix.rust }}
           targets: ${{ matrix.target }}
-      - name: Add libssl if MacOS
-        run: sudo apt install -y libssl-dev
-        if: matrix.os == 'macos-latest'
       - name: Test
         uses: actions-rs/cargo@v1
         with:
