@@ -60,14 +60,10 @@ jobs:
           #  git-scanning tests need entire git history to work
           fetch-depth: 0
       - name: Install ${{ matrix.rust }}-${{ matrix.target }} toolchain
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@master
         with:
-          profile: minimal
           toolchain: ${{ matrix.rust }}
-          target: ${{ matrix.target }}
-          override: true
-      - run: sudo apt install -y libssl-dev
-        if: matrix.os == 'ubuntu-latest'
+          targets: ${{ matrix.target }}
       - name: Test
         uses: actions-rs/cargo@v1
         with:
