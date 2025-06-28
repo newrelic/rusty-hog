@@ -42,7 +42,7 @@ jobs:
           os: macos-latest
           rust: stable
           target: x86_64-apple-darwin
-          cross: true
+          cross: false
         # - build: aarch64-macos
         #   os: macos-13-xlarge
         #   rust: stable
@@ -66,6 +66,8 @@ jobs:
           toolchain: ${{ matrix.rust }}
           target: ${{ matrix.target }}
           override: true
+      - run: sudo apt install -y libssl-dev
+        if: matrix.os == 'ubuntu-latest'
       - name: Test
         uses: actions-rs/cargo@v1
         with:
