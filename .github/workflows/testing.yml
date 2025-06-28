@@ -65,7 +65,7 @@ jobs:
           toolchain: ${{ matrix.rust }}
           targets: ${{ matrix.target }}
       - name: Add libssl if MacOS
-        run: sudo apt install libssl-dev
+        run: sudo apt install -y libssl-dev
         if: matrix.os == 'macos-latest'
       - name: Test
         uses: actions-rs/cargo@v1
