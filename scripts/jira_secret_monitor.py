@@ -53,7 +53,7 @@ while len(issues) < total:
     result = r.json()
     issues.extend(result['issues'])
 
-gdoc_re = re.compile(r'https://docs.google.com/[^\s|\]]+', re.IGNORECASE)
+gdoc_re = re.compile(r'https://docs\.google\.com/[^\s|\]]+', re.IGNORECASE)
 links = defaultdict(set)
 
 logging.info("Reading issue descriptions...")
@@ -80,7 +80,7 @@ for issue in issues:
         for match in matches:
             links[issue['key']].add(match)
 
-gdoc_id_re = re.compile(r'https://docs.google.com/\w+/d/([a-zA-Z0-9-_]+)/?.*',re.IGNORECASE)
+gdoc_id_re = re.compile(r'https://docs\.google\.com/\w+/d/([a-zA-Z0-9-_]+)/?.*',re.IGNORECASE)
 output = []
 
 logging.info("Running ankamali hog on each Google Drive link found in Jira...")
@@ -167,7 +167,8 @@ for issue in issues:
             JIRA_URL,
             issue['key']
         ]
-    logging.info(f"Running gottingen hog: {cmdline}")
+    redacted_cmdline = ["***" if arg == JIRA_PASSWORD else arg for arg in cmdline]
+    logging.info(f"Running gottingen hog: {redacted_cmdline}")
     s = subprocess.run(
         cmdline,
         capture_output=True
