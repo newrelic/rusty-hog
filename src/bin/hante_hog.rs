@@ -32,14 +32,14 @@ extern crate hyper;
 extern crate hyper_rustls;
 
 use clap::{Arg, ArgAction, ArgMatches, Command};
+use encoding::DecoderTrap;
 use encoding::all::ASCII;
 use encoding::types::Encoding;
-use encoding::DecoderTrap;
 use hyper::body;
 use hyper::header::AUTHORIZATION;
 use hyper::http::Request;
 use hyper::http::StatusCode;
-use hyper::{client, Body, Client, Method};
+use hyper::{Body, Client, Method, client};
 use log::{self, debug, error, info};
 use rusty_hog_scanner::SecretScannerBuilder;
 use rusty_hog_scanner::{RustyHogMatch, SecretScanner};
@@ -65,7 +65,7 @@ pub struct SlackFinding {
 #[tokio::main]
 async fn main() {
     let matches: ArgMatches = Command::new("hante_hog")
-        .version("1.0.11")
+        .version("1.0.12")
         .author("Joao Henrique Machado Silva <joaoh82@gmail.com>")
         .about("Slack secret scanner in Rust.")
         .arg(

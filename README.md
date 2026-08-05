@@ -51,8 +51,8 @@ Download and unzip the [latest ZIP](https://github.com/newrelic/rusty-hog/releas
 on the releases tab. Then, run each binary with `-h` to see the usage.
 
 ```shell script
-wget https://github.com/newrelic/rusty-hog/releases/download/v1.0.11/rustyhogs-darwin-choctaw_hog-1.0.11.zip
-unzip rustyhogs-darwin-choctaw_hog-1.0.11.zip
+wget https://github.com/newrelic/rusty-hog/releases/download/v1.0.12/rustyhogs-darwin-choctaw_hog-1.0.12.zip
+unzip rustyhogs-darwin-choctaw_hog-1.0.12.zip
 darwin_releases/choctaw_hog -h
 ```
 
@@ -61,8 +61,8 @@ Rusty Hog Docker images can be found at the authors personal DockerHub page [her
 A Docker Image is built for each Hog and for each release. So to use choctaw_hog you would run the following commands:
 
 ```shell script
-docker pull wetfeet2000/choctaw_hog:1.0.10
-docker run -it --rm wetfeet2000/choctaw_hog:1.0.10 --help
+docker pull wetfeet2000/choctaw_hog:1.0.12
+docker run -it --rm wetfeet2000/choctaw_hog:1.0.12 --help
 ```
 
 ## How to build
@@ -107,7 +107,7 @@ brew install rpm2cpio FiloSottile/musl-cross/musl-cross
 
 Then run `./build_lambda_macos.sh`.
 
-The build script will build against OpenSSL 3.0.12. Use `export OPENSSL_BUILD_VER=3.0.12` to override.
+The build script will build against OpenSSL 3.0.16. Use `export OPENSSL_BUILD_VER=3.0.16` to override.
 
 The build script will build against Amazon Linux kernel headers
 provided by their RPM; `export AMAZON_KERNEL_HEADERS_RPM_URL=...` to override where the RPM is downloaded from. (There's nothing preventing a different distribution's linux-headers RPM from being used, we just need the linux-headers to build openssl for Linux)

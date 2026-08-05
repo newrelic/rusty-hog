@@ -31,6 +31,7 @@
 //!
 //! ```no_run
 //! # extern crate hyper_rustls;
+//! # extern crate google_drive3 as drive3;
 //! # extern crate yup_oauth2 as oauth2;
 //! use rusty_hog_scanner::SecretScannerBuilder;
 //! use rusty_hogs::google_scanning::{GDriveScanner, GDriveFileInfo};
@@ -47,10 +48,13 @@
 //! # let handle = rt.handle();
 //! # rt.block_on(async {
 //! // Start with GDrive auth - based on example code from drive3 API and yup-oauth2
-//! # let secret = yup_oauth2::read_application_secret(Path::new(oauthsecretfile))
+//! # let secret = drive3::oauth2::read_application_secret(Path::new(oauthsecretfile))
 //! # .await
 //! # .expect(oauthsecretfile);
-//! # let auth = InstalledFlowAuthenticator::builder(secret, InstalledFlowReturnMethod::HTTPRedirect)
+//! # let auth = drive3::oauth2::InstalledFlowAuthenticator::builder(
+//! #      secret,
+//! #      drive3::oauth2::InstalledFlowReturnMethod::HTTPRedirect
+//! #  )
 //! # .persist_tokens_to_disk(Path::new(oauthtokenfile))
 //! # .build()
 //! # .await
@@ -174,7 +178,7 @@ impl GDriveFileInfo {
                 return Err(SimpleError::new(format!(
                     "failed accessing Google Metadata API {:?}",
                     e
-                )))
+                )));
             }
         };
 

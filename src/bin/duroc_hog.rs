@@ -58,7 +58,7 @@ pub struct FileFinding {
     pub path: String,
     pub reason: String,
     pub linenum: usize,
-    pub lineindextuples: Vec<(usize, usize)>
+    pub lineindextuples: Vec<(usize, usize)>,
 }
 
 const ZIPEXTENSIONS: &[&str] = &["zip"];
@@ -68,7 +68,7 @@ const GZEXTENSIONS: &[&str] = &["gz", "tgz"];
 /// Main entry function that uses the [clap crate](https://docs.rs/clap/2.33.0/clap/)
 fn main() {
     let matches = Command::new("duroc_hog")
-        .version("1.0.11")
+        .version("1.0.12")
         .author("Scott Cutler <scutler@newrelic.com>")
         .about("File system secret scanner in Rust")
         .arg(
@@ -385,7 +385,7 @@ fn scan_bytes(input: Vec<u8>, ss: &SecretScanner, path: String) -> HashSet<FileF
                     .decode(&new_line[m.start()..m.end()], DecoderTrap::Ignore)
                     .unwrap_or_else(|_| "<STRING DECODE ERROR>".parse().unwrap());
                 strings_found.push(result);
-                lineindextuples.push((m.start(),m.end()));
+                lineindextuples.push((m.start(), m.end()));
             }
             if !strings_found.is_empty() {
                 findings.insert(FileFinding {
@@ -393,7 +393,7 @@ fn scan_bytes(input: Vec<u8>, ss: &SecretScanner, path: String) -> HashSet<FileF
                     reason: r.clone(),
                     path: path.clone(),
                     linenum: index + 1,
-                    lineindextuples
+                    lineindextuples,
                 });
             }
         }
@@ -408,7 +408,7 @@ mod tests {
     use std::io::Result;
     use std::io::Write;
     use std::process::Output;
-    use tempfile::{tempdir, NamedTempFile, TempDir};
+    use tempfile::{NamedTempFile, TempDir, tempdir};
 
     fn run_command_in_dir(dir: &TempDir, command: &str, args: &[&str]) -> Result<Output> {
         let dir_path = dir.path().to_str().unwrap();

@@ -44,7 +44,7 @@ use std::collections::HashSet;
 /// Main entry function that uses the [clap crate](https://docs.rs/clap/2.33.0/clap/)
 fn main() {
     let matches = Command::new("berkshire_hog")
-        .version("1.0.11")
+        .version("1.0.12")
         .author("Scott Cutler <scutler@newrelic.com>")
         .about("S3 secret hunter in Rust. Avoid bandwidth costs, run this within a VPC!")
         .arg(Arg::new("REGEX").long("regex").action(ArgAction::Set).help("Sets a custom regex JSON file"))

@@ -38,3 +38,6 @@
 - The update from 1.0.10 caused a major bug where choctaw_hog was reporting 0 results. This was due to a change in the
   behavior of the Rust Git library. The change is fixed and tested on MacOS.
 - Added the Slack hog - hante hog
+
+## 1.0.12
+- Updating Cargo edition from 2021 to 2024

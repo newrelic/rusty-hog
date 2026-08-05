@@ -33,16 +33,16 @@ extern crate clap;
 extern crate hyper;
 extern crate hyper_rustls;
 
-use base64::{engine::general_purpose as Base64Engine, Engine as _};
+use base64::{Engine as _, engine::general_purpose as Base64Engine};
 use clap::{Arg, ArgAction, ArgMatches, Command};
+use encoding::DecoderTrap;
 use encoding::all::ASCII;
 use encoding::types::Encoding;
-use encoding::DecoderTrap;
 use hyper::body;
 use hyper::header::AUTHORIZATION;
 use hyper::http::Request;
 use hyper::http::StatusCode;
-use hyper::{client, Body, Client};
+use hyper::{Body, Client, client};
 use log::{self, debug, error, info};
 use rusty_hog_scanner::SecretScannerBuilder;
 use rusty_hog_scanner::{RustyHogMatch, SecretScanner};
@@ -74,7 +74,7 @@ pub struct ConfluencePage {
 #[tokio::main]
 async fn main() {
     let matches = Command::new("gottingen_hog")
-        .version("1.0.11")
+        .version("1.0.12")
         .author("Emily Cain <ecain@newrelic.com>, Scott Cutler")
         .about("Confluence secret scanner in Rust.")
         .arg(
