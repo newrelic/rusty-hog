@@ -135,7 +135,7 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v3
       - name: Download artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4.1.7
       - name: List binaries
         run: ls -lah bins-*
       - name: Get tag name
@@ -190,7 +190,7 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v3
       - name: Download artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4.1.7
         with:
           name: docker
       - name: Load Docker Images
